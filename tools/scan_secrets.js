@@ -62,7 +62,18 @@ const check = async function scanSecrets(targetDir) {
 
     let content;
     try {
-      content = fs.readFileSync(filePath, 'utf-8');
+      const buffer = fs.readFileSync(filePath);
+      // Skip binary files (check for null byte in first 512 bytes)
+      let isBinary = false;
+      const checkLen = Math.min(buffer.length, 512);
+      for (let b = 0; b < checkLen; b++) {
+        if (buffer[b] === 0) {
+          isBinary = true;
+          break;
+        }
+      }
+      if (isBinary) continue;
+      content = buffer.toString('utf-8');
     } catch {
       continue;
     }

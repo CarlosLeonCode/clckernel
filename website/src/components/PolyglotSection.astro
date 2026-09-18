@@ -9,102 +9,435 @@ const { lang = 'en' } = Astro.props;
 const t = ui[lang];
 const isEs = lang === 'es';
 
-const stacks = [
-  { name: "Next.js / React", ecosystem: "TypeScript", runner: "Vitest / Jest", type: isEs ? "Frontend" : "Frontend" },
-  { name: "FastAPI", ecosystem: "Python", runner: "Pytest", type: isEs ? "Backend" : "Backend" },
-  { name: "Django", ecosystem: "Python", runner: "Pytest / Django Test", type: isEs ? "Fullstack" : "Fullstack" },
-  { name: "Astro", ecosystem: "TypeScript", runner: "Vitest / Playwright", type: isEs ? "Web y Contenido" : "Web & Content" },
-  { name: "Ruby on Rails", ecosystem: "Ruby", runner: "RSpec / Minitest", type: isEs ? "Backend" : "Backend" },
-  { name: "Golang", ecosystem: "Go", runner: "go test", type: isEs ? "Microservicios" : "Microservices" },
-  { name: "Rust", ecosystem: "Rust", runner: "cargo test", type: isEs ? "Sistemas" : "Systems" },
-  { name: "Laravel", ecosystem: "PHP", runner: "Pest / PHPUnit", type: isEs ? "Fullstack" : "Fullstack" },
+const stacks = isEs ? [
+  {
+    id: "nextjs",
+    name: "Next.js / React",
+    lang: "TypeScript",
+    icon: "⚡",
+    detection: "package.json (next)",
+    runner: "npm test (Vitest / Jest)",
+    gate: "node tools/audit.js",
+    rules: "Clean Arch AST + Responsive Guard + SEO & CWV",
+    snippet: `// Detected: Next.js App Router (TypeScript)
+// Initialized: .cursorrules, CLAUDE.md, AGY rules
+// Audit Engine: Node.js Native AST Parser
+✔ Hook installed: .husky/pre-commit -> node tools/audit.js
+✔ Enforcing: Mobile-first CSS & Clean Layer Isolation`,
+  },
+  {
+    id: "fastapi",
+    name: "FastAPI",
+    lang: "Python",
+    icon: "🐍",
+    detection: "pyproject.toml / requirements.txt",
+    runner: "pytest -v --cov",
+    gate: "python tools/audit.py",
+    rules: "Clean Arch AST + N+1 Query Guard + Secret Leak",
+    snippet: `# Detected: FastAPI Backend (Python 3.11+)
+# Initialized: GEMINI.md, CLAUDE.md, .cursorrules
+# Audit Engine: Python Native ast Module
+✔ Hook installed: .git/hooks/pre-commit -> python tools/audit.py
+✔ Enforcing: Red-first TDD & Zero N+1 ORM Queries`,
+  },
+  {
+    id: "django",
+    name: "Django",
+    lang: "Python",
+    icon: "🎯",
+    detection: "manage.py / settings.py",
+    runner: "python manage.py test",
+    gate: "python tools/audit.py",
+    rules: "Migration Idempotency + ORM Optimization",
+    snippet: `# Detected: Django Enterprise Stack
+# Initialized: CLAUDE.md, .antigravity/rules.md
+# Audit Engine: Python Native AST Analyzer
+✔ Hook installed: pre-commit -> python tools/audit.py
+✔ Enforcing: Reversible DB Migrations & Select Related`,
+  },
+  {
+    id: "astro",
+    name: "Astro",
+    lang: "TypeScript",
+    icon: "🚀",
+    detection: "astro.config.mjs",
+    runner: "npm test / Playwright",
+    gate: "node tools/audit.js",
+    rules: "CWV LCP Priority + OpenGraph + Touch Targets",
+    snippet: `// Detected: Astro Islands Architecture
+// Initialized: .cursor/rules/*.mdc, CLAUDE.md
+// Audit Engine: Node.js AST Parser
+✔ Hook installed: .husky/pre-commit
+✔ Enforcing: Zero-JS Defaults & 44x44px Touch Targets`,
+  },
+  {
+    id: "rails",
+    name: "Ruby on Rails",
+    lang: "Ruby",
+    icon: "💎",
+    detection: "Gemfile (rails)",
+    runner: "bundle exec rspec",
+    gate: "ruby tools/audit.rb",
+    rules: "Schema Integrity + Secret Leak Scanner",
+    snippet: `# Detected: Ruby on Rails Application (Ruby 3.2+)
+# Initialized: .cursorrules, CLAUDE.md, .antigravity/rules.md
+# Audit Engine: Ruby Native Parser / Ripper AST
+✔ Hook installed: .git/hooks/pre-commit -> ruby tools/audit.rb
+✔ Enforcing: RSpec Red->Green Verification & No Leaked Keys`,
+  },
+  {
+    id: "golang",
+    name: "Golang",
+    lang: "Go",
+    icon: "🔷",
+    detection: "go.mod",
+    runner: "go test -v ./...",
+    gate: "go run tools/audit.go",
+    rules: "Architecture Boundaries + Docker Security",
+    snippet: `// Detected: Go Microservices Suite (Go 1.22+)
+// Initialized: CLAUDE.md, .antigravity/rules.md
+// Audit Engine: Go Native go/parser AST Engine
+✔ Hook installed: .git/hooks/pre-commit -> go run tools/audit.go
+✔ Enforcing: Rootless Dockerfiles & Clean Layer Isolation`,
+  },
+  {
+    id: "rust",
+    name: "Rust",
+    lang: "Rust",
+    icon: "🦀",
+    detection: "Cargo.toml",
+    runner: "cargo test",
+    gate: "cargo run --bin audit",
+    rules: "Strict Memory & Scope Enforcement",
+    snippet: `// Detected: Rust High-Performance Engine (Cargo)
+// Initialized: .cursorrules, CLAUDE.md
+// Audit Engine: Native Rust AST / Syn & Diff Scope Gate
+✔ Hook installed: .git/hooks/pre-commit -> cargo run --bin audit
+✔ Enforcing: Strict SDD Scope & Automated Test Pass`,
+  },
+  {
+    id: "laravel",
+    name: "Laravel",
+    lang: "PHP",
+    icon: "🐘",
+    detection: "composer.json (laravel/framework)",
+    runner: "php artisan test",
+    gate: "php tools/audit.php",
+    rules: "Migration Safety + Layer Isolation",
+    snippet: `// Detected: Laravel Application (PHP 8.2+)
+// Initialized: .cursorrules, CLAUDE.md
+// Audit Engine: PHP Native AST Validator
+✔ Hook installed: .git/hooks/pre-commit -> php tools/audit.php
+✔ Enforcing: Idempotent Migrations & Safe Models`,
+  },
+] : [
+  {
+    id: "nextjs",
+    name: "Next.js / React",
+    lang: "TypeScript",
+    icon: "⚡",
+    detection: "package.json (next)",
+    runner: "npm test (Vitest / Jest)",
+    gate: "node tools/audit.js",
+    rules: "Clean Arch AST + Responsive Guard + SEO & CWV",
+    snippet: `// Detected: Next.js App Router (TypeScript)
+// Initialized: .cursorrules, CLAUDE.md, AGY rules
+// Audit Engine: Node.js Native AST Parser
+✔ Hook installed: .husky/pre-commit -> node tools/audit.js
+✔ Enforcing: Mobile-first CSS & Clean Layer Isolation`,
+  },
+  {
+    id: "fastapi",
+    name: "FastAPI",
+    lang: "Python",
+    icon: "🐍",
+    detection: "pyproject.toml / requirements.txt",
+    runner: "pytest -v --cov",
+    gate: "python tools/audit.py",
+    rules: "Clean Arch AST + N+1 Query Guard + Secret Leak",
+    snippet: `# Detected: FastAPI Backend (Python 3.11+)
+# Initialized: GEMINI.md, CLAUDE.md, .cursorrules
+# Audit Engine: Python Native ast Module
+✔ Hook installed: .git/hooks/pre-commit -> python tools/audit.py
+✔ Enforcing: Red-first TDD & Zero N+1 ORM Queries`,
+  },
+  {
+    id: "django",
+    name: "Django",
+    lang: "Python",
+    icon: "🎯",
+    detection: "manage.py / settings.py",
+    runner: "python manage.py test",
+    gate: "python tools/audit.py",
+    rules: "Migration Idempotency + ORM Optimization",
+    snippet: `# Detected: Django Enterprise Stack
+# Initialized: CLAUDE.md, .antigravity/rules.md
+# Audit Engine: Python Native AST Analyzer
+✔ Hook installed: pre-commit -> python tools/audit.py
+✔ Enforcing: Reversible DB Migrations & Select Related`,
+  },
+  {
+    id: "astro",
+    name: "Astro",
+    lang: "TypeScript",
+    icon: "🚀",
+    detection: "astro.config.mjs",
+    runner: "npm test / Playwright",
+    gate: "node tools/audit.js",
+    rules: "CWV LCP Priority + OpenGraph + Touch Targets",
+    snippet: `// Detected: Astro Islands Architecture
+// Initialized: .cursor/rules/*.mdc, CLAUDE.md
+// Audit Engine: Node.js AST Parser
+✔ Hook installed: .husky/pre-commit
+✔ Enforcing: Zero-JS Defaults & 44x44px Touch Targets`,
+  },
+  {
+    id: "rails",
+    name: "Ruby on Rails",
+    lang: "Ruby",
+    icon: "💎",
+    detection: "Gemfile (rails)",
+    runner: "bundle exec rspec",
+    gate: "ruby tools/audit.rb",
+    rules: "Schema Integrity + Secret Leak Scanner",
+    snippet: `# Detected: Ruby on Rails Application (Ruby 3.2+)
+# Initialized: .cursorrules, CLAUDE.md, .antigravity/rules.md
+# Audit Engine: Ruby Native Parser / Ripper AST
+✔ Hook installed: .git/hooks/pre-commit -> ruby tools/audit.rb
+✔ Enforcing: RSpec Red->Green Verification & No Leaked Keys`,
+  },
+  {
+    id: "golang",
+    name: "Golang",
+    lang: "Go",
+    icon: "🔷",
+    detection: "go.mod",
+    runner: "go test -v ./...",
+    gate: "go run tools/audit.go",
+    rules: "Architecture Boundaries + Docker Security",
+    snippet: `// Detected: Go Microservices Suite (Go 1.22+)
+// Initialized: CLAUDE.md, .antigravity/rules.md
+// Audit Engine: Go Native go/parser AST Engine
+✔ Hook installed: .git/hooks/pre-commit -> go run tools/audit.go
+✔ Enforcing: Rootless Dockerfiles & Clean Layer Isolation`,
+  },
+  {
+    id: "rust",
+    name: "Rust",
+    lang: "Rust",
+    icon: "🦀",
+    detection: "Cargo.toml",
+    runner: "cargo test",
+    gate: "cargo run --bin audit",
+    rules: "Strict Memory & Scope Enforcement",
+    snippet: `// Detected: Rust High-Performance Engine (Cargo)
+// Initialized: .cursorrules, CLAUDE.md
+// Audit Engine: Native Rust AST / Syn & Diff Scope Gate
+✔ Hook installed: .git/hooks/pre-commit -> cargo run --bin audit
+✔ Enforcing: Strict SDD Scope & Automated Test Pass`,
+  },
+  {
+    id: "laravel",
+    name: "Laravel",
+    lang: "PHP",
+    icon: "🐘",
+    detection: "composer.json (laravel/framework)",
+    runner: "php artisan test",
+    gate: "php tools/audit.php",
+    rules: "Migration Safety + Layer Isolation",
+    snippet: `// Detected: Laravel Application (PHP 8.2+)
+// Initialized: .cursorrules, CLAUDE.md
+// Audit Engine: PHP Native AST Validator
+✔ Hook installed: .git/hooks/pre-commit -> php tools/audit.php
+✔ Enforcing: Idempotent Migrations & Safe Models`,
+  },
 ];
 
 const harnesses = isEs ? [
   {
-    name: "Cursor / Windsurf",
-    file: ".cursorrules y .cursor/rules/*.mdc",
-    desc: "Enlace simbólico directo a la ley de arquitectura y límites de capas del repositorio.",
+    id: "cursor",
+    name: "Cursor",
+    icon: "⚡",
+    file: ".cursorrules",
+    tag: "Mirror Dinámico",
+    desc: "Inyección automática de leyes y compuertas en el contexto del chat y tab completions.",
   },
   {
+    id: "antigravity",
     name: "Google Antigravity",
-    file: ".antigravity/rules.md y skills",
-    desc: "Sincronización fluida de skills personalizados, compuertas de auditoría y reglas de ejecución.",
+    icon: "🌐",
+    file: ".antigravity/rules.md",
+    tag: "Skills Nativas",
+    desc: "Sincronización fluida de skills especializadas, compuertas de auditoría y reglas de ejecución.",
   },
   {
+    id: "claude",
     name: "Claude Code",
+    icon: "🤖",
     file: "CLAUDE.md",
-    desc: "Exigencia estricta de verificación TDD y compuertas AST obligatorias antes de comitear.",
+    tag: "Enforcer TDD",
+    desc: "Exigencia estricta del flujo TDD y cumplimiento obligatorio del gate de auditoría AST.",
   },
   {
+    id: "copilot",
     name: "GitHub Copilot",
+    icon: "🐙",
     file: ".github/copilot-instructions.md",
-    desc: "Inyección de contexto consistente para completado de código y sugerencias en chat.",
+    tag: "Context Rules",
+    desc: "Contexto consistente inyectado en sugerencias inline y chats de desarrollo.",
   },
 ] : [
   {
-    name: "Cursor / Windsurf",
-    file: ".cursorrules & .cursor/rules/*.mdc",
-    desc: "Direct symbolic link to authoritative repository law and layer boundaries.",
+    id: "cursor",
+    name: "Cursor",
+    icon: "⚡",
+    file: ".cursorrules",
+    tag: "Dynamic Mirror",
+    desc: "Automatic injection of repository laws into context, chat, and tab autocomplete.",
   },
   {
+    id: "antigravity",
     name: "Google Antigravity",
-    file: ".antigravity/rules.md & skills",
+    icon: "🌐",
+    file: ".antigravity/rules.md",
+    tag: "Native Skills",
     desc: "Seamless synchronization of custom skills, audit gates, and execution rules.",
   },
   {
+    id: "claude",
     name: "Claude Code",
+    icon: "🤖",
     file: "CLAUDE.md",
+    tag: "TDD Enforcer",
     desc: "Strict TDD verification enforcement and mandatory AST audit gate compliance.",
   },
   {
+    id: "copilot",
     name: "GitHub Copilot",
+    icon: "🐙",
     file: ".github/copilot-instructions.md",
+    tag: "Context Rules",
     desc: "Consistent context injection for inline completions and chat suggestions.",
   },
 ];
 ---
 
-<section id="ecosystems" class="py-20 md:py-28 border-t border-slate-200 bg-[#f8fafc]/70">
+<section id="ecosystems" class="relative py-20 md:py-28 border-t border-slate-200/80 bg-transparent overflow-hidden">
+  
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start mb-16">
-      <div class="lg:col-span-5">
-        <h2 class="text-xs uppercase font-mono tracking-widest text-emerald-600 font-semibold mb-2">{t['polyglot.kicker']}</h2>
-        <p class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 mb-4">
-          {t['polyglot.title']}
-        </p>
-        <p class="text-sm sm:text-base text-slate-600 leading-relaxed">
-          {t['polyglot.desc']}
-        </p>
+    <!-- Section Header -->
+    <div class="max-w-3xl mb-12 space-y-3">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-mono font-medium shadow-2xs">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span>{t['polyglot.kicker']}</span>
       </div>
-
-      <div class="lg:col-span-7 grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {stacks.map((stack) => (
-          <div class="surface-card p-4 flex flex-col justify-between min-h-[105px]">
-            <div>
-              <div class="font-bold text-sm text-slate-900 mb-1">{stack.name}</div>
-              <div class="text-[11px] text-slate-500">{stack.ecosystem}</div>
-            </div>
-            <div class="text-[10px] font-mono text-emerald-700 font-medium pt-2 border-t border-slate-100">
-              {stack.runner}
-            </div>
-          </div>
-        ))}
-      </div>
+      
+      <h2 class="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 leading-[1.12]">
+        {t['polyglot.title']}
+      </h2>
+      
+      <p class="text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
+        {t['polyglot.desc']}
+      </p>
     </div>
 
-    <!-- AI Harness Integration Grid -->
-    <div>
-      <h3 class="text-xs font-mono uppercase text-slate-500 font-semibold tracking-wider mb-4">
-        {t['polyglot.harnessTitle']}
-      </h3>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- Organic Layout: Interactive Polyglot Stack Inspector -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-14 items-start">
+      
+      <!-- Stacks Tab List (Left Column: Sleek minimal pill items) -->
+      <div class="lg:col-span-5 grid grid-cols-2 gap-2" id="polyglot-stack-list">
+        {stacks.map((stack, idx) => (
+          <button
+            type="button"
+            data-stack-id={stack.id}
+            class={`polyglot-tab p-3 rounded-xl border text-left transition-all duration-150 cursor-pointer focus:outline-none flex items-center justify-between gap-2 group ${
+              idx === 0
+                ? 'active bg-white border-emerald-500/80 shadow-xs ring-1 ring-emerald-500/20'
+                : 'bg-white/60 border-slate-200/80 hover:bg-white hover:border-slate-300'
+            }`}
+          >
+            <div class="flex items-center gap-2 truncate">
+              <span class="text-base">{stack.icon}</span>
+              <span class="text-xs font-bold text-slate-900 group-hover:text-emerald-700 transition-colors truncate">
+                {stack.name}
+              </span>
+            </div>
+            <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold shrink-0">
+              {stack.lang}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <!-- Live Stack Preview Card (Right Column) -->
+      <div class="lg:col-span-7 bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-lg shadow-slate-200/40 p-5 sm:p-6 relative overflow-hidden flex flex-col justify-between min-h-[340px]">
+        
+        <!-- Terminal Header -->
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            <span class="ml-2 font-mono text-xs text-slate-600 font-semibold" id="preview-filename">.clckernel.yaml — nextjs</span>
+          </div>
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 font-mono text-[10px] font-semibold">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+            READY TO PROVISION
+          </span>
+        </div>
+
+        <!-- Meta Specs Row -->
+        <div class="grid grid-cols-3 gap-2 mb-3 font-mono text-xs">
+          <div class="p-2 rounded-lg bg-slate-50 border border-slate-200/70">
+            <span class="text-[9px] text-slate-400 block font-bold uppercase">SIGNATURE</span>
+            <span class="text-slate-800 font-semibold truncate block text-[11px]" id="preview-detection">{stacks[0].detection}</span>
+          </div>
+          <div class="p-2 rounded-lg bg-slate-50 border border-slate-200/70">
+            <span class="text-[9px] text-slate-400 block font-bold uppercase">TEST RUNNER</span>
+            <span class="text-emerald-700 font-semibold truncate block text-[11px]" id="preview-runner">{stacks[0].runner}</span>
+          </div>
+          <div class="p-2 rounded-lg bg-slate-50 border border-slate-200/70">
+            <span class="text-[9px] text-slate-400 block font-bold uppercase">AUDIT GATE</span>
+            <span class="text-cyan-700 font-semibold truncate block text-[11px]" id="preview-gate">{stacks[0].gate}</span>
+          </div>
+        </div>
+
+        <!-- Terminal Output Code Snippet -->
+        <div class="bg-slate-50 rounded-xl p-3 font-mono text-[11px] text-slate-800 border border-slate-200 shadow-inner flex-1 flex flex-col justify-center">
+          <pre class="whitespace-pre overflow-x-auto leading-relaxed text-slate-700" id="preview-snippet">{stacks[0].snippet}</pre>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- AI Harness Integration: Borderless Horizontal Ribbon (No Cards) -->
+    <div class="pt-4 border-t border-slate-200">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xs font-mono uppercase text-slate-500 font-bold tracking-wider">
+          {t['polyglot.harnessTitle']}
+        </h3>
+        <span class="text-[11px] font-mono text-emerald-700 font-semibold">
+          {isEs ? "Sincronización Dinámica SSOT" : "SSOT Dynamic Sync"}
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {harnesses.map((harness) => (
-          <div class="surface-card p-5">
-            <div class="font-bold text-sm text-slate-900 mb-1">{harness.name}</div>
-            <div class="font-mono text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 inline-block mb-2 font-medium">{harness.file}</div>
-            <p class="text-xs text-slate-600 leading-relaxed">{harness.desc}</p>
+          <div class="p-3.5 rounded-xl bg-white border border-slate-200/80 space-y-1.5 hover:border-emerald-300 hover:bg-emerald-50/20 transition-all duration-150 group">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 font-bold text-xs text-slate-900 group-hover:text-emerald-800 transition-colors">
+                <span class="text-sm">{harness.icon}</span>
+                <span>{harness.name}</span>
+              </div>
+              <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">
+                {harness.file}
+              </span>
+            </div>
+            <p class="text-[11px] text-slate-600 leading-relaxed font-normal">
+              {harness.desc}
+            </p>
           </div>
         ))}
       </div>
@@ -112,3 +445,46 @@ const harnesses = isEs ? [
 
   </div>
 </section>
+
+<div id="polyglot-stacks-data" data-payload={JSON.stringify(stacks)} class="hidden"></div>
+
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', () => {
+    const rawStacks = document.getElementById('polyglot-stacks-data')?.getAttribute('data-payload') || '[]';
+    const stacksData = JSON.parse(rawStacks);
+    if (!stacksData.length) return;
+
+    const tabs = document.querySelectorAll('.polyglot-tab');
+    const filenameEl = document.getElementById('preview-filename');
+    const detectionEl = document.getElementById('preview-detection');
+    const runnerEl = document.getElementById('preview-runner');
+    const gateEl = document.getElementById('preview-gate');
+    const snippetEl = document.getElementById('preview-snippet');
+
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const stackId = tab.getAttribute('data-stack-id');
+        const stack = stacksData.find((s) => s.id === stackId);
+        if (!stack) return;
+
+        // Active state styling
+        tabs.forEach((t) => {
+          t.className = 'polyglot-tab p-3 rounded-xl border text-left transition-all duration-150 cursor-pointer focus:outline-none flex items-center justify-between gap-2 group bg-white/60 border-slate-200/80 hover:bg-white hover:border-slate-300';
+        });
+        tab.className = 'polyglot-tab p-3 rounded-xl border text-left transition-all duration-150 cursor-pointer focus:outline-none flex items-center justify-between gap-2 group active bg-white border-emerald-500/80 shadow-xs ring-1 ring-emerald-500/20';
+
+        // Update preview content
+        if (filenameEl) filenameEl.textContent = `.clckernel.yaml — ${stack.id}`;
+        if (detectionEl) detectionEl.textContent = stack.detection;
+        if (runnerEl) runnerEl.textContent = stack.runner;
+        if (gateEl) gateEl.textContent = stack.gate;
+        if (snippetEl) {
+          snippetEl.textContent = stack.snippet;
+          if (typeof gsap !== 'undefined') {
+            gsap.fromTo(snippetEl, { opacity: 0.6, y: 3 }, { opacity: 1, y: 0, duration: 0.2, ease: 'power2.out' });
+          }
+        }
+      });
+    });
+  });
+</script>

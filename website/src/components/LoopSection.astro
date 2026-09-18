@@ -12,131 +12,627 @@ const isEs = lang === 'es';
 const steps = isEs ? [
   {
     phase: "01",
-    name: "Investigación y Causa Raíz",
-    category: "Contexto",
-    desc: "Inspecciona rutas de código, dependencias AST y trazas de error antes de editar. Prohíbe alucinaciones sin evidencia del codebase.",
-    details: "Cero ediciones a ciegas. El contexto debe probarse antes de tocar archivos.",
+    name: "Investigación y Contexto",
+    shortName: "Investigación",
+    badge: "AST DISCOVERY",
+    concept: "Cero ediciones a ciegas",
+    summary: "Inspecciona dependencias AST y trazas antes de tocar código. Evita alucinaciones y comprende las invariantes del dominio.",
+    tag: "Contexto",
+    accent: "cyan",
+    pills: ["AST Discovery", "Traceback Proof", "No Hallucination"],
+    microType: "radar",
   },
   {
     phase: "02",
     name: "Planificación Local SDD",
-    category: "Arquitectura",
-    desc: "Genera especificaciones locales de desarrollo guiado por specs (sdds/) con límites de alcance y contratos de API claros.",
-    details: "100% local y gitignored para aislar la intención de desarrollo.",
+    shortName: "Plan SDD",
+    badge: "SPEC ISOLATION",
+    concept: "Contratos y límites de scope",
+    summary: "Genera especificaciones técnicas locales gitignored (sdds/) con contratos de API e invariantes estrictas antes de codificar.",
+    tag: "Arquitectura",
+    accent: "indigo",
+    pills: ["100% Local", "Gitignored", "Contract First"],
+    microType: "blueprint",
   },
   {
     phase: "03",
     name: "Fase Roja TDD (Regresión)",
-    category: "Verificación",
-    desc: "Escribe primero las pruebas unitarias que fallan. El arnés registra el código de salida de fallo como prueba del defecto.",
-    details: "Salida de test fallido obligatoria antes de implementar soluciones.",
+    shortName: "Fase Roja",
+    badge: "RED VERIFICATION",
+    concept: "Prueba de falla determinista",
+    summary: "Escribe primero el test que falla y registra el código de salida no nulo para comprobar genuinamente el defecto antes del fix.",
+    tag: "Verificación",
+    accent: "rose",
+    pills: ["Failing Test First", "Exit Code != 0", "Defect Proof"],
+    microType: "testRed",
   },
   {
     phase: "04",
-    name: "Implementación Limpia (Verde)",
-    category: "Ejecución",
-    desc: "Implementa el cambio para hacer pasar la suite de pruebas respetando estrictamente el aislamiento de capas de Clean Architecture.",
-    details: "Las capas de presentación no pueden consultar la base de datos directamente.",
+    name: "Implementación Limpia",
+    shortName: "Clean Code",
+    badge: "GREEN PASS",
+    concept: "Aislamiento de capas Clean",
+    summary: "Hace pasar los tests respetando estrictamente la separación de capas (Dominio → Casos de Uso → Infraestructura).",
+    tag: "Ejecución",
+    accent: "emerald",
+    pills: ["Layer Isolation", "Green Tests", "Clean Arch"],
+    microType: "cleanLayers",
   },
   {
     phase: "05",
     name: "Compuerta de Auditoría AST",
-    category: "Salvaguardas",
-    desc: "Ejecuta linters AST, escáneres de secretos, detección de N+1 y validaciones responsive antes del stage.",
-    details: "Scripts deterministas sin dependencias en Node.js y Python.",
+    shortName: "Auditoría AST",
+    badge: "GUARDRAILS",
+    concept: "Linters nativos sin dependencias",
+    summary: "Auditorías AST deterministas en el lenguaje nativo (<5ms): detecta fuga de secretos, queries ORM N+1 y reglas responsive.",
+    tag: "Salvaguardas",
+    accent: "amber",
+    pills: ["Zero-Dep Scripts", "Anti-Secret Leak", "N+1 Detection"],
+    microType: "astAudit",
   },
   {
     phase: "06",
     name: "DoD y Pre-Commit Estricto",
-    category: "Entrega",
-    desc: "Los hooks de pre-commit verifican que todas las salvaguardas hayan aprobado antes de autorizar el commit en git.",
-    details: "Bloquea commits no conformes automáticamente en el límite de git.",
+    shortName: "Pre-Commit",
+    badge: "GIT LOCK",
+    concept: "Bloqueo inmutable en git",
+    summary: "El hook de pre-commit valida todas las compuertas antes de autorizar el commit. Si algo falla, cancela con Exit Code 1.",
+    tag: "Entrega",
+    accent: "violet",
+    pills: ["Native Hook", "Pre-Commit Guard", "Zero Bypass"],
+    microType: "gitLock",
   },
 ] : [
   {
     phase: "01",
     name: "Research & Root Cause",
-    category: "Context",
-    desc: "Inspect code paths, AST dependencies, and tracebacks before editing. Forbids AI hallucinations without codebase evidence.",
-    details: "Zero blind edits. Codebase context must be proven before writing files.",
+    shortName: "Research",
+    badge: "AST DISCOVERY",
+    concept: "Zero blind edits",
+    summary: "Inspects AST dependencies and tracebacks before touching code to eliminate hallucinations and understand invariants.",
+    tag: "Context",
+    accent: "cyan",
+    pills: ["AST Discovery", "Traceback Proof", "No Hallucination"],
+    microType: "radar",
   },
   {
     phase: "02",
     name: "SDD Local Planning",
-    category: "Architecture",
-    desc: "Generate local, gitignored Spec-Driven Development specs (sdds/) containing clear boundaries and schema contracts.",
-    details: "100% local and gitignored specs to isolate development intent.",
+    shortName: "SDD Plan",
+    badge: "SPEC ISOLATION",
+    concept: "Strict scope boundaries",
+    summary: "Generates local, gitignored specs (sdds/) with rigid API contracts and architectural scope boundaries before coding.",
+    tag: "Architecture",
+    accent: "indigo",
+    pills: ["100% Local", "Gitignored", "Contract First"],
+    microType: "blueprint",
   },
   {
     phase: "03",
     name: "TDD Red Phase (Regression)",
-    category: "Verification",
-    desc: "Write failing unit tests first. The harness records the failing exit code as deterministic evidence of defect reproduction.",
-    details: "Failing test output required before implementing fixes.",
+    shortName: "Red Phase",
+    badge: "RED VERIFICATION",
+    concept: "Deterministic defect proof",
+    summary: "Writes failing unit tests first and records the non-zero exit code to prove the defect before implementing any fix.",
+    tag: "Verification",
+    accent: "rose",
+    pills: ["Failing Test First", "Exit Code != 0", "Defect Proof"],
+    microType: "testRed",
   },
   {
     phase: "04",
-    name: "Clean Implementation (Green)",
-    category: "Execution",
-    desc: "Implement the feature or fix to make the test suite pass while strictly adhering to Clean Architecture layer isolation.",
-    details: "Presentation layers cannot call database models directly.",
+    name: "Clean Implementation",
+    shortName: "Clean Code",
+    badge: "GREEN PASS",
+    concept: "Clean Architecture layer isolation",
+    summary: "Implements the solution to pass tests while strictly preserving layer isolation (Domain → Use Case → Infrastructure).",
+    tag: "Execution",
+    accent: "emerald",
+    pills: ["Layer Isolation", "Green Tests", "Clean Arch"],
+    microType: "cleanLayers",
   },
   {
     phase: "05",
     name: "Automated Audit Gate",
-    category: "Guardrails",
-    desc: "Execute AST linters, secret scanners, N+1 query checks, and responsive layout audits before staging files.",
-    details: "Deterministic zero-dependency scripts in Node.js & Python.",
+    shortName: "AST Audit",
+    badge: "GUARDRAILS",
+    concept: "Zero-dependency native linters",
+    summary: "Deterministic AST audits in your native stack (<5ms): secrets scanner, ORM N+1 query detector, and responsive checks.",
+    tag: "Guardrails",
+    accent: "amber",
+    pills: ["Zero-Dep Scripts", "Anti-Secret Leak", "N+1 Detection"],
+    microType: "astAudit",
   },
   {
     phase: "06",
     name: "DoD & Pre-Commit Enforcement",
-    category: "Delivery",
-    desc: "Native pre-commit hooks verify that all safeguards and audit gates passed before authorizing git commits.",
-    details: "Blocks non-compliant commits automatically at the git boundary.",
+    shortName: "Pre-Commit",
+    badge: "GIT LOCK",
+    concept: "Immutable git boundary lock",
+    summary: "Pre-commit hooks verify all safeguards before authorizing commits. Cancels on non-zero exit codes.",
+    tag: "Delivery",
+    accent: "violet",
+    pills: ["Native Hook", "Pre-Commit Guard", "Zero Bypass"],
+    microType: "gitLock",
   },
 ];
 ---
 
-<section id="lifecycle" class="py-20 md:py-28 border-t border-slate-200 bg-[#f8fafc]/70">
+<section id="lifecycle" class="relative py-20 md:py-28 border-t border-slate-200/80 bg-transparent overflow-hidden">
+  
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="max-w-3xl mb-16">
-      <h2 class="text-xs uppercase font-mono tracking-widest text-emerald-600 font-semibold mb-2">{t['loop.kicker']}</h2>
-      <p class="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 mb-4">
+    
+    <!-- Section Header (Clean & Direct) -->
+    <div class="max-w-3xl mb-12 space-y-4">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-800 text-xs font-mono font-medium shadow-2xs">
+        <span class="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse"></span>
+        <span>{t['loop.kicker']}</span>
+      </div>
+      
+      <h2 class="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 leading-[1.12]">
         {t['loop.title']}
-      </p>
-      <p class="text-sm sm:text-base text-slate-600 leading-relaxed">
+      </h2>
+      
+      <p class="text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
         {t['loop.desc']}
       </p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-      {steps.map((step) => (
-        <div class="surface-card p-6 flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between mb-4">
-              <span class="font-mono text-xl font-bold text-emerald-600">
-                {step.phase}
-              </span>
-              <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-medium">
-                {step.category}
+    <!-- MAIN PIPELINE CONTAINER (Zero Card-Soup, Open & Sleek) -->
+    <div class="space-y-8" id="pipeline-main-container">
+      
+      <!-- Top Interactive Pipeline Rail (6 Phases Horizontal Flow) -->
+      <div class="border-y border-slate-200 py-3 bg-white/50 backdrop-blur-xs">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3" id="pipeline-rail">
+          {steps.map((step, idx) => (
+            <button
+              type="button"
+              data-phase-index={idx}
+              class={`pipeline-step-btn group text-left p-3 rounded-xl transition-all duration-200 cursor-pointer focus:outline-none relative flex flex-col justify-between ${
+                idx === 0
+                  ? 'bg-white shadow-md shadow-slate-200/60 border border-cyan-300'
+                  : 'hover:bg-white/80 border border-transparent hover:border-slate-200'
+              }`}
+            >
+              <!-- Step Header -->
+              <div class="flex items-center justify-between gap-2 mb-1.5">
+                <span class={`step-num font-mono text-xs font-extrabold px-1.5 py-0.5 rounded transition-colors ${
+                  idx === 0 ? 'bg-cyan-600 text-white' : 'bg-slate-100 text-slate-500 group-hover:text-slate-800'
+                }`}>
+                  {step.phase}
+                </span>
+                <span class="step-tag font-mono text-[10px] uppercase font-bold text-slate-400 group-hover:text-slate-600 truncate">
+                  {step.tag}
+                </span>
+              </div>
+
+              <!-- Step Short Name -->
+              <div class={`step-name text-xs font-bold transition-colors truncate ${
+                idx === 0 ? 'text-slate-900' : 'text-slate-600 group-hover:text-slate-900'
+              }`}>
+                {step.shortName}
+              </div>
+
+              <!-- Active Progress Accent Bar -->
+              <div class={`step-progress-bar absolute bottom-0 left-2 right-2 h-0.5 rounded-full transition-all duration-300 ${
+                idx === 0 ? 'bg-cyan-500 opacity-100' : 'bg-transparent opacity-0'
+              }`}></div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <!-- Live Stage: Left = Phase Blueprint & Controls, Right = Terminal Verification Proof -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start pt-2">
+        
+        <!-- LEFT COLUMN: Phase Blueprint -->
+        <div class="lg:col-span-5 space-y-6" id="stage-blueprint-column">
+          
+          <div class="space-y-4">
+            <!-- Phase Meta & Badge -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-xs font-extrabold px-3 py-1 rounded-lg bg-cyan-50 text-cyan-900 border border-cyan-200 shadow-2xs" id="stage-badge">
+                  PHASE 01 • AST DISCOVERY
+                </span>
+              </div>
+              <span class="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider" id="stage-counter">
+                01 / 06
               </span>
             </div>
 
-            <h3 class="text-base font-bold text-slate-900 mb-2">
-              {step.name}
-            </h3>
-            
-            <p class="text-xs text-slate-600 leading-relaxed mb-4">
-              {step.desc}
+            <!-- Title & Concept -->
+            <div class="space-y-1.5">
+              <h3 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight" id="stage-title">
+                {steps[0].name}
+              </h3>
+              <div class="text-xs sm:text-sm font-mono font-semibold text-cyan-700 flex items-center gap-2" id="stage-concept">
+                <span>🎯</span>
+                <span>{steps[0].concept}</span>
+              </div>
+            </div>
+
+            <!-- Summary -->
+            <p class="text-sm sm:text-base text-slate-600 leading-relaxed font-normal" id="stage-summary">
+              {steps[0].summary}
             </p>
+
+            <!-- Pills -->
+            <div class="flex flex-wrap items-center gap-2 pt-2" id="stage-pills">
+              {steps[0].pills.map((pill) => (
+                <span class="text-xs font-mono px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-semibold border border-slate-200/80 shadow-2xs">
+                  {pill}
+                </span>
+              ))}
+            </div>
           </div>
 
-          <div class="pt-3 border-t border-slate-100 text-[11px] font-mono text-slate-500">
-            {step.details}
+          <!-- Stage Controls -->
+          <div class="pt-4 border-t border-slate-200 flex items-center justify-between gap-4">
+            <button 
+              type="button" 
+              id="pipeline-pause-btn"
+              class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs font-mono border border-slate-200 transition-all cursor-pointer flex items-center gap-2 shadow-2xs"
+            >
+              <span id="pipeline-pause-dot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span id="pipeline-pause-text">{isEs ? "Pausar avance" : "Pause autoplay"}</span>
+            </button>
+            
+            <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <button 
+                type="button" 
+                id="pipeline-prev-btn" 
+                class="w-8 h-8 rounded-lg bg-white hover:bg-slate-50 text-slate-700 flex items-center justify-center font-bold border border-slate-200 shadow-2xs cursor-pointer active:scale-95 text-xs font-mono"
+                aria-label="Previous Phase"
+              >
+                ←
+              </button>
+              <button 
+                type="button" 
+                id="pipeline-next-btn" 
+                class="w-8 h-8 rounded-lg bg-white hover:bg-slate-50 text-slate-700 flex items-center justify-center font-bold border border-slate-200 shadow-2xs cursor-pointer active:scale-95 text-xs font-mono"
+                aria-label="Next Phase"
+              >
+                →
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN: Interactive Terminal Proof / Verification Window -->
+        <div class="lg:col-span-7" id="stage-terminal-column">
+          <div class="bg-slate-900 text-slate-100 rounded-2xl p-5 sm:p-6 font-mono text-xs shadow-xl border border-slate-800 space-y-4 relative overflow-hidden" id="stage-terminal-box">
+            
+            <!-- Terminal Header -->
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3 text-slate-400 text-[11px]">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500/80"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-500/80"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></span>
+                <span class="ml-2 font-mono text-slate-300 font-semibold" id="terminal-title">clckernel — investigation</span>
+              </div>
+              <span class="text-[10px] text-cyan-400 font-mono" id="terminal-badge">LIVE PROOF</span>
+            </div>
+
+            <!-- Dynamic Output Body -->
+            <div id="stage-terminal-body" class="space-y-3 pt-1">
+              <!-- Default Phase 01 snippet rendered statically for SEO / instant render -->
+              <div class="space-y-2">
+                <div class="text-slate-400 flex items-center gap-2">
+                  <span class="text-cyan-400 font-bold">$</span>
+                  <span>clckernel inspect --ast-symbols --trace</span>
+                </div>
+                <div class="text-slate-300 pl-4 space-y-1 text-[11px] border-l-2 border-cyan-500/40 my-2">
+                  <div>→ Parsing AST syntax tree across 14 modules (<span class="text-emerald-400">3.2ms</span>)</div>
+                  <div>→ Resolved Invariants: <span class="text-cyan-300">AuthService</span>, <span class="text-cyan-300">SessionTokenManager</span></div>
+                  <div>→ Identified Root Cause: Missing token expiration handler in JWT encoder</div>
+                </div>
+                <div class="text-emerald-400 font-bold bg-emerald-950/40 border border-emerald-800/60 p-2.5 rounded-lg text-[11px]">
+                  ✔ Context Lock: 0 hallucinations before writing code
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
-      ))}
+
+      </div>
+
     </div>
+
   </div>
 </section>
+
+<div id="pipeline-steps-data" data-payload={JSON.stringify(steps)} class="hidden"></div>
+
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', () => {
+    const rawData = document.getElementById('pipeline-steps-data')?.getAttribute('data-payload') || '[]';
+    const stepsData = JSON.parse(rawData);
+    if (!stepsData.length) return;
+
+    let currentIdx = 0;
+    let cycleTimer = null;
+    let isPaused = false;
+
+    // UI Elements
+    const stepButtons = document.querySelectorAll('.pipeline-step-btn');
+    const stageBadge = document.getElementById('stage-badge');
+    const stageCounter = document.getElementById('stage-counter');
+    const stageTitle = document.getElementById('stage-title');
+    const stageConcept = document.getElementById('stage-concept');
+    const stageSummary = document.getElementById('stage-summary');
+    const stagePills = document.getElementById('stage-pills');
+    const stageTerminalBody = document.getElementById('stage-terminal-body');
+    const stageTerminalBox = document.getElementById('stage-terminal-box');
+    const terminalTitle = document.getElementById('terminal-title');
+    const terminalBadge = document.getElementById('terminal-badge');
+
+    // Controls
+    const pauseBtn = document.getElementById('pipeline-pause-btn');
+    const pauseText = document.getElementById('pipeline-pause-text');
+    const pauseDot = document.getElementById('pipeline-pause-dot');
+    const prevBtn = document.getElementById('pipeline-prev-btn');
+    const nextBtn = document.getElementById('pipeline-next-btn');
+
+    function getTerminalContent(idx) {
+      switch (idx) {
+        case 0:
+          return {
+            title: 'clckernel — investigation',
+            badge: 'AST DISCOVERY',
+            html: `
+              <div class="space-y-2">
+                <div class="text-slate-400 flex items-center gap-2">
+                  <span class="text-cyan-400 font-bold">$</span>
+                  <span>clckernel inspect --ast-symbols --trace</span>
+                </div>
+                <div class="text-slate-300 pl-4 space-y-1 text-[11px] border-l-2 border-cyan-500/40 my-2">
+                  <div>→ Parsing AST syntax tree across 14 modules (<span class="text-emerald-400">3.2ms</span>)</div>
+                  <div>→ Resolved Invariants: <span class="text-cyan-300">AuthService</span>, <span class="text-cyan-300">SessionTokenManager</span></div>
+                  <div>→ Identified Root Cause: Missing token expiration handler in JWT encoder</div>
+                </div>
+                <div class="text-emerald-400 font-bold bg-emerald-950/40 border border-emerald-800/60 p-2.5 rounded-lg text-[11px]">
+                  ✔ Context Lock: 0 hallucinations before writing code
+                </div>
+              </div>
+            `
+          };
+        case 1:
+          return {
+            title: 'sdds/auth-jwt/spec.md',
+            badge: 'SPEC SEALED',
+            html: `
+              <div class="space-y-2">
+                <div class="text-slate-400 flex items-center gap-2">
+                  <span class="text-indigo-400 font-bold">$</span>
+                  <span>cat sdds/auth-jwt/spec.md | head -n 8</span>
+                </div>
+                <div class="text-slate-300 pl-4 space-y-1 text-[11px] border-l-2 border-indigo-500/40 my-2">
+                  <div class="text-indigo-300 font-bold"># SDD: JWT Authentication & Expiration Contract</div>
+                  <div>- Layer Boundary: <span class="text-slate-100">Domain Entity (Token) → Infra (Encoder)</span></div>
+                  <div>- Allowed Scope: <span class="text-slate-100">src/domain/auth.ts, src/infra/jwt.ts</span></div>
+                  <div>- State: <span class="text-emerald-400">HUMAN APPROVED (HIT Gate Sealed)</span></div>
+                </div>
+                <div class="text-indigo-300 font-bold bg-indigo-950/40 border border-indigo-800/60 p-2.5 rounded-lg text-[11px]">
+                  ✔ Architectural contracts locked before any source edits
+                </div>
+              </div>
+            `
+          };
+        case 2:
+          return {
+            title: 'pytest — tdd red phase',
+            badge: 'RED VERIFIED',
+            html: `
+              <div class="space-y-2">
+                <div class="text-slate-400 flex items-center gap-2">
+                  <span class="text-rose-400 font-bold">$</span>
+                  <span>pytest tests/test_auth_jwt.py -v</span>
+                </div>
+                <div class="text-rose-300 pl-4 space-y-1 text-[11px] border-l-2 border-rose-500/40 my-2">
+                  <div>test_auth_jwt.py::test_expired_token_raises_error <span class="text-rose-400 font-bold">FAILED [100%]</span></div>
+                  <div class="text-slate-400">> raise TokenExpiredError("Token has expired")</div>
+                  <div class="text-rose-400 font-bold">E TokenExpiredError was NOT raised. Returned 200 OK.</div>
+                  <div class="text-slate-400">Exit Code: <span class="text-rose-400 font-bold">1</span> (Mandatory Non-Zero Exit Recorded)</div>
+                </div>
+                <div class="text-rose-400 font-bold bg-rose-950/40 border border-rose-800/60 p-2.5 rounded-lg text-[11px]">
+                  ✔ Deterministic Defect Proof: Regression test demonstrably fails in red
+                </div>
+              </div>
+            `
+          };
+        case 3:
+          return {
+            title: 'pytest — clean implementation',
+            badge: 'GREEN PASSED',
+            html: `
+              <div class="space-y-2">
+                <div class="text-slate-400 flex items-center gap-2">
+                  <span class="text-emerald-400 font-bold">$</span>
+                  <span>pytest tests/test_auth_jwt.py -v</span>
+                </div>
+                <div class="text-emerald-300 pl-4 space-y-1 text-[11px] border-l-2 border-emerald-500/40 my-2">
+                  <div>test_auth_jwt.py::test_token_generation <span class="text-emerald-400 font-bold">PASSED [50%]</span></div>
+                  <div>test_auth_jwt.py::test_expired_token_raises_error <span class="text-emerald-400 font-bold">PASSED [100%]</span></div>
+                  <div class="text-slate-400">Layer Integrity: <span class="text-emerald-400 font-semibold">Clean (Domain → UseCase → Infra)</span></div>
+                </div>
+                <div class="text-emerald-400 font-bold bg-emerald-950/40 border border-emerald-800/60 p-2.5 rounded-lg text-[11px]">
+                  ✔ Clean Architecture: Green tests passing with strict layer isolation
+                </div>
+              </div>
+            `
+          };
+        case 4:
+          return {
+            title: 'tools/audit.js — ast safeguard gate',
+            badge: 'AUDIT 100/100',
+            html: `
+              <div class="space-y-2">
+                <div class="text-slate-400 flex items-center gap-2">
+                  <span class="text-amber-400 font-bold">$</span>
+                  <span>node tools/audit.js --strict</span>
+                </div>
+                <div class="text-slate-300 pl-4 space-y-1 text-[11px] border-l-2 border-amber-500/40 my-2">
+                  <div>✔ scan_secrets: <span class="text-emerald-400">PASSED (0 hardcoded keys detected)</span></div>
+                  <div>✔ check_architecture: <span class="text-emerald-400">PASSED (No forbidden layer imports)</span></div>
+                  <div>✔ check_db_efficiency: <span class="text-emerald-400">PASSED (0 N+1 loop queries)</span></div>
+                  <div>✔ check_responsive: <span class="text-emerald-400">PASSED (Touch targets >= 44x44px)</span></div>
+                  <div class="text-slate-400">Execution latency: <span class="text-amber-300 font-bold">3.8ms</span> (Native AST Parsers)</div>
+                </div>
+                <div class="text-amber-300 font-bold bg-amber-950/40 border border-amber-800/60 p-2.5 rounded-lg text-[11px]">
+                  ✔ Educational Code Summary: All architectural safeguards fully cleared
+                </div>
+              </div>
+            `
+          };
+        case 5:
+          return {
+            title: '.husky/pre-commit — immutable git lock',
+            badge: 'GIT SEALED',
+            html: `
+              <div class="space-y-2">
+                <div class="text-slate-400 flex items-center gap-2">
+                  <span class="text-violet-400 font-bold">$</span>
+                  <span>git commit -m "feat(auth): enforce jwt token expiration"</span>
+                </div>
+                <div class="text-slate-300 pl-4 space-y-1 text-[11px] border-l-2 border-violet-500/40 my-2">
+                  <div>[pre-commit] Validating git index against CLC Kernel law...</div>
+                  <div>[pre-commit] Running TDD test suite... <span class="text-emerald-400">OK</span></div>
+                  <div>[pre-commit] Running native AST audit gate... <span class="text-emerald-400">OK (Exit: 0)</span></div>
+                  <div>[pre-commit] Authorization token generated: <span class="text-violet-300 font-mono">auth_7f99b2</span></div>
+                </div>
+                <div class="text-violet-300 font-bold bg-violet-950/40 border border-violet-800/60 p-2.5 rounded-lg text-[11px]">
+                  ✔ Commit Authorized: Quality harness sealed. Zero AI bypass.
+                </div>
+              </div>
+            `
+          };
+        default:
+          return { title: '', badge: '', html: '' };
+      }
+    }
+
+    function renderPhase(idx, animate = true) {
+      const step = stepsData[idx];
+      if (!step) return;
+
+      currentIdx = idx;
+
+      // Update Top Rail buttons
+      stepButtons.forEach((btn, i) => {
+        const num = btn.querySelector('.step-num');
+        const name = btn.querySelector('.step-name');
+        const bar = btn.querySelector('.step-progress-bar');
+
+        if (i === idx) {
+          btn.className = 'pipeline-step-btn group text-left p-3 rounded-xl transition-all duration-200 cursor-pointer focus:outline-none relative flex flex-col justify-between bg-white shadow-md shadow-slate-200/60 border border-cyan-300';
+          if (num) num.className = 'step-num font-mono text-xs font-extrabold px-1.5 py-0.5 rounded transition-colors bg-cyan-600 text-white';
+          if (name) name.className = 'step-name text-xs font-bold transition-colors truncate text-slate-900';
+          if (bar) bar.className = 'step-progress-bar absolute bottom-0 left-2 right-2 h-0.5 rounded-full transition-all duration-300 bg-cyan-500 opacity-100';
+        } else {
+          btn.className = 'pipeline-step-btn group text-left p-3 rounded-xl transition-all duration-200 cursor-pointer focus:outline-none relative flex flex-col justify-between hover:bg-white/80 border border-transparent hover:border-slate-200';
+          if (num) num.className = 'step-num font-mono text-xs font-extrabold px-1.5 py-0.5 rounded transition-colors bg-slate-100 text-slate-500 group-hover:text-slate-800';
+          if (name) name.className = 'step-name text-xs font-bold transition-colors truncate text-slate-600 group-hover:text-slate-900';
+          if (bar) bar.className = 'step-progress-bar absolute bottom-0 left-2 right-2 h-0.5 rounded-full transition-all duration-300 bg-transparent opacity-0';
+        }
+      });
+
+      // Update Blueprint
+      if (stageBadge) stageBadge.textContent = `PHASE ${step.phase} • ${step.badge}`;
+      if (stageCounter) stageCounter.textContent = `${step.phase} / 06`;
+      if (stageTitle) stageTitle.textContent = step.name;
+      if (stageConcept) stageConcept.innerHTML = `<span>🎯</span><span>${step.concept}</span>`;
+      if (stageSummary) stageSummary.textContent = step.summary;
+
+      if (stagePills) {
+        stagePills.innerHTML = step.pills.map(pill => `
+          <span class="text-xs font-mono px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-semibold border border-slate-200/80 shadow-2xs">
+            ${pill}
+          </span>
+        `).join('');
+      }
+
+      // Update Terminal
+      const termData = getTerminalContent(idx);
+      if (terminalTitle) terminalTitle.textContent = termData.title;
+      if (terminalBadge) terminalBadge.textContent = termData.badge;
+      if (stageTerminalBody) stageTerminalBody.innerHTML = termData.html;
+
+      // Animate Terminal with GSAP
+      if (typeof gsap !== 'undefined' && animate && stageTerminalBox) {
+        gsap.killTweensOf(stageTerminalBox);
+        gsap.fromTo(stageTerminalBox,
+          { opacity: 0.7, y: 6 },
+          { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out', clearProps: 'transform' }
+        );
+      }
+    }
+
+    function startCycle() {
+      clearInterval(cycleTimer);
+      cycleTimer = setInterval(() => {
+        if (!isPaused) {
+          const nextIdx = (currentIdx + 1) % stepsData.length;
+          renderPhase(nextIdx, true);
+        }
+      }, 4500);
+    }
+
+    // Attach click listeners to pipeline buttons
+    stepButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.getAttribute('data-phase-index') || '0', 10);
+        renderPhase(idx, true);
+        startCycle();
+      });
+    });
+
+    // Control button handlers
+    if (prevBtn) {
+      prevBtn.addEventListener('click', () => {
+        const prevIdx = (currentIdx - 1 + stepsData.length) % stepsData.length;
+        renderPhase(prevIdx, true);
+        startCycle();
+      });
+    }
+
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        const nextIdx = (currentIdx + 1) % stepsData.length;
+        renderPhase(nextIdx, true);
+        startCycle();
+      });
+    }
+
+    if (pauseBtn) {
+      pauseBtn.addEventListener('click', () => {
+        isPaused = !isPaused;
+        const isSpanish = document.documentElement.lang === 'es';
+        if (isPaused) {
+          if (pauseText) pauseText.textContent = isSpanish ? 'Reanudar avance' : 'Resume autoplay';
+          if (pauseDot) pauseDot.className = 'w-2 h-2 rounded-full bg-amber-500';
+        } else {
+          if (pauseText) pauseText.textContent = isSpanish ? 'Pausar avance' : 'Pause autoplay';
+          if (pauseDot) pauseDot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+        }
+      });
+    }
+
+    // Hover pause on container
+    const mainContainer = document.getElementById('pipeline-main-container');
+    if (mainContainer) {
+      mainContainer.addEventListener('mouseenter', () => {
+        isPaused = true;
+      });
+      mainContainer.addEventListener('mouseleave', () => {
+        isPaused = false;
+      });
+    }
+
+    // Initialize
+    renderPhase(0, true);
+    startCycle();
+  });
+</script>

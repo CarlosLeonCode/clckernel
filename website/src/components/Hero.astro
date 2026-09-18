@@ -10,221 +10,214 @@ const t = ui[lang];
 const isEs = lang === 'es';
 ---
 
-<section class="relative pt-12 pb-16 md:pt-20 md:pb-24 overflow-hidden">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<section class="relative min-h-[calc(100vh-4rem)] flex items-center py-8 lg:py-12 overflow-hidden" id="hero-section">
+  <!-- Subtle ambient glow background that responds to mouse parallax -->
+  <div id="hero-ambient-glow" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[850px] h-[450px] bg-cyan-500/[0.04] blur-[150px] pointer-events-none -z-10 rounded-full transition-transform duration-700 ease-out"></div>
+  <div class="absolute top-10 right-1/4 w-full max-w-[400px] h-[300px] bg-emerald-500/[0.03] blur-[120px] pointer-events-none -z-10 rounded-full"></div>
+
+  <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
       
-      <!-- LEFT COLUMN: Value Proposition & Commands -->
-      <div class="lg:col-span-6 space-y-6 text-left">
+      <!-- LEFT COLUMN: Value Proposition & Universal Command -->
+      <div class="lg:col-span-6 space-y-6 text-left relative" id="hero-left-col">
+        <!-- Soft ambient aura to ensure 100% text contrast over WebGL background -->
+        <div class="absolute -inset-8 bg-white/75 blur-2xl -z-10 rounded-3xl pointer-events-none"></div>
         
-        <!-- Status badge -->
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold tracking-wide">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          {t['hero.badge']}
+        <!-- Live status badge -->
+        <div class="hero-anim-item inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-900 text-xs font-semibold tracking-wide shadow-2xs cursor-default group transition-all duration-300 hover:border-cyan-300">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-500 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-cyan-600"></span>
+          </span>
+          <span>{t['hero.badge']}</span>
+          <span class="text-cyan-400 font-mono">•</span>
+          <span class="font-mono text-[11px] text-cyan-800 font-bold">v1.2</span>
         </div>
 
         <!-- Main Headline -->
-        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.1]">
+        <h1 class="hero-anim-item text-4xl sm:text-5xl lg:text-[3.35rem] font-extrabold tracking-tight text-slate-900 leading-[1.08]">
           {isEs ? (
             <>
-              Eliminá el código descontrolado <span class="text-emerald-600">antes</span> de que llegue a producción.
+              Elimina el código descontrolado <span class="text-cyan-600">antes</span> de que llegue a producción.
             </>
           ) : (
             <>
-              Eliminate uncontrolled code <span class="text-emerald-600">before</span> it reaches production.
+              Eliminate uncontrolled code <span class="text-cyan-600">before</span> it reaches production.
             </>
           )}
         </h1>
 
         <!-- Subtitle -->
-        <p class="text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
+        <p class="hero-anim-item text-base sm:text-lg text-slate-600 leading-relaxed font-normal max-w-xl">
           {t['hero.description']}
         </p>
 
-        <!-- Command Card & Quickstart -->
-        <div class="p-4 rounded-xl bg-slate-900 text-white shadow-xl shadow-slate-900/10 border border-slate-800 space-y-3">
-          <div class="flex items-center justify-between text-xs text-slate-400 font-mono pb-2 border-b border-slate-800">
-            <span>{t['hero.cmdCardTitle']}</span>
-            <span class="text-emerald-400">{t['hero.cmdCardTag']}</span>
+        <!-- Command Card & Quickstart (White Theme) -->
+        <div id="hero-cmd-card" class="hero-anim-item p-4 rounded-2xl bg-white text-slate-900 shadow-xl shadow-slate-200/50 border border-slate-200 space-y-3 relative overflow-hidden transition-all duration-300 hover:border-cyan-300">
+          <div class="flex items-center justify-between text-xs text-slate-500 font-mono pb-2 border-b border-slate-100">
+            <span class="flex items-center gap-1.5 font-semibold text-slate-700">
+              <span class="w-1.5 h-1.5 rounded-full bg-cyan-600 animate-pulse"></span>
+              {t['hero.cmdCardTitle']}
+            </span>
+            <span class="text-cyan-700 font-bold px-2 py-0.5 rounded bg-cyan-50 border border-cyan-200/80 text-[10px]">{t['hero.cmdCardTag']}</span>
           </div>
-          <div class="flex items-center justify-between gap-3 font-mono text-sm">
+          <div class="flex items-center justify-between gap-3 font-mono text-sm bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
             <div class="flex items-center gap-2 overflow-x-auto">
-              <span class="text-emerald-400 select-none">$</span>
-              <span class="text-slate-100 select-all font-semibold">npx clckernel start</span>
+              <span class="text-cyan-600 select-none font-bold">$</span>
+              <span class="text-slate-900 select-all font-semibold">npx clckernel start</span>
             </div>
             <button 
+              id="hero-copy-btn"
               type="button"
-              onclick="navigator.clipboard.writeText('npx clckernel start'); const el=this.querySelector('.copy-text'); el.textContent='Copied!'; setTimeout(()=>el.textContent='Copy', 2000)" 
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-sans font-medium text-slate-200 transition-colors shrink-0"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-xs font-sans font-medium text-white transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
+              aria-label="Copy installation command"
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg id="copy-icon-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
               </svg>
-              <span class="copy-text">Copy</span>
+              <span id="copy-btn-text">Copy</span>
             </button>
           </div>
         </div>
 
+        <!-- Hero Action Links: GitHub + Carlos Leon Code -->
+        <div class="hero-anim-item flex flex-wrap items-center gap-3 pt-1">
+          <a
+            href="https://github.com/carlosleoncode/clc_forge"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer active:scale-95 group/gh"
+          >
+            <svg class="group-hover/gh:rotate-12 transition-transform duration-200" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+            </svg>
+            <span>{isEs ? "GitHub" : "GitHub"}</span>
+          </a>
+
+          <a
+            href="https://www.carlosleoncode.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold border border-slate-200 shadow-2xs transition-all cursor-pointer hover:border-cyan-400 group/clc"
+          >
+            <span class="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></span>
+            <span>{isEs ? "Creado por Carlos León Code" : "By Carlos León Code"}</span>
+            <svg class="w-3.5 h-3.5 text-slate-400 group-hover/clc:text-cyan-600 group-hover/clc:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+        </div>
+
         <!-- Pillar Highlights -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-          <div class="flex items-center gap-2 text-xs font-medium text-slate-700">
-            <svg class="text-emerald-600 shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-            <span>{t['hero.pillar1']}</span>
+        <div class="hero-anim-item grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+          <div class="pillar-item flex items-center gap-2 text-xs font-medium text-slate-700 p-1.5 rounded-lg transition-all duration-200 hover:bg-slate-100/80 cursor-default">
+            <div class="w-6 h-6 rounded-md bg-cyan-50 border border-cyan-200 flex items-center justify-center shrink-0 shadow-2xs text-cyan-700">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <span class="font-bold text-slate-800">{t['hero.pillar1']}</span>
           </div>
-          <div class="flex items-center gap-2 text-xs font-medium text-slate-700">
-            <svg class="text-emerald-600 shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-            <span>{t['hero.pillar2']}</span>
+          <div class="pillar-item flex items-center gap-2 text-xs font-medium text-slate-700 p-1.5 rounded-lg transition-all duration-200 hover:bg-slate-100/80 cursor-default">
+            <div class="w-6 h-6 rounded-md bg-cyan-50 border border-cyan-200 flex items-center justify-center shrink-0 shadow-2xs text-cyan-700">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <span class="font-bold text-slate-800">{t['hero.pillar2']}</span>
           </div>
-          <div class="flex items-center gap-2 text-xs font-medium text-slate-700">
-            <svg class="text-emerald-600 shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-            <span>{t['hero.pillar3']}</span>
+          <div class="pillar-item flex items-center gap-2 text-xs font-medium text-slate-700 p-1.5 rounded-lg transition-all duration-200 hover:bg-slate-100/80 cursor-default">
+            <div class="w-6 h-6 rounded-md bg-cyan-50 border border-cyan-200 flex items-center justify-center shrink-0 shadow-2xs text-cyan-700">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <span class="font-bold text-slate-800">{t['hero.pillar3']}</span>
           </div>
         </div>
 
       </div>
 
-      <!-- RIGHT COLUMN: Dual-Mode Interactive Terminal -->
-      <div class="lg:col-span-6">
-        <div class="rounded-xl terminal-window overflow-hidden border border-slate-800 shadow-2xl">
+      <!-- RIGHT COLUMN: Agentic AI Chat Interface (OpenCode / Cursor / Claude Code Style) -->
+      <div class="lg:col-span-6" id="hero-right-col">
+        <div class="chat-agent-window rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-2xl shadow-slate-200/60 transition-all duration-300 flex flex-col justify-between min-h-[500px]" id="hero-chat-container">
           
-          <!-- Terminal Header & Tabs -->
-          <div class="bg-[#0b1120] px-4 py-2.5 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
-            <div class="flex items-center gap-2">
-              <div class="w-3 h-3 rounded-full bg-[#ff5f56]"></div>
-              <div class="w-3 h-3 rounded-full bg-[#ffbd2e]"></div>
-              <div class="w-3 h-3 rounded-full bg-[#27c93f]"></div>
-            </div>
-
-            <!-- Tab Switcher -->
-            <div class="flex items-center bg-slate-900/90 p-0.5 rounded-lg border border-slate-800 text-[11px] font-mono">
-              <button 
-                id="tab-cli-btn"
-                type="button"
-                onclick="switchHeroTab('cli')"
-                class="px-2.5 py-1 rounded-md transition-all font-semibold bg-slate-800 text-emerald-400 shadow-xs"
-              >
-                {t['hero.tabCli']}
-              </button>
-              <button 
-                id="tab-agent-btn"
-                type="button"
-                onclick="switchHeroTab('agent')"
-                class="px-2.5 py-1 rounded-md transition-all text-slate-400 hover:text-white"
-              >
-                {t['hero.tabAgent']}
-              </button>
-            </div>
-          </div>
-
-          <!-- VIEW 1: Terminal CLI Flow -->
-          <div id="view-cli" class="p-5 font-mono text-xs text-slate-300 space-y-3 bg-[#070b14] min-h-[410px] overflow-y-auto">
-            <div class="flex items-center gap-2 text-slate-400">
-              <span class="text-emerald-400">developer@workspace:~$</span>
-              <span class="text-white font-semibold">npx clckernel start</span>
-            </div>
-            
-            <div class="text-slate-400 pl-3 border-l border-emerald-500/40 space-y-1 text-[11px]">
-              <div><span class="text-cyan-400">⚡</span> {isEs ? 'Stack detectado: Next.js + FastAPI (Polyglot)' : 'Stack detected: Next.js + FastAPI (Polyglot)'}</div>
-              <div><span class="text-emerald-400">✔</span> {isEs ? 'Directorio SDD inicializado (sdds/)' : 'Local SDD directory initialized (sdds/)'}</div>
-              <div><span class="text-emerald-400">✔</span> {isEs ? 'Gobernanza activada en .clckernel.yaml' : 'Governance activated in .clckernel.yaml'}</div>
-              <div><span class="text-emerald-400">✔</span> {isEs ? 'Hooks de pre-commit vinculados con éxito' : 'Pre-commit git hooks linked successfully'}</div>
-            </div>
-
-            <div class="flex items-center gap-2 text-slate-400 pt-2">
-              <span class="text-emerald-400">developer@workspace:~$</span>
-              <span class="text-white font-semibold">node tools/audit.js</span>
-            </div>
-
-            <div class="bg-slate-900/90 rounded-lg p-3 border border-slate-800 space-y-2 text-[11px]">
-              <div class="text-slate-400 font-semibold flex items-center justify-between">
-                <span>🛡️ {isEs ? 'COMPUERTA AST DETERMINISTA' : 'DETERMINISTIC AST AUDIT GATE'}</span>
-                <span class="text-emerald-400 text-[10px]">HARD GATE</span>
+          <!-- Chat Window Header (OpenCode / Agent Runner) -->
+          <div class="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5">
+              <div class="flex items-center gap-1.5">
+                <span class="w-3 h-3 rounded-full bg-[#ff5f56] shadow-2xs"></span>
+                <span class="w-3 h-3 rounded-full bg-[#ffbd2e] shadow-2xs"></span>
+                <span class="w-3 h-3 rounded-full bg-[#27c93f] shadow-2xs"></span>
               </div>
               
-              <div class="space-y-1 text-slate-300">
-                <div class="flex items-center justify-between">
-                  <span class="flex items-center gap-1.5"><span class="text-emerald-400">✔</span> scan_secrets</span>
-                  <span class="text-emerald-400 text-[10px]">{isEs ? '0 fugas de claves' : '0 leaks detected'}</span>
+              <div class="h-4 w-px bg-slate-200 mx-0.5"></div>
+
+              <div class="flex items-center gap-2">
+                <div class="w-5 h-5 rounded-md bg-cyan-600 text-white flex items-center justify-center font-mono text-[10px] font-bold shadow-2xs">
+                  ⚡
                 </div>
-                <div class="flex items-center justify-between">
-                  <span class="flex items-center gap-1.5"><span class="text-emerald-400">✔</span> check_architecture</span>
-                  <span class="text-emerald-400 text-[10px]">{isEs ? 'Aislamiento de capas AST intacto' : 'Layer isolation verified'}</span>
-                </div>
-                <div class="flex items-center justify-between">
-                  <span class="flex items-center gap-1.5"><span class="text-emerald-400">✔</span> check_db_efficiency</span>
-                  <span class="text-emerald-400 text-[10px]">{isEs ? 'Cero consultas N+1 en bucles' : 'No N+1 queries detected'}</span>
+                <div class="text-left">
+                  <div class="text-xs font-bold text-slate-900 leading-none">OpenCode • Agent Workspace</div>
+                  <div class="text-[10px] font-mono text-slate-500 font-medium">Harness: <span class="text-cyan-700 font-semibold" id="chat-harness-status">clckernel active</span></div>
                 </div>
               </div>
             </div>
 
-            <div class="pt-2 flex items-center justify-between text-emerald-400 font-bold border-t border-slate-800 text-xs">
-              <span class="flex items-center gap-1.5">
-                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                {isEs ? '[APROBADO] Commit autorizado en git' : '[PASSED] Pre-commit authorization granted'}
-              </span>
-              <span class="text-slate-400 font-mono text-[10px]">Exit Code: 0</span>
+            <!-- Live Status & Pause indicator -->
+            <div class="flex items-center gap-2">
+              <div id="chat-status-badge" class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-50 border border-cyan-200 text-[10px] font-mono text-cyan-800 shadow-2xs font-semibold">
+                <span class="w-1.5 h-1.5 rounded-full bg-cyan-600 animate-pulse" id="chat-status-dot"></span>
+                <span id="chat-status-text">LIVE AGENT</span>
+              </div>
             </div>
           </div>
 
-          <!-- VIEW 2: Inside LLM Agent (Claude Code / Open Code / Cursor) -->
-          <div id="view-agent" class="hidden p-5 font-mono text-xs text-slate-300 space-y-3 bg-[#070b14] min-h-[410px] overflow-y-auto">
-            <div class="flex items-center justify-between text-[11px] text-cyan-400 font-semibold pb-1 border-b border-slate-800">
-              <span>🤖 AI AGENT (Claude Code / Open Code / AGY)</span>
-              <span class="text-slate-500 text-[10px]">RULE #0 ENFORCED</span>
+          <!-- Phase Navigation Bar (6 AIUP Milestones: Setup + 5 Governed Phases) -->
+          <div class="bg-slate-100/70 px-2 py-1.5 border-b border-slate-200 overflow-x-auto">
+            <div class="flex items-center gap-1 text-[11px] font-mono min-w-max" id="chat-tabs-container">
+              <button type="button" data-phase-idx="0" class="chat-tab flex items-center gap-1 py-1 px-2 rounded-lg text-cyan-900 font-bold bg-white border border-cyan-300 shadow-2xs transition-all cursor-pointer">
+                <span>0. Setup</span>
+              </button>
+              <button type="button" data-phase-idx="1" class="chat-tab flex items-center gap-1 py-1 px-2 rounded-lg text-slate-600 font-medium hover:text-slate-900 hover:bg-white/60 transition-all cursor-pointer">
+                <span>1. Rule #0</span>
+              </button>
+              <button type="button" data-phase-idx="2" class="chat-tab flex items-center gap-1 py-1 px-2 rounded-lg text-slate-600 font-medium hover:text-slate-900 hover:bg-white/60 transition-all cursor-pointer">
+                <span>2. SDD</span>
+              </button>
+              <button type="button" data-phase-idx="3" class="chat-tab flex items-center gap-1 py-1 px-2 rounded-lg text-slate-600 font-medium hover:text-slate-900 hover:bg-white/60 transition-all cursor-pointer">
+                <span>3. Red TDD</span>
+              </button>
+              <button type="button" data-phase-idx="4" class="chat-tab flex items-center gap-1 py-1 px-2 rounded-lg text-slate-600 font-medium hover:text-slate-900 hover:bg-white/60 transition-all cursor-pointer">
+                <span>4. AST Gate</span>
+              </button>
+              <button type="button" data-phase-idx="5" class="chat-tab flex items-center gap-1 py-1 px-2 rounded-lg text-slate-600 font-medium hover:text-slate-900 hover:bg-white/60 transition-all cursor-pointer">
+                <span>5. Sealed</span>
+              </button>
             </div>
+          </div>
 
-            <!-- Agent Step 1 -->
-            <div class="space-y-1 text-[11px]">
-              <div class="text-slate-400 flex items-center gap-1.5">
-                <span class="text-purple-400">1. Reading Law:</span>
-                <span class="text-slate-200">Loaded AGENTS.md & .clckernel.yaml</span>
-              </div>
-              <div class="text-slate-500 pl-3">↳ {isEs ? 'Prohibido modificar código sin ciclo TDD' : 'Direct code modification strictly forbidden without harness'}</div>
-            </div>
+          <!-- Chat Conversation Scroll Area -->
+          <div class="p-4 sm:p-5 space-y-3.5 bg-white flex-1 overflow-y-auto font-sans text-xs min-h-[300px]" id="chat-stream-viewport">
+            
+            <!-- Dynamic Content Injected via Smooth GSAP Script -->
+            <div id="chat-dynamic-content" class="space-y-3.5"></div>
 
-            <!-- Agent Step 2 -->
-            <div class="space-y-1 text-[11px]">
-              <div class="text-slate-400 flex items-center gap-1.5">
-                <span class="text-purple-400">2. Planning SDD:</span>
-                <span class="text-slate-200">Created sdds/auth-fix/spec.md</span>
-              </div>
-              <div class="text-slate-500 pl-3">↳ {isEs ? 'Scope delimitado a src/auth/ y test/auth.test.js' : 'Scope bounded strictly to src/auth/ & test/auth.test.js'}</div>
-            </div>
+          </div>
 
-            <!-- Agent Step 3 -->
-            <div class="space-y-1 text-[11px]">
-              <div class="text-slate-400 flex items-center gap-1.5">
-                <span class="text-rose-400">3. TDD Red Phase:</span>
-                <span class="text-slate-200">Executing pytest / vitest</span>
-              </div>
-              <div class="text-rose-400 pl-3">↳ ✖ 1 failed (Defect reproduced deterministically)</div>
+          <!-- Mock Chat Input Box (At Bottom) -->
+          <div class="p-3 bg-slate-50 border-t border-slate-200 flex items-center gap-2">
+            <div class="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-400 font-mono flex items-center justify-between shadow-2xs">
+              <span class="truncate" id="chat-input-placeholder">{isEs ? "El arnés gobierna cada tool call del agente..." : "Harness governs every agent tool call..."}</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-bold border border-slate-200">AIUP</span>
             </div>
-
-            <!-- Agent Step 4 -->
-            <div class="space-y-1 text-[11px]">
-              <div class="text-slate-400 flex items-center gap-1.5">
-                <span class="text-emerald-400">4. Clean Green Phase:</span>
-                <span class="text-slate-200">Implemented feature in Domain Layer</span>
-              </div>
-              <div class="text-emerald-400 pl-3">↳ ✔ All 24 tests passing (Layer boundaries respected)</div>
-            </div>
-
-            <!-- Agent Step 5 -->
-            <div class="pt-2 flex items-center justify-between text-emerald-400 font-bold border-t border-slate-800 text-xs">
-              <span class="flex items-center gap-1.5">
-                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                {isEs ? '5. Audit Gate Verificado -> Listo para PR' : '5. Audit Gate Verified -> Ready for PR'}
-              </span>
-              <span class="text-slate-400 font-mono text-[10px]">Zero Hallucinations</span>
-            </div>
+            <button type="button" class="w-8 h-8 rounded-xl bg-cyan-600 text-white flex items-center justify-center shadow-xs cursor-default">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            </button>
           </div>
 
         </div>
@@ -236,22 +229,284 @@ const isEs = lang === 'es';
 </section>
 
 <script is:inline>
-  function switchHeroTab(tab) {
-    const cliBtn = document.getElementById('tab-cli-btn');
-    const agentBtn = document.getElementById('tab-agent-btn');
-    const viewCli = document.getElementById('view-cli');
-    const viewAgent = document.getElementById('view-agent');
+  const isSpanish = document.documentElement.lang === 'es';
 
-    if (tab === 'cli') {
-      cliBtn.className = "px-2.5 py-1 rounded-md transition-all font-semibold bg-slate-800 text-emerald-400 shadow-xs";
-      agentBtn.className = "px-2.5 py-1 rounded-md transition-all text-slate-400 hover:text-white";
-      viewCli.classList.remove('hidden');
-      viewAgent.classList.add('hidden');
-    } else {
-      agentBtn.className = "px-2.5 py-1 rounded-md transition-all font-semibold bg-slate-800 text-cyan-400 shadow-xs";
-      cliBtn.className = "px-2.5 py-1 rounded-md transition-all text-slate-400 hover:text-white";
-      viewAgent.classList.remove('hidden');
-      viewCli.classList.add('hidden');
+  const agentPhases = [
+    {
+      id: 'setup',
+      title: isSpanish ? 'PASO 0: APROVISIONAMIENTO INICIAL' : 'STEP 0: INITIAL BOOTSTRAP',
+      status: 'BOOTSTRAPPED',
+      html: `
+        <div class="space-y-3">
+          <!-- Terminal Command Box -->
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2 font-mono text-[11px] shadow-2xs">
+            <div class="flex items-center justify-between text-slate-500 text-[10px] border-b border-slate-200 pb-1.5">
+              <span class="font-bold flex items-center gap-1.5 text-slate-700">
+                <span class="w-1.5 h-1.5 rounded-full bg-cyan-600"></span>
+                <span>${isSpanish ? 'Terminal (Ejecución Única)' : 'Terminal (One-Time Setup)'}</span>
+              </span>
+              <span class="text-cyan-700 font-semibold">$ npx clckernel start</span>
+            </div>
+            <div class="text-slate-800 space-y-1 pt-0.5">
+              <div class="text-emerald-700 font-semibold">✔ Stack detected: TypeScript + Next.js</div>
+              <div class="text-slate-600">✔ Generated: <span class="text-slate-900 font-bold">AGENTS.md</span> (Single Source of Truth)</div>
+              <div class="text-slate-600">✔ Dynamic Mirror: symlinked to <span class="text-indigo-700 font-bold">.cursorrules</span>, <span class="text-indigo-700 font-bold">CLAUDE.md</span>, <span class="text-indigo-700 font-bold">.antigravity</span></div>
+              <div class="text-slate-600">✔ Pre-commit lock: installed to <span class="text-slate-900 font-bold">.husky/pre-commit</span></div>
+            </div>
+          </div>
+          <div class="text-[11px] font-mono text-cyan-800 font-semibold bg-cyan-50 border border-cyan-200/80 p-2 rounded-lg flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-cyan-600 animate-pulse"></span>
+            <span>${isSpanish ? '¡Listo! El resto ocurre dentro del chat con tu agente.' : 'Ready! Everything else happens inside your agent chat.'}</span>
+          </div>
+        </div>
+      `
+    },
+    {
+      id: 'rule0',
+      title: isSpanish ? 'FASE 1: INTERCEPCIÓN REGLA #0' : 'PHASE 1: RULE #0 INTERCEPTION',
+      status: 'RULE #0 LOCK',
+      html: `
+        <div class="space-y-3">
+          <!-- User Prompt -->
+          <div class="flex items-start gap-2.5 justify-end">
+            <div class="bg-cyan-50 border border-cyan-200 text-slate-800 p-2.5 rounded-2xl rounded-tr-xs max-w-[85%] shadow-2xs">
+              <div class="text-[9px] font-bold text-cyan-900 font-mono mb-0.5">Senior Engineer</div>
+              <p class="text-xs text-slate-700">${isSpanish ? 'Implementa la autenticación JWT con expiración de tokens. Usa el arnés de gobernanza.' : 'Implement JWT authentication with token expiration. Use the governance harness.'}</p>
+            </div>
+            <div class="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">👨‍💻</div>
+          </div>
+          <!-- Agent Response -->
+          <div class="flex items-start gap-2.5">
+            <div class="w-6 h-6 rounded-full bg-cyan-600 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">🤖</div>
+            <div class="bg-slate-50 border border-slate-200 p-3 rounded-2xl rounded-tl-xs w-full space-y-1.5 font-mono text-[11px] shadow-2xs">
+              <div class="text-slate-500 italic text-[10px] font-sans">${isSpanish ? '🧠 Leyendo AGENTS.md: Regla #0 prohíbe modificar código a ciegas.' : '🧠 Reading AGENTS.md: Rule #0 forbids blind code edits.'}</div>
+              <div class="text-indigo-700 font-bold bg-indigo-50/90 px-2 py-1 rounded border border-indigo-200">⚡ Tool Call: read_file("AGENTS.md")</div>
+              <div class="text-rose-700 font-semibold bg-rose-50 px-2 py-1 rounded border border-rose-200">${isSpanish ? '🛡️ Intercepción activada: Prohibido editar sin SDD previo.' : '🛡️ Interception active: Code edit blocked without SDD.'}</div>
+            </div>
+          </div>
+        </div>
+      `
+    },
+    {
+      id: 'sdd',
+      title: isSpanish ? 'FASE 2: PLANIFICACIÓN SDD LOCAL' : 'PHASE 2: LOCAL SDD PLANNING',
+      status: 'SDD SPEC SEALED',
+      html: `
+        <div class="space-y-3">
+          <div class="flex items-start gap-2.5">
+            <div class="w-6 h-6 rounded-full bg-cyan-600 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">🤖</div>
+            <div class="bg-slate-50 border border-slate-200 p-3 rounded-2xl rounded-tl-xs w-full space-y-2 font-mono text-[11px] shadow-2xs">
+              <div class="text-slate-500 italic text-[10px] font-sans">${isSpanish ? '🧠 Delimitando alcance arquitectónico y contratos antes de codificar.' : '🧠 Locking layer scope and contracts before writing implementation.'}</div>
+              <div class="text-indigo-700 font-bold bg-indigo-50/90 px-2 py-1 rounded border border-indigo-200">⚡ Tool Call: write_file("sdds/auth-jwt/spec.md")</div>
+              <div class="bg-white p-2 rounded border border-slate-200 space-y-1 text-slate-700 text-[10px]">
+                <div>📁 <span class="font-bold">sdds/auth-jwt/</span> (100% Local &amp; Gitignored)</div>
+                <div class="text-slate-500">• Domain Layer: <span class="text-slate-800 font-bold">src/domain/auth.ts</span> (Isolated)</div>
+                <div class="text-slate-500">• Regression Test: <span class="text-slate-800 font-bold">test/auth.test.ts</span></div>
+              </div>
+              <div class="text-emerald-800 font-bold bg-emerald-50 px-2 py-1 rounded border border-emerald-200">✔ Scope autorizado por el Arquitecto (HIT Gate)</div>
+            </div>
+          </div>
+        </div>
+      `
+    },
+    {
+      id: 'tdd',
+      title: isSpanish ? 'FASE 3: TDD RED TRANSITION' : 'PHASE 3: RED TDD TRANSITION',
+      status: 'DEFECT PROVEN (RED)',
+      html: `
+        <div class="space-y-3">
+          <div class="flex items-start gap-2.5">
+            <div class="w-6 h-6 rounded-full bg-cyan-600 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">🤖</div>
+            <div class="bg-slate-50 border border-slate-200 p-3 rounded-2xl rounded-tl-xs w-full space-y-2 font-mono text-[11px] shadow-2xs">
+              <div class="text-slate-500 italic text-[10px] font-sans">${isSpanish ? '🧠 Escribiendo prueba de regresión para verificar el fallo antes del fix.' : '🧠 Writing regression test first to prove defect before implementing fix.'}</div>
+              <div class="text-indigo-700 font-bold bg-indigo-50/90 px-2 py-1 rounded border border-indigo-200">⚡ Tool Call: run_command("pytest test/auth.test.ts")</div>
+              <div class="bg-rose-50 border border-rose-200 p-2 rounded text-rose-800 space-y-1">
+                <div class="font-bold flex items-center justify-between">
+                  <span>🔴 FAIL: test_jwt_token_expiration()</span>
+                  <span class="px-1.5 py-0.5 rounded bg-rose-100 text-[9px] font-bold border border-rose-300">EXIT: 1</span>
+                </div>
+                <div class="text-[10px] text-rose-700 font-sans">AssertionError: Expected expired status on invalid signature</div>
+              </div>
+              <div class="text-emerald-800 font-bold bg-emerald-50 px-2 py-1 rounded border border-emerald-200">✔ Fallo genuino capturado en log. Autorizado para fix.</div>
+            </div>
+          </div>
+        </div>
+      `
+    },
+    {
+      id: 'ast',
+      title: isSpanish ? 'FASE 4: AUDITORÍA AST NATIVA' : 'PHASE 4: NATIVE AST AUDIT',
+      status: 'AST GUARDS PASSED',
+      html: `
+        <div class="space-y-3">
+          <div class="flex items-start gap-2.5">
+            <div class="w-6 h-6 rounded-full bg-cyan-600 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">🤖</div>
+            <div class="bg-slate-50 border border-slate-200 p-3 rounded-2xl rounded-tl-xs w-full space-y-2 font-mono text-[11px] shadow-2xs">
+              <div class="text-slate-500 italic text-[10px] font-sans">${isSpanish ? '🧠 Ejecutando suite determinista de AST en Node.js y Python (<5ms).' : '🧠 Running deterministic native AST suite in Node.js & Python (<5ms).'}</div>
+              <div class="text-indigo-700 font-bold bg-indigo-50/90 px-2 py-1 rounded border border-indigo-200">⚡ Tool Call: run_command("node tools/audit.js")</div>
+              <div class="bg-emerald-50 border border-emerald-200 p-2 rounded text-emerald-900 space-y-1 text-[10px]">
+                <div class="flex items-center justify-between font-semibold"><span>✔ scan_secrets: 0 hardcoded keys in diff</span><span class="text-emerald-700 font-bold">PASS</span></div>
+                <div class="flex items-center justify-between font-semibold"><span>✔ check_architecture: Clean layer isolation</span><span class="text-emerald-700 font-bold">PASS</span></div>
+                <div class="flex items-center justify-between font-semibold"><span>✔ check_db_efficiency: Zero N+1 ORM queries</span><span class="text-emerald-700 font-bold">PASS</span></div>
+              </div>
+              <div class="text-slate-500 text-[10px] font-medium">↳ Execution time: 2.8ms • Zero npm packages</div>
+            </div>
+          </div>
+        </div>
+      `
+    },
+    {
+      id: 'sealed',
+      title: isSpanish ? 'FASE 5: PRE-COMMIT Y SELLO' : 'PHASE 5: PRE-COMMIT GIT SEAL',
+      status: 'AUTHORIZED & SEALED',
+      html: `
+        <div class="space-y-3">
+          <div class="flex items-start gap-2.5">
+            <div class="w-6 h-6 rounded-full bg-cyan-600 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">🤖</div>
+            <div class="bg-slate-50 border border-slate-200 p-3 rounded-2xl rounded-tl-xs w-full space-y-2 font-mono text-[11px] shadow-2xs">
+              <div class="text-slate-500 italic text-[10px] font-sans">${isSpanish ? '🧠 Todas las salvaguardas validadas. Ejecutando commit determinista.' : '🧠 All safeguards verified. Authorizing deterministic git commit.'}</div>
+              <div class="text-indigo-700 font-bold bg-indigo-50/90 px-2 py-1 rounded border border-indigo-200">⚡ Tool Call: run_command("git commit -m 'feat(auth): jwt verified'")</div>
+              <div class="bg-slate-900 text-white p-2.5 rounded-xl space-y-1 text-[10px]">
+                <div class="text-emerald-400 font-bold">🚀 [clckernel] Pre-commit Hook: EXIT CODE 0</div>
+                <div class="text-slate-300">✔ Clean Architecture • Real TDD • Zero Leaks</div>
+              </div>
+              <div class="text-emerald-800 font-bold bg-emerald-50 px-2 py-1 rounded border border-emerald-200">📦 Quality Harness Sealed: Clean PR ready for review</div>
+            </div>
+          </div>
+        </div>
+      `
+    }
+  ];
+
+  let currentPhaseIdx = 0;
+  let chatCycleTimer = null;
+  let isChatPaused = false;
+
+  function renderPhase(idx, animate = true) {
+    const phase = agentPhases[idx];
+    if (!phase) return;
+
+    // Update Tabs Active State
+    const tabs = document.querySelectorAll('.chat-tab');
+    tabs.forEach((tab, i) => {
+      if (i === idx) {
+        tab.className = 'chat-tab flex items-center gap-1 py-1 px-2 rounded-lg text-cyan-900 font-bold bg-white border border-cyan-300 shadow-2xs transition-all cursor-pointer ring-1 ring-cyan-500/20';
+      } else {
+        tab.className = 'chat-tab flex items-center gap-1 py-1 px-2 rounded-lg text-slate-600 font-medium hover:text-slate-900 hover:bg-white/60 transition-all cursor-pointer';
+      }
+    });
+
+    const contentContainer = document.getElementById('chat-dynamic-content');
+    if (!contentContainer) return;
+
+    contentContainer.innerHTML = phase.html;
+
+    if (typeof gsap !== 'undefined' && animate) {
+      gsap.killTweensOf(contentContainer);
+      gsap.fromTo(contentContainer,
+        { opacity: 0.4, y: 8, scale: 0.99 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.35, ease: 'power2.out', clearProps: 'transform' }
+      );
     }
   }
+
+  function startChatCycle() {
+    clearInterval(chatCycleTimer);
+    chatCycleTimer = setInterval(() => {
+      if (!isChatPaused) {
+        currentPhaseIdx = (currentPhaseIdx + 1) % agentPhases.length;
+        renderPhase(currentPhaseIdx, true);
+      }
+    }, 4500);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // Initial Render
+    renderPhase(0, true);
+    startChatCycle();
+
+    // Tab Clicks
+    const tabs = document.querySelectorAll('.chat-tab');
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const idx = parseInt(tab.getAttribute('data-phase-idx') || '0', 10);
+        currentPhaseIdx = idx;
+        renderPhase(currentPhaseIdx, true);
+        startChatCycle();
+      });
+    });
+
+    // Pause on Hover
+    const chatContainer = document.getElementById('hero-chat-container');
+    if (chatContainer) {
+      chatContainer.addEventListener('mouseenter', () => {
+        isChatPaused = true;
+        const statusText = document.getElementById('chat-status-text');
+        const statusDot = document.getElementById('chat-status-dot');
+        if (statusText) statusText.textContent = 'PAUSED';
+        if (statusDot) statusDot.className = 'w-1.5 h-1.5 rounded-full bg-amber-500';
+      });
+
+      chatContainer.addEventListener('mouseleave', () => {
+        isChatPaused = false;
+        const statusText = document.getElementById('chat-status-text');
+        const statusDot = document.getElementById('chat-status-dot');
+        if (statusText) statusText.textContent = 'LIVE AGENT';
+        if (statusDot) statusDot.className = 'w-1.5 h-1.5 rounded-full bg-cyan-600 animate-pulse';
+      });
+
+      // 3D Magnetic Parallax Tilt with GSAP
+      chatContainer.addEventListener('mousemove', (e) => {
+        if (typeof gsap === 'undefined') return;
+        const rect = chatContainer.getBoundingClientRect();
+        const x = e.clientX - rect.left - rect.width / 2;
+        const y = e.clientY - rect.top - rect.height / 2;
+
+        const rotX = -(y / rect.height) * 6;
+        const rotY = (x / rect.width) * 6;
+
+        gsap.to(chatContainer, {
+          rotationX: rotX,
+          rotationY: rotY,
+          transformPerspective: 1200,
+          duration: 0.25,
+          ease: 'power1.out'
+        });
+      });
+
+      chatContainer.addEventListener('mouseleave', () => {
+        if (typeof gsap !== 'undefined') {
+          gsap.to(chatContainer, {
+            rotationX: 0,
+            rotationY: 0,
+            duration: 0.5,
+            ease: 'power2.out'
+          });
+        }
+      });
+    }
+
+    // Command Card Copy Button
+    const heroCopyBtn = document.getElementById('hero-copy-btn');
+    const heroCopyText = document.getElementById('copy-btn-text');
+    if (heroCopyBtn && heroCopyText) {
+      heroCopyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText('npx clckernel start');
+        heroCopyText.textContent = 'Copied!';
+        heroCopyBtn.classList.replace('bg-slate-900', 'bg-emerald-700');
+
+        if (typeof gsap !== 'undefined') {
+          gsap.fromTo(heroCopyBtn, 
+            { scale: 0.9 }, 
+            { scale: 1.05, duration: 0.2, yoyo: true, repeat: 1, ease: 'back.out(2)' }
+          );
+        }
+
+        setTimeout(() => {
+          heroCopyText.textContent = 'Copy';
+          heroCopyBtn.classList.replace('bg-emerald-700', 'bg-slate-900');
+        }, 2000);
+      });
+    }
+  });
 </script>

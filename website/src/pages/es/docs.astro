@@ -1,0 +1,308 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { ui } from '../../i18n/ui.js';
+
+const lang = 'es';
+const t = ui[lang];
+
+const sections = [
+  {
+    id: "getting-started",
+    title: "1. Primeros Pasos",
+    icon: "🚀",
+    items: [
+      {
+        id: "installation",
+        title: "Instalación e Inicialización Inmediata",
+        desc: "Aprovisiona un arnés completo de gobernanza en segundos, ahorrando semanas de configuración repetitiva y miles de tokens de contexto.",
+        code: `$ npx clckernel start
+
+# Escanea el proyecto, genera .clckernel.yaml, vincula reglas de IA e instala hooks de git.`,
+      },
+      {
+        id: "doctor",
+        title: "Diagnóstico de Salud (Doctor)",
+        desc: "Valida los hooks de git pre-commit activos, los test runners y los parsers AST nativos sin dependencias.",
+        code: `$ npx clckernel doctor
+
+# Reporte de salud:
+✔ Hook de git pre-commit activo (.husky/pre-commit)
+✔ Test runner operativo (npm test / pytest)
+✔ Motor AST nativo listo (Node.js & Python)
+🟢 100% SALUDABLE: El sistema está totalmente gobernado.`,
+      },
+      {
+        id: "rule-zero",
+        title: "Regla #0: Intercepción Obligatoria de Ejecución",
+        desc: "Ley inmutable del repositorio. Prohíbe a los agentes IA editar código fuente sin investigación previa, scope SDD y prueba de test que falle.",
+        code: `# REGLA #0: INTERCEPCIÓN OBLIGATORIA DE EJECUCIÓN
+Los agentes IA tienen ESTRICTAMENTE PROHIBIDO modificar código fuente sin:
+1. Investigación y Causa Raíz
+2. Delimitación de Scope SDD (sdds/{feature}/spec.md)
+3. Fase Roja TDD Determinista (Exit code != 0)
+4. Implementación Limpia de Arquitectura (Fase Verde)
+5. Ejecución Obligatoria de la Compuerta AST (node tools/audit.js)`,
+      }
+    ]
+  },
+  {
+    id: "default-safeguards",
+    title: "2. Salvaguardas Nativas Adaptativas",
+    icon: "🛡️",
+    items: [
+      {
+        id: "core-safeguards",
+        title: "Capas Adaptativas Out-of-the-Box",
+        desc: "CLC Kernel aprovisiona salvaguardas que corren en el lenguaje nativo de tu repositorio (Ruby, Python, Go, Node, PHP) en < 5ms sin dependencias foráneas.",
+        code: `// Catálogo de Salvaguardas Nativas:
+1. scan_secrets         -> Bloquea claves de AWS/Stripe y JWTs (0 falsos positivos)
+2. check_architecture   -> Aislamiento de capas Clean (Dominio -> Caso de Uso -> Infra)
+3. check_db_efficiency  -> Detección de consultas ORM N+1 en bucles
+4. check_responsive     -> Auditoría mobile-first CSS y áreas táctiles de 44x44px
+5. check_seo            -> Valida Core Web Vitals y etiquetas OpenGraph
+6. check_migrations     -> Idempotencia y reversibilidad en migraciones de BD
+7. docker_guard         -> Exige contenedores rootless y bloquea secretos en ENV
+8. check_scope          -> Bloquea cambios fuera del alcance del SDD local`,
+      },
+      {
+        id: "ast-examples",
+        title: "Micro-Diffs de Verificación AST",
+        desc: "El análisis sintáctico elimina falsos positivos inspeccionando nodos del AST en el lenguaje nativo del proyecto en lugar de expresiones regulares frágiles.",
+        code: `// Anti-Fuga de Secretos:
+- const STRIPE_KEY = "sk_live_59182379123"; // ❌ BLOQUEADO
++ const STRIPE_KEY = process.env.STRIPE_KEY; // ✔ VALIDADO
+
+// Límites de Clean Architecture:
+- import { UserModel } from '../infra/db';   // ❌ BLOQUEADO en Vista
++ import { GetUserUseCase } from '../domain'; // ✔ VALIDADO`,
+      }
+    ]
+  },
+  {
+    id: "custom-layers",
+    title: "3. Personalización y Creación de Capas",
+    icon: "⚙️",
+    items: [
+      {
+        id: "config-yaml",
+        title: "Configuración (.clckernel.yaml)",
+        desc: "Activa, desactiva o ajusta umbrales para cualquier capa de salvaguarda en el manifiesto del repositorio.",
+        code: `# .clckernel.yaml
+version: "1.2"
+framework: "rails" # o fastapi, django, nextjs, astro, golang, etc.
+test_runner: "bundle exec rspec"
+
+safeguards:
+  scan_secrets: true
+  check_architecture: true
+  check_db_efficiency: true
+  check_responsive: false # desactivar si es solo backend
+  check_seo: false
+
+# Scripts de salvaguarda personalizados (en el lenguaje nativo de tu stack):
+custom_guards:
+  - name: "check_naming_conventions"
+    command: "ruby tools/guards/naming_guard.rb"`,
+      },
+      {
+        id: "authoring-guards",
+        title: "Creación de una Salvaguarda AST Propia",
+        desc: "Crea scripts sencillos directamente en el lenguaje nativo de tu proyecto (Ruby, Python, Go, Node, PHP) sin requerir runtimes externos ni dependencias pesadas.",
+        code: `// tools/guards/mi_guard_personalizado.js
+import { execSync } from 'node:child_process';
+
+const diff = execSync('git diff --cached', { encoding: 'utf-8' });
+
+// Inspecciona el diff sintácticamente
+if (diff.includes('apiInternaObsoleta()')) {
+  console.error('❌ Violación: apiInternaObsoleta() está prohibida.');
+  process.exit(1); // ¡Un código distinto de cero bloquea el commit de git!
+}
+
+console.log('✔ Salvaguarda personalizada aprobada.');
+process.exit(0);`,
+      }
+    ]
+  },
+  {
+    id: "ai-harnesses-sdd",
+    title: "4. Arneses de IA y Protocolo SDD",
+    icon: "🤖",
+    items: [
+      {
+        id: "harness-sync",
+        title: "Sincronización de Reglas para Agentes IA",
+        desc: "Aprovisiona y vincula automáticamente reglas para los principales entornos de programación autónoma.",
+        code: `• Cursor & Windsurf  -> .cursorrules y .cursor/rules/*.mdc
+• Claude Code        -> CLAUDE.md (Comandos de terminal y límites TDD)
+• Google Antigravity -> .antigravity/rules.md y skills nativos
+• GitHub Copilot     -> .github/copilot-instructions.md`,
+      },
+      {
+        id: "sdd-specs",
+        title: "Flujo de Trabajo SDD Local (sdds/)",
+        desc: "Los documentos de diseño de software viven 100% en local y están en el .gitignore para no ensuciar el historial de git.",
+        code: `sdds/
+  └── {nombre-del-cambio}/
+      ├── spec.md        # Contratos de API y límites de capas
+      ├── plan.md        # Plan paso a paso de TDD Rojo->Verde
+      └── verification.md # Recibos de test y compuertas AST aprobadas`,
+      }
+    ]
+  }
+];
+---
+
+<Layout lang="es" title="Documentación — CLC Kernel Gobernanza Determinista para IA">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+    
+    <!-- Docs Page Header -->
+    <div class="mb-12 border-b border-slate-200 pb-8">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-800 text-xs font-mono font-semibold mb-3">
+        <span class="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse"></span>
+        <span>DOCUMENTACIÓN OFICIAL</span>
+      </div>
+      <h1 class="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
+        Documentación de CLC Kernel
+      </h1>
+      <p class="text-base sm:text-lg text-slate-600 mt-2 max-w-3xl font-normal">
+        Guía completa de arneses inmediatos, salvaguardas AST nativas y extensibilidad de capas a medida.
+      </p>
+
+      <!-- Quick Search Bar -->
+      <div class="mt-6 max-w-md relative">
+        <input
+          type="text"
+          id="docs-search-input"
+          placeholder="Buscar salvaguardas, reglas, capas personalizadas..."
+          class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-xs font-mono focus:outline-none focus:border-cyan-500 focus:bg-white transition-all shadow-2xs"
+        />
+      </div>
+    </div>
+
+    <!-- 2-Column Documentation Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      
+      <!-- Sticky Sidebar Navigation (Left Column) -->
+      <aside class="lg:col-span-4 sticky top-24 space-y-6 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm" id="docs-sidebar">
+        <div class="text-xs font-mono uppercase text-slate-400 font-bold tracking-wider mb-2">
+          Tabla de Contenidos
+        </div>
+        <nav class="space-y-4">
+          {sections.map((sec) => (
+            <div>
+              <a href={`#${sec.id}`} class="flex items-center gap-2 text-xs font-bold text-slate-800 hover:text-cyan-700 transition-colors py-1">
+                <span>{sec.icon}</span>
+                <span>{sec.title}</span>
+              </a>
+              <ul class="pl-6 mt-1 space-y-1 border-l border-slate-100">
+                {sec.items.map((item) => (
+                  <li>
+                    <a href={`#${item.id}`} class="doc-sublink block text-[11px] text-slate-500 hover:text-cyan-700 py-0.5 transition-colors truncate">
+                      {item.title.split('—')[0]}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </nav>
+      </aside>
+
+      <!-- Documentation Articles (Right Column) -->
+      <main class="lg:col-span-8 space-y-12" id="docs-content">
+        <!-- Empty state when no matches -->
+        <div id="docs-no-results" class="hidden p-10 text-center bg-slate-50 border border-slate-200 rounded-2xl space-y-3 font-mono">
+          <div class="text-3xl">🔍</div>
+          <div class="text-sm font-bold text-slate-800">No se encontraron artículos de documentación</div>
+          <div class="text-xs text-slate-500">Prueba buscando términos como "ast", "secretos", "sdd", "tdd", "docker" o "hooks".</div>
+        </div>
+
+        {sections.map((sec) => (
+          <section id={sec.id} class="doc-section space-y-8 scroll-mt-24">
+            <div class="doc-section-header flex items-center gap-3 border-b border-slate-200 pb-3">
+              <span class="text-2xl p-2 rounded-xl bg-slate-50 border border-slate-100">{sec.icon}</span>
+              <h2 class="text-2xl font-extrabold text-slate-900">{sec.title}</h2>
+            </div>
+
+            <div class="space-y-6">
+              {sec.items.map((item) => (
+                <article id={item.id} class="doc-item bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-3 scroll-mt-24">
+                  <h3 class="text-base font-bold text-slate-900 flex items-center justify-between">
+                    <span>{item.title}</span>
+                  </h3>
+                  <p class="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+                    {item.desc}
+                  </p>
+
+                  <div class="relative mt-3">
+                    <pre class="bg-slate-50 text-slate-800 p-4 rounded-xl font-mono text-xs border border-slate-200/90 overflow-x-auto leading-relaxed shadow-inner"><code>{item.code}</code></pre>
+                    <button
+                      type="button"
+                      onclick={`navigator.clipboard.writeText(\`${item.code}\`); const el=this; el.textContent='¡Copiado!'; setTimeout(()=>el.textContent='Copiar', 2000)`}
+                      class="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-600 hover:text-slate-900 text-[11px] font-sans font-medium transition-colors shadow-2xs cursor-pointer"
+                    >
+                      Copiar
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ))}
+      </main>
+
+    </div>
+
+  </div>
+</Layout>
+
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('docs-search-input');
+    const docSections = document.querySelectorAll('.doc-section');
+    const noResults = document.getElementById('docs-no-results');
+
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        let totalMatches = 0;
+
+        docSections.forEach((section) => {
+          const header = section.querySelector('.doc-section-header');
+          const items = section.querySelectorAll('.doc-item');
+          let sectionMatches = 0;
+
+          items.forEach((item) => {
+            const text = item.textContent.toLowerCase();
+            if (!query || text.includes(query)) {
+              item.style.display = 'block';
+              sectionMatches++;
+              totalMatches++;
+            } else {
+              item.style.display = 'none';
+            }
+          });
+
+          // If searching, hide section header so only direct matching items are shown
+          if (query) {
+            if (sectionMatches > 0) {
+              section.style.display = 'block';
+              if (header) header.style.display = 'none';
+            } else {
+              section.style.display = 'none';
+            }
+          } else {
+            // Restore normal view when query is cleared
+            section.style.display = 'block';
+            if (header) header.style.display = 'flex';
+          }
+        });
+
+        if (noResults) {
+          noResults.style.display = (query && totalMatches === 0) ? 'block' : 'none';
+        }
+      });
+    }
+  });
+</script>

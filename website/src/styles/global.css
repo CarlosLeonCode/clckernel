@@ -66,10 +66,26 @@
 }
 
 .terminal-window {
-  background: #0b1120;
-  border: 1px solid #1e293b;
-  border-radius: 12px;
-  box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.25);
+  position: relative;
+  background: radial-gradient(120% 120% at 50% 0%, #0d1527 0%, #060a12 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  box-shadow: 
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 25px 60px -15px rgba(0, 0, 0, 0.6),
+    0 0 50px -10px rgba(16, 185, 129, 0.12);
+  backdrop-filter: blur(20px);
+}
+
+.terminal-window::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  pointer-events: none;
 }
 
 @keyframes terminalPulse {
@@ -77,6 +93,37 @@
   50% { opacity: 0; }
 }
 
+@keyframes pulseGlow {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.04); opacity: 1; }
+}
+
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(1000%); }
+}
+
 .cursor-blink {
-  animation: terminalPulse 1s infinite;
+  animation: terminalPulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.glow-pill {
+  animation: pulseGlow 3s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+/* Apple Spring Easing Utilities */
+.apple-ease {
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.step-node-active {
+  background-color: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.8);
+  color: #34d399;
+}
+
+.step-node-idle {
+  background-color: rgba(15, 23, 42, 0.6);
+  border-color: rgba(30, 41, 59, 0.8);
+  color: #64748b;
 }

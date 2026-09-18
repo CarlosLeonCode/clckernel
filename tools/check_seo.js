@@ -90,7 +90,7 @@ const check = async function checkSeo(targetDir) {
       }
 
       // Check for Hero / Banner images without priority (Core Web Vitals / LCP)
-      if (/(?:hero|banner|cover|hero-image|heroImage|HeroBanner)/i.test(line) && /<(?:img|Image)\b/i.test(line)) {
+      if (/\b(?:hero|banner|hero-image|heroImage|heroBanner)\b/i.test(line) && /<(?:img|Image)\b/i.test(line)) {
         if (!/priority|fetchpriority|loading\s*=\s*['"]eager['"]/i.test(line)) {
           fileViolations.push({
             lineNo: i + 1,

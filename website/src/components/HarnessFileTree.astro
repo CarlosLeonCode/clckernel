@@ -1,0 +1,617 @@
+---
+interface Props {
+  lang?: 'en' | 'es';
+}
+
+const { lang = 'en' } = Astro.props;
+const isEs = lang === 'es';
+
+// File metadata and concise explanations for the Inspector
+const fileData = {
+  'agents_md': {
+    path: 'AGENTS.md',
+    badge: 'SSOT',
+    badgeColor: 'bg-cyan-50 border-cyan-200 text-cyan-900',
+    type: 'Markdown • AI Law',
+    desc: isEs 
+      ? 'Gobierna el comportamiento del agente mediante la Regla #0: prohíbe modificaciones ciegas de código sin research, SDD previo y test TDD en rojo. Se sincroniza automáticamente con Cursor, Claude y Antigravity.'
+      : 'Enforces Rule #0: strictly forbids blind code edits without research, local SDD specs, and failing TDD tests. Automatically symlinks across Cursor, Claude, and Antigravity.',
+    codeTitle: 'AGENTS.md',
+    codeLang: 'markdown',
+    code: `# CLC Kernel — AI AGENTS LAW (SSOT)
+> RULE #0: MANDATORY EXECUTION OVERRIDE
+> You are STRICTLY FORBIDDEN from modifying source code
+> without completing:
+> 1. Research & Root Cause Analysis
+> 2. SDD Specification under sdds/{change}/
+> 3. TDD Regression Test (Must fail first - RED)
+> 4. Mandatory AST Audit Gate (node tools/audit.js)`
+  },
+  'clckernel_yaml': {
+    path: '.clckernel.yaml',
+    badge: 'CONFIG',
+    badgeColor: 'bg-indigo-50 border-indigo-200 text-indigo-900',
+    type: 'YAML • Config',
+    desc: isEs
+      ? 'Declara qué capas de salvaguardas están activas en el repositorio. Permite agregar tus propios scripts AST en Node.js/Python o desactivar capas por defecto según la arquitectura de tu equipo.'
+      : 'Declares active safeguard layers. Allows adding custom Node.js/Python AST scripts or toggling default layers according to team architecture.',
+    codeTitle: '.clckernel.yaml',
+    codeLang: 'yaml',
+    code: `version: "1.2"
+project_type: "fullstack"
+execution_phases:
+  - name: "scan_secrets"
+    command: "node tools/scan_secrets.js"
+  - name: "check_architecture"
+    command: "node tools/check_architecture.js"
+  - name: "custom_guard"
+    command: "python tools/custom_guard.py"`
+  },
+  'sdds_dir': {
+    path: 'sdds/',
+    badge: '100% LOCAL',
+    badgeColor: 'bg-emerald-50 border-emerald-200 text-emerald-900',
+    type: 'Directory • Local Specs',
+    desc: isEs
+      ? 'Directorio gitignorado donde el agente redacta especificaciones técnicas antes de codificar, evitando que actúe por inmediatez y manteniendo limpio el historial de git.'
+      : 'Gitignored directory where agents draft technical specifications prior to modifying code, preventing impulsive edits and keeping git history clean.',
+    codeTitle: '.gitignore',
+    codeLang: 'gitignore',
+    code: `# CLC Kernel Local Governance Specs
+sdds/*
+!sdds/.gitkeep`
+  },
+  'sdd_spec': {
+    path: 'sdds/auth-jwt/spec.md',
+    badge: 'SDD SPEC',
+    badgeColor: 'bg-emerald-50 border-emerald-200 text-emerald-900',
+    type: 'Markdown • Contract',
+    desc: isEs
+      ? 'Fija el alcance exacto, contratos e invariantes antes de la implementación. Si el agente intenta modificar archivos fuera de alcance, las compuertas lo bloquean en pre-commit.'
+      : 'Locks exact scope, API contracts, and domain invariants before implementation. Prevents agent drift outside approved boundaries.',
+    codeTitle: 'sdds/auth-jwt/spec.md',
+    codeLang: 'markdown',
+    code: `# SDD: JWT Token Rotation
+## 1. Scope
+- Add expiration timestamp (15m) to auth payload.
+- OUT OF SCOPE: Database schema migrations.
+
+## 2. Invariants
+- Invalid token signatures MUST return HTTP 401.
+- Domain layer remains free of external JWT libraries.`
+  },
+  'tools_dir': {
+    path: 'tools/',
+    badge: 'AST GUARDS',
+    badgeColor: 'bg-amber-50 border-amber-200 text-amber-900',
+    type: 'Directory • AST Linters',
+    desc: isEs
+      ? 'Suite de parsers AST nativos locales (<5ms) en Node.js y Python. Validan arquitectura, dependencias y seguridad sin inflar el proyecto con dependencias npm pesadas.'
+      : 'Suite of native local AST parsers (<5ms) in pure Node.js and Python. Validates architecture, boundaries, and security with zero npm bloat.',
+    codeTitle: 'tools/ directory',
+    codeLang: 'text',
+    code: `tools/
+├── audit.js                # Master orchestrator
+├── check_architecture.js   # Clean Architecture AST
+├── scan_secrets.js         # Diff credential scanner
+├── check_db_efficiency.py  # ORM N+1 query detector
+└── docker_guard.py         # Container security audit`
+  },
+  'tool_check_arch': {
+    path: 'tools/check_architecture.js',
+    badge: 'CLEAN ARCH AST',
+    badgeColor: 'bg-amber-50 border-amber-200 text-amber-900',
+    type: 'JavaScript • AST Guard',
+    desc: isEs
+      ? 'Linter AST que valida el aislamiento de capas en el diff: bloquea commits si la capa de Dominio importa frameworks externos o Infraestructura.'
+      : 'AST linter enforcing layer isolation on staged diffs: blocks commits if Domain imports frameworks or Infrastructure.',
+    codeTitle: 'tools/check_architecture.js',
+    codeLang: 'javascript',
+    code: `// Native AST Parsing (<3ms execution)
+const ast = acorn.parse(sourceCode, { ecmaVersion: 'latest' });
+if (isDomainFile(filePath) && importsInfra(ast)) {
+  console.error("❌ Clean Architecture Violation:");
+  console.error("   Domain layer cannot import Infrastructure!");
+  process.exit(1);
+}`
+  },
+  'tool_scan_secrets': {
+    path: 'tools/scan_secrets.js',
+    badge: 'SECURITY',
+    badgeColor: 'bg-rose-50 border-rose-200 text-rose-900',
+    type: 'JavaScript • Security Guard',
+    desc: isEs
+      ? 'Escanea credenciales hardcodeadas (API keys, tokens JWT, private keys) en el diff antes del commit con 0 falsos positivos.'
+      : 'Scans staged diffs for hardcoded API keys, JWT tokens, and credentials before commit with 0 false positives.',
+    codeTitle: 'tools/scan_secrets.js',
+    codeLang: 'javascript',
+    code: `const diff = execSync('git diff --cached', { encoding: 'utf8' });
+const leaks = detectCredentials(diff);
+if (leaks.length > 0) {
+  console.error("🚨 Secret Leak Blocked: Hardcoded token detected!");
+  process.exit(1);
+}`
+  },
+  'tool_db_efficiency': {
+    path: 'tools/check_db_efficiency.py',
+    badge: 'PERFORMANCE',
+    badgeColor: 'bg-amber-50 border-amber-200 text-amber-900',
+    type: 'Python • Performance Guard',
+    desc: isEs
+      ? 'Analiza el AST de Python para detectar queries ORM dentro de bucles for/while (problema N+1), evitando cuellos de botella en producción.'
+      : 'Parses Python AST to catch ORM queries inside loops (N+1 query problem), preventing production performance bottlenecks.',
+    codeTitle: 'tools/check_db_efficiency.py',
+    codeLang: 'python',
+    code: `class QueryInLoopVisitor(ast.NodeVisitor):
+    def visit_For(self, node):
+        if has_orm_query_call(node):
+            print("❌ Anti-pattern: N+1 DB query inside loop detected")
+            sys.exit(1)
+        self.generic_visit(node)`
+  },
+  'tool_audit': {
+    path: 'tools/audit.js',
+    badge: 'ORCHESTRATOR',
+    badgeColor: 'bg-cyan-50 border-cyan-200 text-cyan-900',
+    type: 'JavaScript • Master Gate',
+    desc: isEs
+      ? 'Orquestador maestro que ejecuta todas las compuertas activas en pre-commit (<5ms) y emite el resumen educativo al agente y al desarrollador.'
+      : 'Master orchestrator running all active safeguard layers at pre-commit (<5ms) and emitting the educational summary to agent and developer.',
+    codeTitle: 'tools/audit.js',
+    codeLang: 'bash',
+    code: `$ node tools/audit.js
+✔ scan_secrets: PASS (0.8ms)
+✔ check_architecture: PASS (1.2ms)
+✔ check_db_efficiency: PASS (1.4ms)
+🚀 Audit Gate: 0 Violations (<5ms) • Ready for commit`
+  },
+  'husky_precommit': {
+    path: '.husky/pre-commit',
+    badge: 'HARD GATE',
+    badgeColor: 'bg-slate-900 border-slate-700 text-white',
+    type: 'Shell • Git Hook',
+    desc: isEs
+      ? 'Hook de git determinista que ejecuta la auditoría antes de cada commit. Si hay violaciones o tests fallidos, cancela la operación con Exit Code 1.'
+      : 'Deterministic git hook running AST audits before commit. If violations or failing tests exist, aborts with Exit Code 1.',
+    codeTitle: '.husky/pre-commit',
+    codeLang: 'bash',
+    code: `#!/bin/sh
+# CLC Kernel Deterministic Quality Harness
+node tools/audit.js || { echo "❌ CLC Kernel Audit Failed"; exit 1; }
+npm test || { echo "❌ Unit Tests Failed"; exit 1; }
+echo "✔ Quality Harness Sealed: Pre-commit approved."`
+  },
+  'domain_model': {
+    path: 'src/domain/auth.ts',
+    badge: 'PURE DOMAIN',
+    badgeColor: 'bg-purple-50 border-purple-200 text-purple-900',
+    type: 'TypeScript • Business Domain',
+    desc: isEs
+      ? 'Entidades y lógica de negocio puras, vigiladas por las compuertas AST para garantizar que el agente nunca acople lógica de dominio con librerías externas.'
+      : 'Pure business domain entities, monitored by AST guards to ensure AI agents never couple domain models with external libraries.',
+    codeTitle: 'src/domain/auth.ts',
+    codeLang: 'typescript',
+    code: `// Pure Business Domain (Zero Framework Dependencies)
+export interface UserSession {
+  readonly userId: string;
+  readonly expiresAt: number;
+}
+
+export function isSessionExpired(session: UserSession, now: number): boolean {
+  return now >= session.expiresAt;
+}`
+  }
+};
+---
+
+<div class="harness-files-widget pt-4" id="harness-files-explorer">
+  
+  <!-- Header of the Files Widget (Clean & Open) -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 mb-8 border-b border-slate-200/80">
+    <div class="space-y-1.5">
+      <div class="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase text-cyan-800 font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-cyan-50 border border-cyan-200">
+        <span class="w-1.5 h-1.5 rounded-full bg-cyan-600 animate-pulse"></span>
+        <span>{isEs ? "ÁRBOL DE ARCHIVOS Y ARQUITECTURA" : "FILE TREE & ARCHITECTURE"}</span>
+      </div>
+      <h3 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+        {isEs ? "Constitución y anatomía de un repositorio gobernado" : "Anatomy and constitution of a governed codebase"}
+      </h3>
+    </div>
+
+    <div class="flex items-center gap-2 text-xs font-mono shrink-0">
+      <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-semibold border border-slate-200/80 flex items-center gap-1.5 shadow-2xs">
+        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+        <span>{isEs ? "Interactivo (Haz clic en los archivos)" : "Interactive (Click any file)"}</span>
+      </span>
+    </div>
+  </div>
+
+  <!-- Grid: Left = File Tree, Right = Unified Clean Inspector Panel -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    
+    <!-- LEFT: Sleek File Tree Navigation -->
+    <div class="lg:col-span-5 bg-white/70 border border-slate-200/90 rounded-2xl p-3 sm:p-4 font-mono text-xs shadow-xs backdrop-blur-xs">
+      <div class="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-100 text-[11px] text-slate-500">
+        <span class="font-bold text-slate-700 flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
+          <span>WORKSPACE ROOT</span>
+        </span>
+        <span class="text-[10px] text-cyan-800 bg-cyan-100/60 px-1.5 py-0.5 rounded font-semibold">clckernel v1.2</span>
+      </div>
+
+      <!-- Root Files Container -->
+      <div class="files-root space-y-1 select-none" id="files-root-tree">
+        
+        <!-- File: AGENTS.md (SSOT) -->
+        <button 
+          type="button" 
+          class="file-item w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left transition-all duration-150 cursor-pointer group bg-cyan-50 text-cyan-950 font-bold border border-cyan-300 ring-1 ring-cyan-500/20 shadow-2xs" 
+          data-file-key="agents_md"
+        >
+          <div class="flex items-center gap-2 truncate">
+            <span class="text-cyan-700 text-sm">📜</span>
+            <span class="truncate font-semibold">AGENTS.md</span>
+          </div>
+          <span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-100/80 text-cyan-900 font-bold border border-cyan-200 shrink-0">SSOT</span>
+        </button>
+
+        <!-- File: .clckernel.yaml (Config) -->
+        <button 
+          type="button" 
+          class="file-item w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left text-slate-700 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group" 
+          data-file-key="clckernel_yaml"
+        >
+          <div class="flex items-center gap-2 truncate">
+            <span class="text-indigo-600 text-sm">⚙️</span>
+            <span class="truncate font-medium">.clckernel.yaml</span>
+          </div>
+          <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-200/70 text-slate-700 font-semibold shrink-0">CONFIG</span>
+        </button>
+
+        <!-- Folder: sdds/ -->
+        <div class="folder-item space-y-0.5" data-folder="sdds">
+          <button 
+            type="button" 
+            class="folder-trigger w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left text-slate-700 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group"
+            aria-expanded="true"
+            data-file-key="sdds_dir"
+          >
+            <div class="flex items-center gap-2 truncate">
+              <span class="folder-caret transition-transform duration-200 text-slate-400 group-hover:text-slate-700 rotate-90">▶</span>
+              <span class="text-amber-600 text-sm">📁</span>
+              <span class="font-bold text-slate-800">sdds/</span>
+            </div>
+            <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-200 shrink-0">LOCAL</span>
+          </button>
+          
+          <div class="folder-content pl-4 space-y-1">
+            <div class="folder-inner border-l-2 border-slate-200 pl-2 space-y-1 py-0.5">
+              <!-- File: spec.md -->
+              <button 
+                type="button" 
+                class="file-item w-full flex items-center justify-between px-2 py-1 rounded-lg text-left text-slate-600 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group text-[11px]" 
+                data-file-key="sdd_spec"
+              >
+                <div class="flex items-center gap-1.5 truncate">
+                  <span class="text-slate-400">📄</span>
+                  <span class="truncate">auth-jwt/spec.md</span>
+                </div>
+                <span class="text-[9px] text-slate-500 font-mono">SPEC</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Folder: tools/ (AST Safeguards) -->
+        <div class="folder-item space-y-0.5" data-folder="tools">
+          <button 
+            type="button" 
+            class="folder-trigger w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left text-slate-700 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group"
+            aria-expanded="true"
+            data-file-key="tools_dir"
+          >
+            <div class="flex items-center gap-2 truncate">
+              <span class="folder-caret transition-transform duration-200 text-slate-400 group-hover:text-slate-700 rotate-90">▶</span>
+              <span class="text-amber-600 text-sm">📁</span>
+              <span class="font-bold text-slate-800">tools/</span>
+            </div>
+            <span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-bold border border-amber-200 shrink-0">AST GUARDS</span>
+          </button>
+          
+          <div class="folder-content pl-4 space-y-1">
+            <div class="folder-inner border-l-2 border-slate-200 pl-2 space-y-1 py-0.5">
+              <!-- File: audit.js -->
+              <button 
+                type="button" 
+                class="file-item w-full flex items-center justify-between px-2 py-1 rounded-lg text-left text-slate-600 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group text-[11px]" 
+                data-file-key="tool_audit"
+              >
+                <div class="flex items-center gap-1.5 truncate">
+                  <span class="text-cyan-600">⚡</span>
+                  <span class="truncate font-semibold text-slate-800">audit.js</span>
+                </div>
+                <span class="text-[9px] text-cyan-700 font-bold bg-cyan-50 px-1 rounded">MASTER</span>
+              </button>
+
+              <!-- File: check_architecture.js -->
+              <button 
+                type="button" 
+                class="file-item w-full flex items-center justify-between px-2 py-1 rounded-lg text-left text-slate-600 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group text-[11px]" 
+                data-file-key="tool_check_arch"
+              >
+                <div class="flex items-center gap-1.5 truncate">
+                  <span class="text-amber-600">🛡️</span>
+                  <span class="truncate">check_architecture.js</span>
+                </div>
+                <span class="text-[9px] text-slate-500 font-mono">AST</span>
+              </button>
+
+              <!-- File: scan_secrets.js -->
+              <button 
+                type="button" 
+                class="file-item w-full flex items-center justify-between px-2 py-1 rounded-lg text-left text-slate-600 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group text-[11px]" 
+                data-file-key="tool_scan_secrets"
+              >
+                <div class="flex items-center gap-1.5 truncate">
+                  <span class="text-rose-600">🔒</span>
+                  <span class="truncate">scan_secrets.js</span>
+                </div>
+                <span class="text-[9px] text-slate-500 font-mono">AST</span>
+              </button>
+
+              <!-- File: check_db_efficiency.py -->
+              <button 
+                type="button" 
+                class="file-item w-full flex items-center justify-between px-2 py-1 rounded-lg text-left text-slate-600 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group text-[11px]" 
+                data-file-key="tool_db_efficiency"
+              >
+                <div class="flex items-center gap-1.5 truncate">
+                  <span class="text-indigo-600">🐍</span>
+                  <span class="truncate">check_db_efficiency.py</span>
+                </div>
+                <span class="text-[9px] text-slate-500 font-mono">AST</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Folder: .husky/ -->
+        <div class="folder-item space-y-0.5" data-folder="husky">
+          <button 
+            type="button" 
+            class="folder-trigger w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left text-slate-700 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group"
+            aria-expanded="true"
+            data-file-key="husky_precommit"
+          >
+            <div class="flex items-center gap-2 truncate">
+              <span class="folder-caret transition-transform duration-200 text-slate-400 group-hover:text-slate-700 rotate-90">▶</span>
+              <span class="text-amber-600 text-sm">📁</span>
+              <span class="font-bold text-slate-800">.husky/</span>
+            </div>
+            <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-800 font-bold shrink-0">HOOK</span>
+          </button>
+          
+          <div class="folder-content pl-4 space-y-1">
+            <div class="folder-inner border-l-2 border-slate-200 pl-2 space-y-1 py-0.5">
+              <!-- File: pre-commit -->
+              <button 
+                type="button" 
+                class="file-item w-full flex items-center justify-between px-2 py-1 rounded-lg text-left text-slate-600 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group text-[11px]" 
+                data-file-key="husky_precommit"
+              >
+                <div class="flex items-center gap-1.5 truncate">
+                  <span class="text-slate-700">🪝</span>
+                  <span class="truncate font-semibold text-slate-800">pre-commit</span>
+                </div>
+                <span class="text-[9px] text-slate-500 font-mono">GATE</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Folder: src/domain/ -->
+        <div class="folder-item space-y-0.5" data-folder="src">
+          <button 
+            type="button" 
+            class="folder-trigger w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left text-slate-700 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group"
+            aria-expanded="true"
+            data-file-key="domain_model"
+          >
+            <div class="flex items-center gap-2 truncate">
+              <span class="folder-caret transition-transform duration-200 text-slate-400 group-hover:text-slate-700 rotate-90">▶</span>
+              <span class="text-amber-600 text-sm">📁</span>
+              <span class="font-bold text-slate-800">src/domain/</span>
+            </div>
+            <span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-900 font-bold border border-purple-200 shrink-0">CLEAN ARCH</span>
+          </button>
+          
+          <div class="folder-content pl-4 space-y-1">
+            <div class="folder-inner border-l-2 border-slate-200 pl-2 space-y-1 py-0.5">
+              <!-- File: auth.ts -->
+              <button 
+                type="button" 
+                class="file-item w-full flex items-center justify-between px-2 py-1 rounded-lg text-left text-slate-600 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group text-[11px]" 
+                data-file-key="domain_model"
+              >
+                <div class="flex items-center gap-1.5 truncate">
+                  <span class="text-blue-600">🔷</span>
+                  <span class="truncate">auth.ts</span>
+                </div>
+                <span class="text-[9px] text-slate-500 font-mono">DOMAIN</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT: Clean & Punchy File Inspector Panel -->
+    <div class="lg:col-span-7 space-y-3" id="inspector-container">
+      
+      <!-- Unified Inspector Panel -->
+      <div id="inspector-card" class="bg-white/80 border border-slate-200/90 rounded-2xl p-5 sm:p-6 space-y-4 shadow-xs backdrop-blur-xs">
+        
+        <!-- Header: Path + Badges -->
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div class="space-y-0.5">
+            <div class="text-xs font-mono text-slate-400 font-medium" id="inspector-type">{fileData.agents_md.type}</div>
+            <h4 class="text-base sm:text-lg font-mono font-bold text-slate-900 flex items-center gap-2" id="inspector-path">
+              <span>{fileData.agents_md.path}</span>
+            </h4>
+          </div>
+
+          <span class={`text-[10px] font-mono px-2.5 py-1 rounded-full font-bold border shadow-2xs ${fileData.agents_md.badgeColor}`} id="inspector-badge">
+            {fileData.agents_md.badge}
+          </span>
+        </div>
+
+        <!-- Role & Purpose: Clean Editorial Quote -->
+        <div class="space-y-1 border-l-2 border-cyan-500 pl-3.5 py-0.5">
+          <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+            <span>🛡️</span>
+            <span>{isEs ? "¿Qué hace y por qué?" : "Role & Purpose in the Harness"}</span>
+          </div>
+          <p class="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal pt-0.5" id="inspector-desc">
+            {fileData.agents_md.desc}
+          </p>
+        </div>
+
+        <!-- Live Code / Config Preview -->
+        <div class="space-y-1.5 pt-1">
+          <div class="flex items-center justify-between text-[11px] font-mono text-slate-500">
+            <span class="font-semibold text-slate-700 flex items-center gap-1.5">
+              <span>📝</span>
+              <span id="inspector-code-filename">{fileData.agents_md.codeTitle}</span>
+            </span>
+            <span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-bold border border-slate-200/60" id="inspector-code-lang">{fileData.agents_md.codeLang}</span>
+          </div>
+
+          <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 font-mono text-[11px] leading-relaxed text-slate-800 overflow-x-auto shadow-inner">
+            <pre class="m-0 whitespace-pre font-mono" id="inspector-code-block">{fileData.agents_md.code}</pre>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<style>
+  /* Soft animation for folder collapse */
+  .folder-content {
+    display: grid;
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transition: 
+      grid-template-rows 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+      opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .folder-content[data-state="closed"] {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+
+  .folder-inner {
+    overflow: hidden;
+  }
+</style>
+
+<div id="harness-file-data-json" data-payload={JSON.stringify(fileData)} class="hidden"></div>
+
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', () => {
+    const fileDataRaw = document.getElementById('harness-file-data-json')?.getAttribute('data-payload') || '{}';
+    const fileData = JSON.parse(fileDataRaw);
+    const inspectorCard = document.getElementById('inspector-card');
+    
+    // UI Elements
+    const inspectorType = document.getElementById('inspector-type');
+    const inspectorPath = document.getElementById('inspector-path');
+    const inspectorBadge = document.getElementById('inspector-badge');
+    const inspectorDesc = document.getElementById('inspector-desc');
+    const inspectorCodeFilename = document.getElementById('inspector-code-filename');
+    const inspectorCodeLang = document.getElementById('inspector-code-lang');
+    const inspectorCodeBlock = document.getElementById('inspector-code-block');
+
+    function updateInspector(key) {
+      const data = fileData[key];
+      if (!data) return;
+
+      // Update active styling in file tree
+      const allButtons = document.querySelectorAll('.file-item, .folder-trigger');
+      allButtons.forEach((btn) => {
+        if (btn.getAttribute('data-file-key') === key) {
+          btn.classList.add('bg-cyan-50', 'text-cyan-950', 'font-bold', 'border-cyan-300', 'ring-1', 'ring-cyan-500/20', 'shadow-2xs');
+          btn.classList.remove('text-slate-700', 'text-slate-600', 'hover:bg-white');
+        } else {
+          btn.classList.remove('bg-cyan-50', 'text-cyan-950', 'font-bold', 'border-cyan-300', 'ring-1', 'ring-cyan-500/20', 'shadow-2xs');
+          btn.classList.add('text-slate-700');
+        }
+      });
+
+      // Update Inspector Panel with GSAP
+      if (typeof gsap !== 'undefined' && inspectorCard) {
+        gsap.killTweensOf(inspectorCard);
+        gsap.fromTo(inspectorCard,
+          { opacity: 0.5, y: 6 },
+          { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out', clearProps: 'transform' }
+        );
+      }
+
+      if (inspectorType) inspectorType.textContent = data.type;
+      if (inspectorPath) inspectorPath.innerHTML = `<span>${data.path}</span>`;
+      if (inspectorBadge) {
+        inspectorBadge.textContent = data.badge;
+        inspectorBadge.className = `text-[10px] font-mono px-2.5 py-1 rounded-full font-bold border shadow-2xs ${data.badgeColor}`;
+      }
+      if (inspectorDesc) inspectorDesc.textContent = data.desc;
+      if (inspectorCodeFilename) inspectorCodeFilename.textContent = data.codeTitle;
+      if (inspectorCodeLang) inspectorCodeLang.textContent = data.codeLang;
+      if (inspectorCodeBlock) inspectorCodeBlock.textContent = data.code;
+    }
+
+    // Attach click handlers to files
+    const fileButtons = document.querySelectorAll('.file-item');
+    fileButtons.forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const key = btn.getAttribute('data-file-key');
+        if (key) updateInspector(key);
+      });
+    });
+
+    // Attach click handlers to folder triggers (Toggle + Inspector update)
+    const folderTriggers = document.querySelectorAll('.folder-trigger');
+    folderTriggers.forEach((trigger) => {
+      trigger.addEventListener('click', (e) => {
+        const key = trigger.getAttribute('data-file-key');
+        if (key) updateInspector(key);
+
+        const folderItem = trigger.closest('.folder-item');
+        if (!folderItem) return;
+        const content = folderItem.querySelector('.folder-content');
+        const caret = trigger.querySelector('.folder-caret');
+
+        if (content) {
+          const isClosed = content.getAttribute('data-state') === 'closed';
+          if (isClosed) {
+            content.setAttribute('data-state', 'open');
+            trigger.setAttribute('aria-expanded', 'true');
+            caret?.classList.add('rotate-90');
+          } else {
+            content.setAttribute('data-state', 'closed');
+            trigger.setAttribute('aria-expanded', 'false');
+            caret?.classList.remove('rotate-90');
+          }
+        }
+      });
+    });
+  });
+</script>

@@ -9,141 +9,186 @@ const { lang = 'en' } = Astro.props;
 const t = ui[lang];
 const isEs = lang === 'es';
 
-const guards = isEs ? [
+const items = isEs ? [
   {
-    name: "scan_secrets",
-    lang: "Node.js y Python AST",
-    category: "Seguridad",
-    desc: "Escanea diffs en busca de llaves privadas, credenciales de AWS/Stripe, tokens JWT y contraseñas de BD sin falsos positivos.",
+    id: "secrets",
+    icon: "🛡️",
+    title: "Anti-Fuga de Secretos",
+    keyPoint: "Bloquea llaves de AWS/Stripe, JWTs y passwords en el diff con 0 falsos positivos.",
+    tag: "scan_secrets (AST/Regex)",
+    accent: "rose",
   },
   {
-    name: "check_architecture",
-    lang: "JS y Python AST",
-    category: "Arquitectura",
-    desc: "Valida los límites de capas en Clean Architecture (Dominio -> Caso de Uso -> Infraestructura) y bloquea consultas directas a BD en vistas.",
+    id: "arch",
+    icon: "🏛️",
+    title: "Límites de Arquitectura",
+    keyPoint: "Garantiza aislamiento estricto: Dominio → Casos de Uso → Infraestructura.",
+    tag: "check_architecture (AST)",
+    accent: "indigo",
   },
   {
-    name: "check_db_efficiency",
-    lang: "Python AST",
-    category: "Rendimiento",
-    desc: "Detecta patrones de consulta N+1 en bucles y exige select_related / prefetch_related / joinedload en consultas ORM.",
+    id: "perf",
+    icon: "⚡",
+    title: "Consultas N+1 en BD",
+    keyPoint: "Detecta queries ORM dentro de bucles for/while en tiempo de análisis sintáctico.",
+    tag: "check_db_efficiency (AST)",
+    accent: "amber",
   },
   {
-    name: "check_responsive",
-    lang: "Node.js AST",
-    category: "Frontend",
-    desc: "Exige diseño mobile-first, detecta anchos fijos en px (width > 400px) y exige áreas táctiles mínimas de 44x44px.",
-  },
-  {
-    name: "check_seo",
-    lang: "Node.js AST",
-    category: "SEO y CWV",
-    desc: "Valida OpenGraph, etiquetas GEO, jerarquía única de <h1> y marcas de prioridad LCP en imágenes principales.",
-  },
-  {
-    name: "check_migrations",
-    lang: "Python AST",
-    category: "Base de Datos",
-    desc: "Audita migraciones de Alembic y Django para garantizar que las operaciones sean reversibles, seguras e idempotentes.",
-  },
-  {
-    name: "docker_guard",
-    lang: "Python AST",
-    category: "Infraestructura",
-    desc: "Exige directivas USER no-root en Dockerfiles, bloquea secretos en ENV y requiere directivas HEALTHCHECK.",
-  },
-  {
-    name: "check_scope",
-    lang: "Python AST",
-    category: "Gobernanza",
-    desc: "Verifica que los diffs en git no excedan el alcance de archivos autorizado en el plan SDD local.",
+    id: "infra",
+    icon: "📦",
+    title: "Seguridad de Infraestructura",
+    keyPoint: "Audita contenedores rootless, reversibilidad de migraciones y secrets en env.",
+    tag: "docker_guard (Lint)",
+    accent: "emerald",
   },
 ] : [
   {
-    name: "scan_secrets",
-    lang: "Node.js & Python AST",
-    category: "Security",
-    desc: "Scans diffs for private keys, AWS/Stripe credentials, JWT secrets, and hardcoded DB passwords with zero false positives.",
+    id: "secrets",
+    icon: "🛡️",
+    title: "Anti-Secret Leaks",
+    keyPoint: "Blocks AWS/Stripe keys, JWT tokens, and DB passwords in diffs with 0 false positives.",
+    tag: "scan_secrets (AST/Regex)",
+    accent: "rose",
   },
   {
-    name: "check_architecture",
-    lang: "JS & Python AST",
-    category: "Architecture",
-    desc: "Validates Clean Architecture layer boundaries (Domain -> Use Case -> Infrastructure) and blocks presentation layer DB queries.",
+    id: "arch",
+    icon: "🏛️",
+    title: "Architecture Boundaries",
+    keyPoint: "Enforces strict layer isolation: Domain → Use Cases → Infrastructure.",
+    tag: "check_architecture (AST)",
+    accent: "indigo",
   },
   {
-    name: "check_db_efficiency",
-    lang: "Python AST",
-    category: "Performance",
-    desc: "Detects ORM N+1 query patterns in loops and enforces select_related / prefetch_related / joinedload in query definitions.",
+    id: "perf",
+    icon: "⚡",
+    title: "N+1 Database Queries",
+    keyPoint: "Flags ORM queries inside for/while loops at AST parse time.",
+    tag: "check_db_efficiency (AST)",
+    accent: "amber",
   },
   {
-    name: "check_responsive",
-    lang: "Node.js AST",
-    category: "Frontend",
-    desc: "Enforces mobile-first CSS, flags fixed-pixel desktop overflows (width > 400px), and requires min 44x44px touch targets.",
-  },
-  {
-    name: "check_seo",
-    lang: "Node.js AST",
-    category: "SEO & CWV",
-    desc: "Validates OpenGraph, GEO tags, unique <h1> hierarchy, and LCP priority tags for hero media assets.",
-  },
-  {
-    name: "check_migrations",
-    lang: "Python AST",
-    category: "Database",
-    desc: "Audits Alembic and Django migrations to guarantee operations are reversible, safe, and idempotent.",
-  },
-  {
-    name: "docker_guard",
-    lang: "Python AST",
-    category: "Infrastructure",
-    desc: "Enforces non-root USER directives in Dockerfiles, blocks ENV secrets, and requires container HEALTHCHECK.",
-  },
-  {
-    name: "check_scope",
-    lang: "Python AST",
-    category: "Governance",
-    desc: "Verifies that staged git diffs do not exceed the authorized file scope specified in the local SDD plan.",
+    id: "infra",
+    icon: "📦",
+    title: "Infrastructure Security",
+    keyPoint: "Audits rootless containers, database migration reversibility, and env secrets.",
+    tag: "docker_guard (Lint)",
+    accent: "emerald",
   },
 ];
 ---
 
-<section id="safeguards" class="py-20 md:py-28 border-t border-slate-200 bg-white">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="max-w-3xl mb-16">
-      <h2 class="text-xs uppercase font-mono tracking-widest text-emerald-600 font-semibold mb-2">{t['safeguards.kicker']}</h2>
-      <p class="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 mb-4">
+<section id="safeguards" class="relative py-20 md:py-28 border-t border-slate-200/80 bg-transparent overflow-hidden">
+  
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    
+    <!-- Section Header (Ultra clean & concise) -->
+    <div class="text-center max-w-2xl mx-auto mb-12 space-y-3">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-800 text-xs font-mono font-medium shadow-2xs">
+        <span class="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse"></span>
+        <span>{t['safeguards.kicker']}</span>
+      </div>
+      
+      <h2 class="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
         {t['safeguards.title']}
-      </p>
-      <p class="text-sm sm:text-base text-slate-600 leading-relaxed">
-        {t['safeguards.desc']}
+      </h2>
+      
+      <p class="text-base text-slate-600 font-normal">
+        {isEs ? "Análisis sintáctico ejecutado en el lenguaje nativo de tu repositorio (Ruby, Python, Go, Node, PHP). Cero dependencias foráneas, en < 5ms." : "Syntactic AST parsing executed in your repository's native runtime (Ruby, Python, Go, Node, PHP). Zero foreign dependencies, in < 5ms."}
       </p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {guards.map((guard) => (
-        <div class="surface-card p-5 flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between mb-3">
-              <span class="text-xs font-mono font-bold text-slate-900 tracking-wide">
-                {guard.name}
-              </span>
-              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium">
-                {guard.category}
-              </span>
+    <!-- Organic Flow: Connected Pipeline Stream (No outer card box) -->
+    <div class="flex flex-col md:flex-row items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200/80 mb-10 shadow-xs" id="safeguards-flow-banner">
+      
+      <!-- Step 1: Input -->
+      <div class="flex items-center gap-3 w-full md:w-auto px-3 py-2">
+        <span class="text-2xl">📄</span>
+        <div>
+          <div class="text-[10px] font-mono uppercase text-slate-500 font-semibold">{isEs ? "Entrada" : "Input"}</div>
+          <div class="text-xs font-bold text-slate-900">Staged Git Diff</div>
+        </div>
+      </div>
+
+      <!-- Arrow / Connector 1 -->
+      <div class="hidden md:flex items-center text-slate-300 font-mono text-sm select-none">
+        ──────►
+      </div>
+
+      <!-- Step 2: Native AST Engine (Center Highlight) -->
+      <div class="flex items-center gap-3 bg-white border border-cyan-300/80 px-4 py-2.5 rounded-xl w-full md:w-auto shadow-2xs ring-2 ring-cyan-500/10">
+        <span class="w-2 h-2 rounded-full bg-cyan-600 animate-ping"></span>
+        <div>
+          <div class="text-[10px] font-mono uppercase text-cyan-800 font-bold">{isEs ? "Motor AST Nativo" : "Native AST Engine"}</div>
+          <div class="text-xs font-bold text-slate-900">{isEs ? "0 Dependencias (< 5ms)" : "0 Dependencies (< 5ms)"}</div>
+        </div>
+      </div>
+
+      <!-- Arrow / Connector 2 -->
+      <div class="hidden md:flex items-center text-slate-300 font-mono text-sm select-none">
+        ──────►
+      </div>
+
+      <!-- Step 3: Verified Gate -->
+      <div class="flex items-center gap-3 w-full md:w-auto px-3 py-2">
+        <span class="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">✔</span>
+        <div>
+          <div class="text-[10px] font-mono uppercase text-emerald-800 font-semibold">{isEs ? "Resultado" : "Result"}</div>
+          <div class="text-xs font-bold text-slate-900">{isEs ? "Código Verificado" : "100% Verified Code"}</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Borderless Feature Stream (Clean horizontal rows with dividers instead of cards) -->
+    <div class="divide-y divide-slate-200 border-y border-slate-200" id="safeguards-list">
+      {items.map((item) => (
+        <div class="safeguard-row py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-6 hover:bg-slate-50/70 transition-colors px-2 rounded-lg group">
+          <div class="flex items-start sm:items-center gap-3.5 flex-1">
+            <span class="text-xl p-2 rounded-xl bg-slate-100 text-slate-700 shrink-0 group-hover:scale-110 transition-transform shadow-2xs">
+              {item.icon}
+            </span>
+            <div class="space-y-0.5">
+              <h3 class="text-sm font-bold text-slate-900 group-hover:text-cyan-700 transition-colors">
+                {item.title}
+              </h3>
+              <p class="text-xs text-slate-600 font-normal leading-relaxed">
+                {item.keyPoint}
+              </p>
             </div>
-            <p class="text-xs text-slate-600 leading-relaxed mb-4">
-              {guard.desc}
-            </p>
           </div>
-          
-          <div class="pt-3 border-t border-slate-100 text-[11px] font-mono text-slate-500">
-            {isEs ? 'Motor:' : 'Engine:'} <span class="text-slate-800 font-medium">{guard.lang}</span>
-          </div>
+
+          <span class="font-mono text-[11px] px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-semibold border border-slate-200/80 shrink-0 self-start sm:self-center shadow-2xs group-hover:border-cyan-200 group-hover:text-cyan-900 group-hover:bg-cyan-50 transition-colors">
+            {item.tag}
+          </span>
         </div>
       ))}
     </div>
+
   </div>
 </section>
+
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', () => {
+    const rows = document.querySelectorAll('.safeguard-row');
+    if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
+      if (rows.length > 0) {
+        gsap.fromTo(rows,
+          { y: 15, opacity: 0.8 },
+          {
+            y: 0,
+            opacity: 1,
+            duration: 0.4,
+            stagger: 0.06,
+            ease: 'power2.out',
+            scrollTrigger: {
+              trigger: '#safeguards-list',
+              start: 'top 85%',
+              toggleActions: 'play none none none'
+            }
+          }
+        );
+      }
+    }
+  });
+</script>

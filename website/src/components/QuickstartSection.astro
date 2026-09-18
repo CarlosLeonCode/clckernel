@@ -11,80 +11,280 @@ const isEs = lang === 'es';
 
 const steps = isEs ? [
   {
-    step: "1",
-    title: "Inicialización Interactiva",
-    desc: "Detecta automáticamente tu stack, genera el archivo .clckernel.yaml y vincula las leyes del agente.",
+    id: "step1",
+    num: "01",
+    name: "Inicialización",
     cmd: "npx clckernel start",
+    title: "Inicialización Interactiva y Detección de Stack",
+    desc: "Detecta automáticamente el framework (Next.js, FastAPI, Django, etc.), genera el manifiesto .clckernel.yaml e inyecta las leyes del repositorio para Cursor, Claude Code y Antigravity.",
+    output: `$ npx clckernel start
+[clckernel] 🔍 Scanning workspace...
+[clckernel] ⚡ Detected framework: Next.js (TypeScript) + Vitest
+[clckernel] 📄 Generating .clckernel.yaml configuration...
+[clckernel] 🔗 Materializing rules: .cursorrules, CLAUDE.md, GEMINI.md
+[clckernel] 🛡️  Installing Git pre-commit hooks (Husky / Native)...
+[clckernel] ✨ Governance harness initialized successfully!`,
   },
   {
-    step: "2",
-    title: "Auditoría de Salud del Entorno",
-    desc: "Valida la instalación de hooks, disponibilidad de runners de test y sintaxis AST.",
+    id: "step2",
+    num: "02",
+    name: "Auditoría de Salud",
     cmd: "npx clckernel doctor",
+    title: "Comprobación Integral del Entorno",
+    desc: "Verifica que los hooks de git estén vinculados, que los test runners estén disponibles y que los parsers AST nativos funcionen sin dependencias externas.",
+    output: `$ npx clckernel doctor
+[clckernel] 🏥 Running Governance Doctor...
+✔ Git pre-commit hook active (.husky/pre-commit)
+✔ Test runner operational (npm test -> Vitest)
+✔ AST audit engine ready (Node.js native parser)
+✔ Rules synchronized (.cursorrules, CLAUDE.md)
+✔ Scope boundary active (sdds/ directory tracking)
+[clckernel] 🟢 100% HEALTHY: System is fully governed.`,
   },
   {
-    step: "3",
-    title: "Ejecución Manual de la Compuerta",
-    desc: "Ejecuta las salvaguardas multi-guard contra el git diff local antes de hacer stage.",
+    id: "step3",
+    num: "03",
+    name: "Compuerta de Calidad",
     cmd: "node tools/audit.js",
+    title: "Ejecución Manual de la Compuerta AST",
+    desc: "Audita los cambios antes de hacer commit. Inspecciona el git diff, valida la arquitectura en capas y bloquea secretos con 0 falsos positivos.",
+    output: `$ node tools/audit.js
+[clckernel-audit] 🛡️  Running AST Safeguards on staged diff...
+  [1/6] scan_secrets .................... ✔ PASS (0 leaks found)
+  [2/6] check_architecture .............. ✔ PASS (Clean layers intact)
+  [3/6] check_db_efficiency ............. ✔ PASS (0 N+1 loops)
+  [4/6] check_responsive ................ ✔ PASS (Mobile-first valid)
+  [5/6] check_seo ....................... ✔ PASS (CWV & OG tags verified)
+  [6/6] check_scope ..................... ✔ PASS (Within SDD boundary)
+[clckernel-audit] 🚀 ALL GUARDS PASSED. Ready to commit!`,
   },
 ] : [
   {
-    step: "1",
-    title: "Interactive Initialization",
-    desc: "Auto-detects your ecosystem, configures .clckernel.yaml, and links agent rules.",
+    id: "step1",
+    num: "01",
+    name: "Initialization",
     cmd: "npx clckernel start",
+    title: "Interactive Initialization & Stack Detection",
+    desc: "Auto-detects your ecosystem (Next.js, FastAPI, Django, etc.), generates .clckernel.yaml, and installs symbolic rule links for Cursor, Claude Code, and Antigravity.",
+    output: `$ npx clckernel start
+[clckernel] 🔍 Scanning workspace...
+[clckernel] ⚡ Detected framework: Next.js (TypeScript) + Vitest
+[clckernel] 📄 Generating .clckernel.yaml configuration...
+[clckernel] 🔗 Materializing rules: .cursorrules, CLAUDE.md, GEMINI.md
+[clckernel] 🛡️  Installing Git pre-commit hooks (Husky / Native)...
+[clckernel] ✨ Governance harness initialized successfully!`,
   },
   {
-    step: "2",
-    title: "Environment & Health Audit",
-    desc: "Validates hook installations, test runner availability, and AST syntax parsing.",
+    id: "step2",
+    num: "02",
+    name: "Doctor Audit",
     cmd: "npx clckernel doctor",
+    title: "Comprehensive Environment Health Check",
+    desc: "Validates active git hooks, test runner availability, and zero-dependency AST parser integrity before any AI agent writes code.",
+    output: `$ npx clckernel doctor
+[clckernel] 🏥 Running Governance Doctor...
+✔ Git pre-commit hook active (.husky/pre-commit)
+✔ Test runner operational (npm test -> Vitest)
+✔ AST audit engine ready (Node.js native parser)
+✔ Rules synchronized (.cursorrules, CLAUDE.md)
+✔ Scope boundary active (sdds/ directory tracking)
+[clckernel] 🟢 100% HEALTHY: System is fully governed.`,
   },
   {
-    step: "3",
-    title: "Manual Audit Gate Execution",
-    desc: "Runs multi-guard checks against local git diffs before staging changes.",
+    id: "step3",
+    num: "03",
+    name: "Audit Gate",
     cmd: "node tools/audit.js",
+    title: "Manual AST Audit Gate Execution",
+    desc: "Runs multi-guard checks against local staged diffs. Enforces Clean Architecture AST rules and blocks leaked credentials with zero false positives.",
+    output: `$ node tools/audit.js
+[clckernel-audit] 🛡️  Running AST Safeguards on staged diff...
+  [1/6] scan_secrets .................... ✔ PASS (0 leaks found)
+  [2/6] check_architecture .............. ✔ PASS (Clean layers intact)
+  [3/6] check_db_efficiency ............. ✔ PASS (0 N+1 loops)
+  [4/6] check_responsive ................ ✔ PASS (Mobile-first valid)
+  [5/6] check_seo ....................... ✔ PASS (CWV & OG tags verified)
+  [6/6] check_scope ..................... ✔ PASS (Within SDD boundary)
+[clckernel-audit] 🚀 ALL GUARDS PASSED. Ready to commit!`,
   },
 ];
 ---
 
-<section id="quickstart" class="py-20 md:py-28 border-t border-slate-200 bg-white">
-  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-    <h2 class="text-xs uppercase font-mono tracking-widest text-emerald-600 font-semibold mb-2">{t['quickstart.kicker']}</h2>
-    <p class="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 mb-4">
-      {t['quickstart.title']}
-    </p>
-    <p class="text-sm sm:text-base text-slate-600 max-w-xl mx-auto mb-12">
-      {t['quickstart.desc']}
-    </p>
+<section id="quickstart" class="relative py-24 md:py-32 border-t border-slate-200/80 bg-transparent overflow-hidden">
+  
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    
+    <!-- Section Header -->
+    <div class="text-center max-w-2xl mx-auto mb-12 space-y-3">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-800 text-xs font-mono font-medium shadow-2xs">
+        <span class="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse"></span>
+        <span>{t['quickstart.kicker']}</span>
+      </div>
+      
+      <h2 class="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 leading-[1.12]">
+        {t['quickstart.title']}
+      </h2>
+      
+      <p class="text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
+        {t['quickstart.desc']}
+      </p>
+    </div>
 
-    <div class="space-y-4 text-left">
-      {steps.map((s) => (
-        <div class="surface-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div class="flex items-start gap-4">
-            <span class="w-6 h-6 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-mono text-xs flex items-center justify-center font-bold shrink-0 mt-0.5">
-              {s.step}
-            </span>
-            <div>
-              <div class="text-sm font-bold text-slate-900 mb-0.5">{s.title}</div>
-              <div class="text-xs text-slate-600">{s.desc}</div>
+    <!-- 3-Step Interactive Terminal Walkthrough (White Theme) -->
+    <div class="bg-[#f8fafc] text-slate-900 rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 p-6 sm:p-8 relative overflow-hidden" id="quickstart-box">
+      
+      <!-- Top Step Tabs -->
+      <div class="grid grid-cols-3 gap-2 sm:gap-4 border-b border-slate-200 pb-6 mb-6">
+        {steps.map((step, idx) => (
+          <button
+            type="button"
+            data-step-id={step.id}
+            class={`qs-tab p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer focus:outline-none flex flex-col justify-between ${
+              idx === 0
+                ? 'active bg-white border-cyan-400 shadow-sm ring-1 ring-cyan-500/20'
+                : 'bg-slate-100/70 border-slate-200 hover:bg-white hover:border-slate-300'
+            }`}
+          >
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="font-mono text-xs font-bold text-cyan-700">{step.num}</span>
+              <span class="w-2 h-2 rounded-full bg-cyan-500 opacity-60"></span>
             </div>
+            <div class="text-xs sm:text-sm font-bold text-slate-900 truncate">
+              {step.name}
+            </div>
+            <div class="text-[11px] font-mono text-slate-500 truncate mt-1 hidden sm:block">
+              {step.cmd}
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <!-- Step Content & Command Runner Box -->
+      <div class="space-y-6">
+        
+        <!-- Step Info Row -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="space-y-1 max-w-xl">
+            <h3 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2" id="qs-step-title">
+              {steps[0].title}
+            </h3>
+            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed" id="qs-step-desc">
+              {steps[0].desc}
+            </p>
           </div>
 
-          <div class="flex items-center gap-2 bg-slate-900 px-3 py-2 rounded-lg border border-slate-800 font-mono text-xs text-slate-100 shrink-0 shadow-sm">
-            <span>{s.cmd}</span>
+          <!-- Command Copy Button Box -->
+          <div class="shrink-0 flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 font-mono text-xs text-slate-800 shadow-2xs">
+            <span class="text-cyan-700 font-bold">$</span>
+            <span id="qs-step-cmd" class="text-slate-900 font-bold">{steps[0].cmd}</span>
             <button
               type="button"
-              onclick={`navigator.clipboard.writeText('${s.cmd}'); const el=this; el.textContent='Copied!'; setTimeout(()=>el.textContent='Copy', 2000)`}
-              class="ml-2 text-[11px] font-sans px-2.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+              id="qs-copy-btn"
+              class="ml-3 px-3 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-sans font-medium transition-all duration-150 cursor-pointer shadow-xs active:scale-95"
             >
               Copy
             </button>
           </div>
         </div>
-      ))}
+
+        <!-- Terminal Output Window (Light Editor Style) -->
+        <div class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-inner">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-3 text-xs font-mono text-slate-500">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+              <span class="ml-2 text-slate-700 font-semibold">Terminal Output</span>
+            </div>
+            <span class="text-emerald-700 flex items-center gap-1.5 text-[11px] font-bold">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+              READY
+            </span>
+          </div>
+
+          <pre class="font-mono text-xs text-slate-700 overflow-x-auto whitespace-pre leading-relaxed" id="qs-step-output">{steps[0].output}</pre>
+        </div>
+
+      </div>
+
     </div>
+
   </div>
 </section>
+
+<script is:inline define:vars={{ steps }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const tabs = document.querySelectorAll('.qs-tab');
+    const titleEl = document.getElementById('qs-step-title');
+    const descEl = document.getElementById('qs-step-desc');
+    const cmdEl = document.getElementById('qs-step-cmd');
+    const outputEl = document.getElementById('qs-step-output');
+    const copyBtn = document.getElementById('qs-copy-btn');
+    const qsBox = document.querySelector('#quickstart .bg-\\[\\#0b1320\\]');
+
+    let currentCmd = steps[0].cmd;
+
+    if (typeof gsap !== 'undefined') {
+      if (typeof ScrollTrigger !== 'undefined' && qsBox) {
+        gsap.fromTo(qsBox,
+          { y: 25, scale: 0.98 },
+          {
+            y: 0,
+            scale: 1,
+            duration: 0.6,
+            ease: 'power2.out',
+            clearProps: 'transform',
+            scrollTrigger: {
+              trigger: '#quickstart',
+              start: 'top 80%',
+              toggleActions: 'play none none none'
+            }
+          }
+        );
+      }
+
+      tabs.forEach((tab) => {
+        tab.addEventListener('click', () => {
+          const stepId = tab.getAttribute('data-step-id');
+          const step = steps.find((s) => s.id === stepId);
+          if (!step) return;
+
+          currentCmd = step.cmd;
+
+          // Active tab styling
+          tabs.forEach((t) => {
+            t.className = 'qs-tab p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer focus:outline-none flex flex-col justify-between bg-slate-100/70 border-slate-200 hover:bg-white hover:border-slate-300';
+          });
+          tab.className = 'qs-tab p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer focus:outline-none flex flex-col justify-between active bg-white border-cyan-400 shadow-sm ring-1 ring-cyan-500/20';
+
+          // Update step info with subtle GSAP fade
+          if (titleEl) titleEl.textContent = step.title;
+          if (descEl) descEl.textContent = step.desc;
+          if (cmdEl) cmdEl.textContent = step.cmd;
+          if (outputEl) {
+            outputEl.textContent = step.output;
+            if (typeof gsap !== 'undefined') {
+              gsap.fromTo(outputEl, { opacity: 0.5, y: 3 }, { opacity: 1, y: 0, duration: 0.2, ease: 'power2.out' });
+            }
+          }
+        });
+      });
+
+      if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+          navigator.clipboard.writeText(currentCmd);
+          const prevText = copyBtn.textContent;
+          copyBtn.textContent = 'Copied! ✔';
+          copyBtn.classList.replace('bg-slate-900', 'bg-emerald-600');
+          if (typeof gsap !== 'undefined') {
+            gsap.fromTo(copyBtn, { scale: 0.9 }, { scale: 1.05, duration: 0.15, yoyo: true, repeat: 1, ease: 'back.out(2)' });
+          }
+          setTimeout(() => {
+            copyBtn.textContent = prevText;
+            copyBtn.classList.replace('bg-emerald-600', 'bg-slate-900');
+          }, 2000);
+        });
+      }
+    }
+  });
+</script>

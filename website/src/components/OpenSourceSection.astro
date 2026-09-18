@@ -1,0 +1,109 @@
+---
+import { ui } from '../i18n/ui.js';
+
+interface Props {
+  lang?: 'en' | 'es';
+}
+
+const { lang = 'en' } = Astro.props;
+const t = ui[lang];
+const isEs = lang === 'es';
+
+const pillars = isEs ? [
+  {
+    icon: "📜",
+    title: "Licencia MIT Libre",
+    desc: "100% gratuito para uso comercial, personal o corporativo. Sin licencias restrictivas ni costos ocultos.",
+  },
+  {
+    icon: "🔒",
+    title: "100% Local y Sin Telemetría",
+    desc: "Tus datos y código nunca salen de tu máquina. Cero llamadas a APIs externas y cero dependencias de nube.",
+  },
+  {
+    icon: "🤝",
+    title: "Comunidad y Extensibilidad",
+    desc: "Añade tus propias reglas AST, detectores de tecnología y playbooks de agentes con APIs sencillas.",
+  },
+] : [
+  {
+    icon: "📜",
+    title: "Permissive MIT License",
+    desc: "100% free for commercial, enterprise, and personal projects. No hidden paywalls or restrictive licensing.",
+  },
+  {
+    icon: "🔒",
+    title: "100% Local & Zero Telemetry",
+    desc: "Your code and data never leave your environment. Zero external network pings and zero cloud lock-in.",
+  },
+  {
+    icon: "🤝",
+    title: "Community & Extensible",
+    desc: "Contribute custom AST rules, stack detectors, and agent playbooks with standard, transparent APIs.",
+  },
+];
+---
+
+<section id="opensource" class="relative py-20 md:py-28 border-t border-slate-200/80 bg-transparent overflow-hidden">
+  
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-12">
+    
+    <div class="max-w-3xl mx-auto space-y-4">
+      <!-- Live Open Source Badge -->
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-800 font-mono text-xs font-semibold shadow-2xs">
+        <span class="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></span>
+        <span>{t['opensource.kicker']}</span>
+      </div>
+
+      <!-- Headline -->
+      <h2 class="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
+        {t['opensource.title']}
+      </h2>
+
+      <!-- Subtitle -->
+      <p class="text-base sm:text-lg text-slate-600 leading-relaxed font-normal max-w-2xl mx-auto">
+        {t['opensource.desc']}
+      </p>
+    </div>
+
+    <!-- 3 Pillars (Open Editorial Multi-Column, No nested cards) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 pt-2 text-left border-y border-slate-200 py-8">
+      {pillars.map((p) => (
+        <div class="space-y-2">
+          <span class="text-2xl block">{p.icon}</span>
+          <h3 class="text-sm font-bold text-slate-900">{p.title}</h3>
+          <p class="text-xs text-slate-600 leading-relaxed font-normal">{p.desc}</p>
+        </div>
+      ))}
+    </div>
+
+    <!-- Action CTA Buttons -->
+    <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+      
+      <a
+        href="https://github.com/carlosleoncode/clc_forge"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm transition-all duration-200 shadow-md cursor-pointer active:scale-95 group/star"
+      >
+        <svg class="text-amber-400 group-hover/star:scale-110 transition-transform" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.784 1.399 8.165-7.333-3.856-7.333 3.856 1.399-8.165-5.934-5.784 8.2-1.192zm0 5.702l-2.232 4.523-4.991.725 3.612 3.521-.852 4.97 4.463-2.347 4.463 2.347-.852-4.97 3.612-3.521-4.991-.725z"/>
+        </svg>
+        <span>{isEs ? "Dar Estrella en GitHub" : "Star on GitHub"}</span>
+      </a>
+
+      <a
+        href={isEs ? "/es/docs" : "/docs"}
+        class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-sm font-semibold transition-all duration-200 cursor-pointer border border-slate-200 shadow-2xs"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+        </svg>
+        <span>{isEs ? "Leer Documentación" : "Documentation & Guide"}</span>
+      </a>
+
+    </div>
+
+  </div>
+</section>
