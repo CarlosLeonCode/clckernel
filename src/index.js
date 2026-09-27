@@ -43,7 +43,18 @@ async function runCli() {
   const finalConfig = await promptOptions(detected);
 
   // 5. Generate Harness & Safeguards
+  let s;
+  if (Boolean(process.stdin.isTTY) && !process.env.CI) {
+    const p = require('@clack/prompts');
+    s = p.spinner();
+    s.start('Configurando salvaguardas y motor de gobernanza...');
+  }
+
   generateHarness(targetDir, finalConfig);
+
+  if (s) {
+    s.stop('Salvaguardas y motor de gobernanza configurados.');
+  }
 
   // 6. Render Pro Success Card
   printSuccess(targetDir, finalConfig.projectType === 'frontend', finalConfig);

@@ -3,7 +3,7 @@
  * Brand Identity: The AI Agent Governance & Quality Engineering Engine
  */
 
-const readline = require('readline');
+const p = require('@clack/prompts');
 
 // ANSI Color Palette
 const colors = {
@@ -33,7 +33,7 @@ function printBanner() {
   ╚██████╗███████╗╚██████╗     ██║ ╚██╗███████╗██║  ██║██║ ╚████║███████╗███████╗
    ╚═════╝╚══════╝ ╚═════╝     ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝
 ${colors.reset}`);
-  console.log(`  ${colors.bgCyan} CLC KERNEL ${colors.reset} ${colors.bold}The AI Agent Governance & Quality Engineering Engine${colors.reset} ${colors.gray}v1.2.4${colors.reset}\n`);
+  console.log(`  ${colors.bgCyan} CLC KERNEL ${colors.reset} ${colors.bold}The AI Agent Governance & Quality Engineering Engine${colors.reset} ${colors.gray}v1.2.6${colors.reset}\n`);
 }
 
 function printBox(title, items) {
@@ -52,44 +52,74 @@ function printBox(title, items) {
   console.log(`${colors.dim}└${'─'.repeat(width)}┘${colors.reset}\n`);
 }
 
-function promptOptions(detected) {
-  return new Promise((resolve) => {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout
-    });
+async function promptOptions(detected) {
+  const isInteractive = Boolean(process.stdin.isTTY) &&
+    !process.env.CI &&
+    !process.argv.includes('--yes') &&
+    !process.argv.includes('-y');
 
-    console.log(`${colors.bold}   \x1b[32m[1]\x1b[0m Confirmar e Instalar CLC Kernel ${colors.dim}(Recomendado)${colors.reset}`);
-    console.log(`   \x1b[33m[2]\x1b[0m Forzar modo FRONTEND`);
-    console.log(`   \x1b[33m[3]\x1b[0m Forzar modo BACKEND`);
-    console.log(`   \x1b[90m[4] Cancelar${colors.reset}\n`);
+  if (!isInteractive) {
+    return detected;
+  }
 
-    rl.question(`${colors.cyan}${colors.bold}➔ Seleccioná una opción [1]: ${colors.reset}`, (answer) => {
-      const choice = answer.trim() || '1';
-      rl.close();
+  p.intro(`${colors.cyan}${colors.bold}CLC Kernel Setup${colors.reset}`);
 
-      if (choice === '1') {
-        resolve(detected);
-      } else if (choice === '2') {
-        detected.projectType = 'frontend';
-        resolve(detected);
-      } else if (choice === '3') {
-        detected.projectType = 'backend';
-        resolve(detected);
-      } else {
-        console.log(`\n${colors.red}❌ Instalación de CLC Kernel cancelada.${colors.reset}`);
-        process.exit(0);
+  const choice = await p.select({
+    message: '¿Cómo deseas inicializar CLC Kernel en este proyecto?',
+    initialValue: 'confirm',
+    options: [
+      {
+        value: 'confirm',
+        label: 'Confirmar e Instalar CLC Kernel',
+        hint: `Recomendado (${detected.projectType.toUpperCase()} - ${detected.framework})`
+      },
+      {
+        value: 'frontend',
+        label: 'Forzar modo FRONTEND',
+        hint: 'Salvaguardas A11y, Zod, Next/Image, UI Reuse'
+      },
+      {
+        value: 'backend',
+        label: 'Forzar modo BACKEND',
+        hint: 'Salvaguardas TDD, Clean Arch, N+1, Secrets'
+      },
+      {
+        value: 'cancel',
+        label: 'Cancelar',
+        hint: 'Salir sin realizar cambios'
       }
-    });
+    ]
   });
+
+  if (p.isCancel(choice) || choice === 'cancel') {
+    p.cancel('Instalación de CLC Kernel cancelada.');
+    process.exit(0);
+  }
+
+  if (choice === 'frontend') {
+    detected.projectType = 'frontend';
+  } else if (choice === 'backend') {
+    detected.projectType = 'backend';
+  }
+
+  return detected;
 }
 
 function printSuccess(targetDir, isFront, config) {
-  console.log(`\n${colors.bgEmerald} SUCCESS ${colors.reset} ${colors.bold}${colors.emerald}¡CLC Kernel instalado exitosamente!${colors.reset}\n`);
-  console.log(` 🔨 ${colors.bold}Proyecto Inicializado:${colors.reset} ${colors.cyan}${targetDir}${colors.reset}`);
-  console.log(` 🛡️  ${colors.bold}Salvaguardas:${colors.reset} ${isFront ? `${colors.emerald}10 Guardias Frontend (A11y, Zod, Next/Image, UI Reuse, Storybook)` : `${colors.violet}7 Guardias Backend (TDD, Architecture, Scope, Secret Scan)`}${colors.reset}`);
-  console.log(` 📝 ${colors.bold}Leyes & SDD:${colors.reset} AGENTS.md, sdds/, docs/Journal/ precargados`);
-  console.log(` 🔒 ${colors.bold}Git Hooks:${colors.reset} Configurados en ${colors.amber}${config.gitHooks === 'husky' ? '.husky/pre-commit' : '.githooks/pre-commit'}${colors.reset}\n`);
+  const summary = [
+    `🔨 ${colors.bold}Proyecto Inicializado:${colors.reset} ${colors.cyan}${targetDir}${colors.reset}`,
+    `🛡️  ${colors.bold}Salvaguardas:${colors.reset} ${isFront ? `${colors.emerald}10 Guardias Frontend (A11y, Zod, Image, UI Reuse, Storybook)` : `${colors.violet}7 Guardias Backend (TDD, Architecture, Scope, Secret Scan)`}${colors.reset}`,
+    `📝 ${colors.bold}Leyes & SDD:${colors.reset} AGENTS.md, sdds/, docs/Journal/ precargados`,
+    `🔒 ${colors.bold}Git Hooks:${colors.reset} Configurados en ${colors.amber}${config.gitHooks === 'husky' ? '.husky/pre-commit' : '.githooks/pre-commit'}${colors.reset}`
+  ].join('\n');
+
+  if (p.note && p.outro) {
+    p.note(summary, '🚀 Resumen de Instalación');
+    p.outro(`${colors.emerald}${colors.bold}¡CLC Kernel instalado exitosamente!${colors.reset}`);
+  } else {
+    console.log(`\n${colors.bgEmerald} SUCCESS ${colors.reset} ${colors.bold}${colors.emerald}¡CLC Kernel instalado exitosamente!${colors.reset}\n`);
+    console.log(summary + '\n');
+  }
 }
 
 module.exports = {

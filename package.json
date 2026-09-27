@@ -49,5 +49,8 @@
     "test:coverage": "NODE_V8_COVERAGE=coverage node --test test/*.test.js test/**/*.test.js",
     "website:dev": "npm --prefix website run dev",
     "website:build": "npm --prefix website run build"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.8.1"
   }
 }
