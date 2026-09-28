@@ -194,6 +194,29 @@ $ node tools/check_domain_data.js
     ]
   }
 ];
+
+function generateMarkdown(secList: typeof sections) {
+  let md = `# CLC Kernel Documentation — Deterministic AI Agent Governance Engine\n\n`;
+  md += `> Instant governance harnesses, native AST safeguards (<5ms), and Dual-Layer architecture for codebases and Agent-OS workflows.\n\n`;
+
+  secList.forEach((sec) => {
+    md += `## ${sec.title}\n\n`;
+    sec.items.forEach((item) => {
+      md += `### ${item.title}\n\n${item.desc}\n\n\`\`\`\n${item.code}\n\`\`\`\n\n`;
+    });
+  });
+  return md;
+}
+
+function generateLlmContext(secList: typeof sections) {
+  const header = `<clckernel_knowledge_base>\n# CLC KERNEL AUTHORITATIVE SPECIFICATION FOR AI AGENTS & LLMS\n\nInstruction for model: Use this official documentation as the technical source of truth when operating within or integrating with CLC Kernel governed repositories.\n\n`;
+  const body = generateMarkdown(secList);
+  const footer = `\n</clckernel_knowledge_base>`;
+  return header + body + footer;
+}
+
+const fullMarkdown = generateMarkdown(sections);
+const fullLlmContext = generateLlmContext(sections);
 ---
 
 <Layout lang="en" title="Documentation — CLC Kernel Deterministic AI Governance">
@@ -212,14 +235,38 @@ $ node tools/check_domain_data.js
         Complete guide to instant harness setup, built-in AST safeguards, and modular custom layer extensibility.
       </p>
 
-      <!-- Quick Search Bar -->
-      <div class="mt-6 max-w-md relative">
-        <input
-          type="text"
-          id="docs-search-input"
-          placeholder="Search safeguards, rules, custom layers..."
-          class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-xs font-mono focus:outline-none focus:border-cyan-500 focus:bg-white transition-all shadow-2xs"
-        />
+      <!-- Quick Search Bar & Action Buttons -->
+      <div class="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div class="relative flex-1 max-w-md">
+          <input
+            type="text"
+            id="docs-search-input"
+            placeholder="Search safeguards, rules, custom layers..."
+            class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-xs font-mono focus:outline-none focus:border-cyan-500 focus:bg-white transition-all shadow-2xs"
+          />
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            id="btn-copy-markdown"
+            class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 text-xs font-mono font-medium transition-colors shadow-2xs cursor-pointer min-h-[44px]"
+            title="Copy entire documentation as clean Markdown"
+          >
+            <span>📋</span>
+            <span class="btn-text">Copy Markdown</span>
+          </button>
+          
+          <button
+            type="button"
+            id="btn-copy-llm"
+            class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-cyan-200 bg-cyan-50/80 hover:bg-cyan-100 text-cyan-900 text-xs font-mono font-bold transition-colors shadow-2xs cursor-pointer min-h-[44px]"
+            title="Copy formatted prompt context for LLMs & AI Agents"
+          >
+            <span>🤖</span>
+            <span class="btn-text">Copy for LLMs / Agents</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -271,9 +318,22 @@ $ node tools/check_domain_data.js
             <div class="space-y-6">
               {sec.items.map((item) => (
                 <article id={item.id} class="doc-item bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-3 scroll-mt-24">
-                  <h3 class="text-base font-bold text-slate-900 flex items-center justify-between">
-                    <span>{item.title}</span>
-                  </h3>
+                  <div class="flex items-start sm:items-center justify-between gap-3">
+                    <h3 class="text-base font-bold text-slate-900">
+                      {item.title}
+                    </h3>
+                    <button
+                      type="button"
+                      data-copy-title={item.title}
+                      data-copy-desc={item.desc}
+                      data-copy-code={item.code}
+                      class="btn-copy-article inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-white text-slate-600 hover:text-cyan-800 text-[11px] font-mono transition-colors shadow-2xs cursor-pointer shrink-0"
+                      title="Copy this section in Markdown"
+                    >
+                      <span>📋</span>
+                      <span class="btn-text">Markdown</span>
+                    </button>
+                  </div>
                   <p class="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
                     {item.desc}
                   </p>
@@ -298,10 +358,83 @@ $ node tools/check_domain_data.js
     </div>
 
   </div>
+
+  <!-- Hidden payload for instant whole-document copy -->
+  <script type="application/json" id="docs-markdown-data" set:html={JSON.stringify({ markdown: fullMarkdown, llm: fullLlmContext })} />
 </Layout>
 
 <script is:inline>
   document.addEventListener('DOMContentLoaded', () => {
+    // Clipboard helper with fallback
+    async function copyToClipboard(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        textArea.remove();
+      }
+    }
+
+    // Markdown / LLM Data Parsing
+    const docsDataEl = document.getElementById('docs-markdown-data');
+    let docsData = { markdown: '', llm: '' };
+    if (docsDataEl) {
+      try {
+        docsData = JSON.parse(docsDataEl.textContent || '{}');
+      } catch (err) {
+        console.error('Failed to parse docs markdown data', err);
+      }
+    }
+
+    // Copy entire documentation as Markdown
+    const btnCopyMd = document.getElementById('btn-copy-markdown');
+    if (btnCopyMd) {
+      btnCopyMd.addEventListener('click', async () => {
+        await copyToClipboard(docsData.markdown);
+        const textSpan = btnCopyMd.querySelector('.btn-text');
+        const origText = textSpan ? textSpan.textContent : '';
+        if (textSpan) textSpan.textContent = 'Copied Markdown!';
+        setTimeout(() => { if (textSpan) textSpan.textContent = origText; }, 2000);
+      });
+    }
+
+    // Copy entire documentation formatted for LLMs / Agents
+    const btnCopyLlm = document.getElementById('btn-copy-llm');
+    if (btnCopyLlm) {
+      btnCopyLlm.addEventListener('click', async () => {
+        await copyToClipboard(docsData.llm);
+        const textSpan = btnCopyLlm.querySelector('.btn-text');
+        const origText = textSpan ? textSpan.textContent : '';
+        if (textSpan) textSpan.textContent = 'Copied for LLMs!';
+        setTimeout(() => { if (textSpan) textSpan.textContent = origText; }, 2000);
+      });
+    }
+
+    // Per-article Markdown copy
+    const articleCopyBtns = document.querySelectorAll('.btn-copy-article');
+    articleCopyBtns.forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const title = btn.getAttribute('data-copy-title') || '';
+        const desc = btn.getAttribute('data-copy-desc') || '';
+        const code = btn.getAttribute('data-copy-code') || '';
+        const md = `### ${title}\n\n${desc}\n\n\`\`\`\n${code}\n\`\`\``;
+        await copyToClipboard(md);
+        const textSpan = btn.querySelector('.btn-text');
+        const origText = textSpan ? textSpan.textContent : '';
+        if (textSpan) textSpan.textContent = 'Copied!';
+        setTimeout(() => { if (textSpan) textSpan.textContent = origText; }, 2000);
+      });
+    });
+
+    // Search filter logic
     const searchInput = document.getElementById('docs-search-input');
     const docSections = document.querySelectorAll('.doc-section');
     const noResults = document.getElementById('docs-no-results');
