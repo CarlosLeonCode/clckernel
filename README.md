@@ -1,6 +1,5 @@
 <div align="center">
-  <img width="350" height="350" alt="clckernel_logo" src="https://github.com/user-attachments/assets/ed631ce1-c996-4347-b818-97b8ab25e0ec" />
-</div>
+  <img width="280" height="280" alt="clckernel_logo" src="https://github.com/user-attachments/assets/ed631ce1-c996-4347-b818-97b8ab25e0ec" />
 
 # 🤖 CLC Kernel (`clckernel`)
 
@@ -8,30 +7,28 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Español](https://img.shields.io/badge/README-Español-blue.svg)](./README.es.md)
 
-> **The Universal Polyglot AI Agent Governance Engine & AIUP Orchestrator.**
-> Built by [CarlosLeonCode](https://github.com/carlosleoncode).
+**Deterministic AI Agent Governance Engine & AIUP Orchestrator.**
+*Forged by [CarlosLeonCode](https://github.com/carlosleoncode).*
+</div>
 
-AI coding agents (Claude, Cursor, Gemini, Copilot) generate code at unprecedented speeds. However, without strict boundaries, they introduce architectural decay, false-positive tests, and invisible technical debt. **CLC Kernel** is the definitive developer harness to govern them.
+AI coding agents (Cursor, Claude Code, Windsurf, Copilot) code fast, but without guardrails they create architectural decay, tautological tests, and secret leaks. 
 
-It establishes an **AI Unified Process (AIUP)**—forcing LLMs to operate like disciplined software engineers across any programming language (Next.js, FastAPI, Django, Astro, Rails, Go, Rust, Laravel).
-
----
-
-## 🎯 1. Positioning: A New Category — AI Agent Governance
-
-CLC Kernel is **not** "just another AI framework" or prompt collection. It pioneers a distinct engineering category: **Deterministic AI Agent Governance**.
-
-| Tool Category | What It Does | Where It Falls Short | CLC Kernel Advantage |
-|---|---|---|---|
-| **Prompt Rules** (`.cursorrules`, `.mdc`) | Injects markdown suggestions into chat context. | **Non-deterministic:** Ignored during large contexts or quick-fix prompts. | Enforces native **AST Linters** that physically block non-compliant Git commits. |
-| **Spec Tools** (OpenSpec, Markdown specs) | Documents specifications & design requirements. | **Static:** Doesn't verify failing test transitions or guard code changes. | Full **AIUP lifecycle:** Spec -> Human Gate -> Red-to-Green TDD -> AST Verification. |
-| **Agent Runtimes** (LangGraph, CrewAI) | Builds multi-agent production backend apps. | **Different problem:** Doesn't govern human-in-the-loop repo development. | **Developer Tooling Harness:** Injected directly into your daily IDE workflow. |
+**CLC Kernel** is a polyglot developer harness that physically governs AI agents using **deterministic AST linters (< 5ms)**, **local SDD specs**, and an enforced **AI Unified Process (AIUP)**.
 
 ---
 
-## 🏛️ 2. Core Conceptual Pillars
+## 🎯 Use Cases
 
-CLC Kernel is built upon five foundational engineering principles designed to eliminate "vibe coding" hazards:
+| Use Case | Problem It Solves | How CLC Kernel Solves It |
+|---|---|---|
+| **1. Coding Agent Governance**<br>*(Cursor, Claude Code, Copilot)* | Agents "vibe code", bypass tests, and violate layer boundaries in backend/frontend apps. | Enforces **Rule #0** (Research -> SDD -> TDD Red-to-Green -> AST Audit) and blocks commits via native AST guards. |
+| **2. Agent-OS & Domain Workflows**<br>*(Autonomous bots, marketing/sales OS)* | Agent runtimes execute actions without review, hallucinate metrics, or drift across IDE configs. | Provides **Dual-Layer Governance**, validates IDE mirror symlinks, checks Human-in-the-Loop (`check_hitl`), and enforces null-safe schemas (`check_domain_data`). |
+| **3. Complex Refactors & Migrations** | Agents modify files outside the agreed feature scope, causing silent regressions. | Locks work to a local `sdds/{change}/spec.md` and fails commits modifying untouched layers (`check_scope`). |
+| **4. Shift-Left CI/CD & Pre-commit** | Secret leaks, N+1 query loops, and broken database migrations reach remote branches. | Runs zero-dependency AST checks in your stack's native language in **< 5ms** before Git commit. |
+
+---
+
+## 🏛️ The AI Unified Process (AIUP)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -43,127 +40,60 @@ CLC Kernel is built upon five foundational engineering principles designed to el
 └─────────────┴─────────────┴─────────────┴──────────────────┴────────────────┘
 ```
 
-### 📝 A. Spec-Driven Development (SDD)
-Agents suffer from *immediacy bias*—writing code before understanding requirements. CLC Kernel forbids direct modifications: agents must first author a local, gitignored specification under `sdds/{feature-name}/` detailing objectives, architectural layer impacts, and edge cases.
-
-### 🛑 B. Human-in-the-Loop Gate (HIT)
-Before touching a single line of production code, the agent must present concrete test scenarios to the developer for review and approval. **The human is the Architect/Director; the AI is the Executor.**
-
-### 🧪 C. Test-Driven Development (TDD Red-to-Green)
-AI agents frequently generate "tautological tests" that never fail against bugs. CLC Kernel enforces real TDD: the agent must produce a failing regression test (Red Phase) and prove failure before writing implementation code (Green Phase).
-
-### 🛡️ D. Deterministic AST Safeguards (Native Code Linters)
-Markdown instructions can be forgotten by LLMs. CLC Kernel provisions deterministic Abstract Syntax Tree (AST) linters in the stack's native language (Python `ast`, Go `ast`, RuboCop, PHPStan, TypeScript AST). These guards physically validate code changes and block non-compliant commits:
-- **📱 Frontend & UX:** Mobile-first responsive breakpoints & 44px touch targets (`check_responsive`), SEO metadata/GEO tags/LCP priority (`check_seo`), ARIA accessibility (`check_a11y`), UI primitive reuse (`check_ui_reuse`), image optimization & tree-shaking (`check_performance`), and Zod API contracts (`check_api_contracts`).
-- **🏛️ Backend & Architecture:** Clean Architecture layer boundaries (`check_architecture`), N+1 query loop prevention (`check_db_efficiency`), migration idempotency (`check_migrations`), and secret leak scanning (`scan_secrets`).
-- **🤖 Agent-OS & Domain Workflows:** AI IDE rule mirror symlink validation (`check_symlinks`), mandatory Human-in-the-Loop review checkpoint validator (`check_hitl`), domain deliverables schema & clean creation state metrics integrity (`check_domain_data`).
-- **🎯 Process & Infrastructure:** Git diff vs SDD scope validation (`check_scope`), TDD Red-to-Green transition proof (`verify_tdd`), and tech guards (`docker_guard`, `celery_guard`, `redis_guard`, `postgres_guard`).
-
-### 🔗 E. Single Source of Truth (SSOT) & Dynamic Mirroring
-Managing separate instructions for Cursor, Claude, Windsurf, Copilot, and Gemini causes documentation drift. CLC Kernel solves this via **Dynamic Mirroring**:
-- `AGENTS.md` is forged as the **Single Source of Truth**.
-- Cross-platform filesystem symlinks automatically project `AGENTS.md` to:
-  - 🧠 `CLAUDE.md` (Claude Desktop / Windsurf)
-  - 🌌 `GEMINI.md` (Gemini CLI / Project IDX)
-  - 💠 `.cursorrules` & `.cursor/rules/clckernel_context.mdc` (Cursor)
-  - ✈️ `.github/copilot-instructions.md` (GitHub Copilot)
-  - 🛸 `.antigravity/rules.md` (Antigravity)
-- *Edit once in `AGENTS.md`, and all AI IDEs synchronize instantly with zero redundancy.*
+1. **SDD (Spec-Driven Development):** Agent must write a local, gitignored specification (`sdds/{feature}/spec.md`) before editing production files.
+2. **HIT (Human-in-the-Loop):** The engineer reviews and approves test scenarios and contracts before execution begins.
+3. **TDD (Red-to-Green):** Agent must prove failure with a failing regression test (Red Phase) before writing implementation code (Green Phase).
+4. **AST (Deterministic Safeguards):** Native stack parsers (Python `ast`, Go `ast`, RuboCop, TypeScript AST) inspect diffs and physically block invalid commits.
+5. **SSOT (Single Source of Truth):** `AGENTS.md` is forged once and mirrored via filesystem symlinks to `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, and Copilot.
 
 ---
 
-## 💡 3. Why CLC Kernel Exists
+## 🌐 Supported Stacks & Archetypes
 
-Left unguided, AI agents create compounding **Comprehension Debt**—a codebase that grows faster than the team's ability to maintain its architecture:
-
-<div align="center">
-  <img width="900" alt="clckernel_comparison" src="https://github.com/user-attachments/assets/cb62753a-3e88-432d-9196-94eaa817864d" />
-  <p><em>Left: AI agent without governance — chaotic, hallucinated code. Right: AI agent with CLC Kernel AIUP — structured, safe, architectural.</em></p>
-</div>
-
-- ❌ **Architectural Decay:** Mixing routing logic with database queries instead of respecting layer isolation.
-- ❌ **UI Duplication:** Inventing raw HTML and arbitrary hex colors instead of reusing design tokens.
-- ❌ **False-Positive Tests:** Writing mocks that pass trivially without testing domain invariants.
-- ❌ **Secret Leaks:** Accidental commits of API credentials or private backend DTOs.
-
----
-
-## 🧩 4. Recommended Ecosystem Dependencies (Modular & Optional)
-
-CLC Kernel focuses strictly on **Governance, Process & Quality Guardrails**. It intentionally does not bundle monolithic databases or runtime graphs. Instead, it integrates modularly with companion tools (with graceful skip if absent):
-
-| Companion Tool | Role | Why It's Recommended | Fallback Behavior |
+| Ecosystem | Detection Signature | Test Runner | Native Safeguards |
 |---|---|---|---|
-| 🧠 **[Engram (MCP)](https://github.com/Gentleman-Programming/gentle-ai)** | Long-Term Memory & ADRs | Preserves architectural context, design rationales, and cross-session knowledge for agents. | Graceful skip (audits proceed without persistent memory). |
-| 🕸️ **[Graphify](https://github.com/carlosleoncode/graphify)** | Code Knowledge Graph | Generates dependency graphs and visual codebase topology for architecture-aware agents. | Graceful skip (`verify_memory_graph` advisory check passes). |
-| 🛡️ **[Gentle AI (RDD)](https://github.com/Gentleman-Programming/gentle-ai)** | Adversarial Review Gate | Enforces Review-Driven Development (RDD) with multi-lens inspection before commits. | Graceful skip (`verify_rdd_review_gate` advisory check passes). |
-| ⚡ **Native Stack Linters** | AST & Type Safety | `ruff` (Python), `golangci-lint` (Go), `cargo clippy` (Rust), `phpstan` (PHP), `tsc` (TypeScript). | Uses whatever CLI is available in the local repository environment. |
-
----
-
-## 🧠 5. The Conversational CLI Paradigm
-
-CLC Kernel operates both in your terminal and inside your AI chat. It injects an **Agentic Playbook (`SKILL.md`)**, turning your LLM into an interactive governance orchestrator:
-
-- 🚀 **`clckernel start`**: Auto-detects your stack, proposes an AIUP lifecycle, and generates `.clckernel.yaml`.
-- 🛠️ **`clckernel create_guard`**: Generates a custom AST linter in your stack's native language (`tools/guards/`).
-- 🔄 **`clckernel add_phase` / `remove_guard`**: Interactively mutates the AIUP workflow without manual YAML editing.
-
----
-
-## 🌐 6. Polyglot Stack Adapters
-
-CLC Kernel includes dedicated adapters for popular technology stacks:
-
-| Ecosystem | Detection Signature | Test Runner | Enforced Safeguards |
-|---|---|---|---|
-| ⚛️ **Next.js** | `next` | Vitest / Jest | UI Reuse, Semantic Tokens, RSC Rules, Zod, A11y, Responsive, SEO, Performance |
+| ⚛️ **Next.js** | `next` | Vitest / Jest | Clean Arch, UI Reuse, Semantic Tokens, RSC, A11y, Responsive, SEO |
 | ⚡ **FastAPI** | `fastapi` | Pytest | Pydantic V2, Alembic Idempotency, Clean Arch AST, DB Efficiency (N+1) |
 | 💎 **Rails** | `Gemfile` | RSpec | RuboCop AST, Brakeman Security, Migration Idempotency |
-| 🐹 **Golang** | `go.mod` | `go test` | `golangci-lint` AST, Domain/UseCase Clean Architecture |
+| 🐹 **Golang** | `go.mod` | `go test` | `golangci-lint` AST, Domain/UseCase Layer Isolation |
 | 🦀 **Rust** | `Cargo.toml` | `cargo test` | `cargo clippy` AST, `cargo audit`, Strict Memory Safety |
-| 🐘 **Laravel** | `artisan` | Pest / PHPUnit | PHPStan AST, Eloquent N+1 Detection, Migrations |
+| 🐘 **Laravel** | `artisan` | Pest / PHPUnit | PHPStan AST, Eloquent N+1 Loop Detection, Migrations |
 | 🎸 **Django** | `manage.py` | `pytest-django` | Django ORM Idempotency, Ruff AST, Scope Guard, DB Efficiency (N+1) |
-| 🚀 **Astro** | `astro.config` | Playwright | Tailwind v4 Tokens, Content Collection Schema, A11y, Responsive, SEO |
-| 🤖 **Agent-OS** | `skills/`, `brand/`, `templates/`, `agent-os` | Playbook / Contract Test | Dual-Layer AGENTS.md, HITL Checkpoints (`check_hitl`), AI IDE Symlinks (`check_symlinks`), Domain Data Integrity (`check_domain_data`), Secrets (`scan_secrets`) |
+| 🚀 **Astro** | `astro.config` | Playwright | Tailwind v4 Tokens, Content Schema, A11y, Responsive, SEO |
+| 🤖 **Agent-OS** | `skills/`, `brand/`, `templates/` | Contract Tests | Dual-Layer AGENTS.md, HITL Gates (`check_hitl`), Symlinks (`check_symlinks`), Domain Data (`check_domain_data`) |
 
 ---
 
-## ⚡ 7. Step-by-Step Guide (Full Lifecycle)
+## 🚀 Quickstart
 
-```
-[1. Terminal]           [2. AI Chat]                 [3. TDD Loop]                 [4. Git Commit]
-npx clckernel   ───►   clckernel start   ───►   "Feature X with harness"   ───►   Pre-commit Hooks
-(Bootstrap)            (Interactive Setup)          (SDD -> HIT -> Tests)         (AST & Secret Guard)
-```
-
-### 1️⃣ Step 1: Bootstrap the Repository (Terminal)
+### 1. Initialize in Terminal
 ```bash
-npx clckernel
+npx clckernel start
 ```
-Auto-detects your framework, generates `AGENTS.md`, creates dynamic IDE symlinks, provisions pre-commit hooks (`.husky/` or `.githooks/`), and creates stack-native AST tools in `tools/`.
+Auto-detects your framework, generates `AGENTS.md`, creates IDE rule symlinks, provisions pre-commit hooks, and creates native AST checks in `tools/`.
 
-### 2️⃣ Step 2: Initialize in Your AI Chat (Conversational CLI)
-Open Cursor, Claude Code, Gemini CLI, Windsurf, or Copilot and type:
-> `clckernel start`
-The agent scans your codebase silently, proposes an AIUP governance plan tailored to your framework, and generates `.clckernel.yaml`.
-
-### 3️⃣ Step 3: Develop with the AIUP Harness
-When requesting features or fixes, trigger the workflow:
-> *"Add user authentication endpoint. **Use the workflow / harness**."*
-The agent executes the full AIUP cycle: **SDD Spec -> HIT Approval -> TDD Red Phase -> Clean Implementation -> AST Audit**.
-
-### 4️⃣ Step 4: Deterministic Guard Verification (Commit)
-```bash
-git add .
-git commit -m "feat(auth): add user authentication endpoint"
-```
-Pre-commit hooks execute AST scanners (Clean Architecture, Secret Leaks, Scope Guard, Migration Idempotency). Non-compliant commits are blocked deterministically.
-
-### 5️⃣ Step 5: Verify Repository Health Anytime (Terminal)
+### 2. Verify Health
 ```bash
 npx clckernel doctor
 ```
-Runs the **CLC Kernel Doctor** to verify 100% compliance across `AGENTS.md`, `sdds/`, `tools/`, and Git hooks.
+Audits Git hooks, active test runners, and AST engine integrity.
 
+### 3. Develop with Agentic Governance
+In your IDE chat (Cursor, Claude Code, Gemini CLI, Windsurf):
+> *"Implement authentication endpoint. **Follow the CLC Kernel harness**."*
 
+The agent executes the full AIUP loop: **SDD Spec -> HIT Review -> Failing Test (Red) -> Implementation (Green) -> AST Audit**.
+
+---
+
+## 🧩 Optional Ecosystem Companions
+
+CLC Kernel focuses strictly on governance and runs with **zero foreign dependencies**. It seamlessly integrates with companion tools:
+- 🧠 **[Engram (MCP)](https://github.com/Gentleman-Programming/gentle-ai):** Persistent architectural memory and ADR tracking across agent sessions.
+- 🕸️ **[Graphify](https://github.com/carlosleoncode/graphify):** Visual dependency graphs and codebase topology mapping.
+- 🛡️ **[Gentle AI (RDD)](https://github.com/Gentleman-Programming/gentle-ai):** Multi-lens adversarial code review gate.
+
+---
+
+## 📄 License
+MIT © [CarlosLeonCode](https://github.com/carlosleoncode)
