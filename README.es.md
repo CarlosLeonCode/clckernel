@@ -17,6 +17,17 @@ Los agentes de programación con IA (Cursor, Claude Code, Windsurf, Copilot) cod
 
 ---
 
+## 📋 Tabla de Contenidos
+- [🎯 Casos de Uso](#-casos-de-uso)
+- [🏛️ El Proceso Unificado de IA (AIUP)](#️-el-proceso-unificado-de-ia-aiup)
+- [🌐 Ecosistemas Soportados y Arquetipos](#-ecosistemas-soportados-y-arquetipos)
+- [🚀 Inicio Rápido](#-inicio-rápido)
+- [🧩 Herramientas Complementarias (Opcionales)](#-herramientas-complementarias-opcionales)
+- [📄 Licencia](#-licencia)
+
+---
+
+<a id="casos-de-uso"></a>
 ## 🎯 Casos de Uso
 
 | Caso de Uso | Problema que Resuelve | Cómo lo Resuelve CLC Kernel |
@@ -28,6 +39,7 @@ Los agentes de programación con IA (Cursor, Claude Code, Windsurf, Copilot) cod
 
 ---
 
+<a id="aiup"></a>
 ## 🏛️ El Proceso Unificado de IA (AIUP)
 
 ```
@@ -48,6 +60,7 @@ Los agentes de programación con IA (Cursor, Claude Code, Windsurf, Copilot) cod
 
 ---
 
+<a id="ecosistemas-soportados"></a>
 ## 🌐 Ecosistemas Soportados y Arquetipos
 
 | Ecosistema | Firma de Detección | Test Runner | Salvaguardas Nativas |
@@ -64,6 +77,7 @@ Los agentes de programación con IA (Cursor, Claude Code, Windsurf, Copilot) cod
 
 ---
 
+<a id="inicio-rapido"></a>
 ## 🚀 Inicio Rápido
 
 ### 1. Inicializar en Terminal
@@ -86,6 +100,7 @@ El agente ejecutará el ciclo AIUP completo: **Especificación SDD -> Aprobació
 
 ---
 
+<a id="herramientas-complementarias"></a>
 ## 🧩 Herramientas Complementarias (Opcionales)
 
 CLC Kernel se enfoca estrictamente en gobernanza y opera con **cero dependencias foráneas**. Se integra de forma modular con:
@@ -95,5 +110,6 @@ CLC Kernel se enfoca estrictamente en gobernanza y opera con **cero dependencias
 
 ---
 
+<a id="licencia"></a>
 ## 📄 Licencia
 MIT © [CarlosLeonCode](https://github.com/carlosleoncode)

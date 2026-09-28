@@ -17,6 +17,17 @@ AI coding agents (Cursor, Claude Code, Windsurf, Copilot) code fast, but without
 
 ---
 
+## 📋 Table of Contents
+- [🎯 Use Cases](#-use-cases)
+- [🏛️ The AI Unified Process (AIUP)](#️-the-ai-unified-process-aiup)
+- [🌐 Supported Stacks & Archetypes](#-supported-stacks--archetypes)
+- [🚀 Quickstart](#-quickstart)
+- [🧩 Optional Ecosystem Companions](#-optional-ecosystem-companions)
+- [📄 License](#-license)
+
+---
+
+<a id="use-cases"></a>
 ## 🎯 Use Cases
 
 | Use Case | Problem It Solves | How CLC Kernel Solves It |
@@ -28,6 +39,7 @@ AI coding agents (Cursor, Claude Code, Windsurf, Copilot) code fast, but without
 
 ---
 
+<a id="aiup"></a>
 ## 🏛️ The AI Unified Process (AIUP)
 
 ```
@@ -48,6 +60,7 @@ AI coding agents (Cursor, Claude Code, Windsurf, Copilot) code fast, but without
 
 ---
 
+<a id="supported-stacks"></a>
 ## 🌐 Supported Stacks & Archetypes
 
 | Ecosystem | Detection Signature | Test Runner | Native Safeguards |
@@ -64,6 +77,7 @@ AI coding agents (Cursor, Claude Code, Windsurf, Copilot) code fast, but without
 
 ---
 
+<a id="quickstart"></a>
 ## 🚀 Quickstart
 
 ### 1. Initialize in Terminal
@@ -86,6 +100,7 @@ The agent executes the full AIUP loop: **SDD Spec -> HIT Review -> Failing Test 
 
 ---
 
+<a id="ecosystem-companions"></a>
 ## 🧩 Optional Ecosystem Companions
 
 CLC Kernel focuses strictly on governance and runs with **zero foreign dependencies**. It seamlessly integrates with companion tools:
@@ -95,5 +110,6 @@ CLC Kernel focuses strictly on governance and runs with **zero foreign dependenc
 
 ---
 
+<a id="license"></a>
 ## 📄 License
 MIT © [CarlosLeonCode](https://github.com/carlosleoncode)
