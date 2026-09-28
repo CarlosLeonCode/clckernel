@@ -110,6 +110,21 @@ const SAFEGUARD_CATALOG = [
     applies_when: 'docker', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
     phase: 'audit', file: 'docker_guard.py', manifest: true, planned: false },
 
+  { name: 'check_symlinks', labels: ['check_symlinks', 'check_symlinks.js'],
+    checks: 'AI IDE symlinks and rule mirror verification', verify: ['verify_symlinks', 'verify_rule_mirrors'],
+    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
+    phase: 'audit', file: 'check_symlinks.js', manifest: true, planned: false },
+
+  { name: 'check_hitl', labels: ['check_hitl', 'check_hitl.js'],
+    checks: 'Human-in-the-Loop review checkpoint validator in subagent skills', verify: ['verify_hitl', 'verify_human_review_checkpoints'],
+    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
+    phase: 'audit', file: 'check_hitl.js', manifest: true, planned: false },
+
+  { name: 'check_domain_data', labels: ['check_domain_data', 'check_domain_data.js'],
+    checks: 'Domain deliverables schema and clean state integrity', verify: ['verify_domain_data', 'verify_clean_state_metrics'],
+    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
+    phase: 'audit', file: 'check_domain_data.js', manifest: true, planned: false },
+
   { name: 'ruff', labels: ['ruff'],
     checks: 'Python AST linter (external CLI)', verify: ['verify_python_lint'],
     applies_when: 'backend', severity: 'warning', gate_mode: 'advisory', config_keys: [],
@@ -172,6 +187,7 @@ const VALID_PHASES = ['audit', 'test', 'review', 'handover'];
 const VALID_APPLIES_WHEN = [
   'always', 'frontend', 'backend', 'fastapi', 'django', 'django|sqlalchemy',
   'celery', 'redis', 'postgresql', 'docker', 'frontend,backend', 'backend,fastapi,django',
+  'agent-os',
 ];
 
 /** Normalize an input label for catalog lookup. */

@@ -62,7 +62,10 @@ AI agents are STRICTLY FORBIDDEN from modifying source code directly without:
 5. check_seo            -> Validates Core Web Vitals & OpenGraph tags
 6. check_migrations     -> Verifies database migration idempotency & reversibility
 7. docker_guard         -> Enforces rootless containers & blocks ENV secrets
-8. check_scope          -> Blocks diffs modifying files outside local SDD scope`,
+8. check_scope          -> Blocks diffs modifying files outside local SDD scope
+9. check_symlinks       -> Validates IDE rule symlinks (CLAUDE.md, GEMINI.md, etc.)
+10. check_hitl          -> Enforces Human-in-the-Loop review gates in autonomous playbooks
+11. check_domain_data   -> Validates JSON schemas & guarantees null defaults over hallucinated metrics`,
       },
       {
         id: "ast-examples",
@@ -147,6 +150,46 @@ process.exit(0);`,
       ├── spec.md        # API contracts & layer scope boundaries
       ├── plan.md        # Step-by-step Red->Green TDD implementation
       └── verification.md # Test receipts and AST audit pass proofs`,
+      }
+    ]
+  },
+  {
+    id: "agent-os-archetype",
+    title: "5. Agent-OS & Domain Workflows",
+    icon: "🧠",
+    items: [
+      {
+        id: "dual-layer-governance",
+        title: "Dual-Layer Governance Architecture",
+        desc: "For repositories driving autonomous agents (such as marketing OS, sales agents, or business bots), CLC Kernel decouples developer engineering harnesses from domain runtime operating laws.",
+        code: `# AGENTS.md (Dual-Layer Structure)
+
+# LAYER 1: REPOSITORY DEVELOPMENT HARNESS (Meta-Rules)
+# Governs engineers and coding agents modifying the repo codebase
+- Rule #0: Research -> SDD -> TDD Red-to-Green -> AST Audit
+- Verification receipt required before every commit
+
+# LAYER 2: DOMAIN AGENT WORKFLOWS (Runtime Operating Laws)
+# Governs runtime agents executing business playbooks and client tasks
+- Mandatory Human-in-the-Loop (HITL) checkpoints before external execution
+- Anti-Hallucination: Missing metrics must strictly default to null, never invented
+- Immutable Brand Voice & Content Safety guidelines`,
+      },
+      {
+        id: "domain-safeguards-spec",
+        title: "Domain Safeguards (< 5ms)",
+        desc: "Dedicated zero-dependency guards protecting IDE configuration parity, agent workflow safety gates, and data payload integrity.",
+        code: `// 1. check_symlinks: Validates symlinks for IDE rule mirrors
+$ node tools/check_symlinks.js
+✔ All 5 IDE rule files are valid symlinks to AGENTS.md
+
+// 2. check_hitl: Ensures autonomous playbooks have human verification
+$ node tools/check_hitl.js
+✔ All skills define explicit Human-in-the-Loop (HITL) checkpoints
+
+// 3. check_domain_data: Protects against hallucinated metrics and broken schemas
+$ node tools/check_domain_data.js
+✔ JSON datasets validated against schemas (0 missing keys, clean nulls)`,
       }
     ]
   }

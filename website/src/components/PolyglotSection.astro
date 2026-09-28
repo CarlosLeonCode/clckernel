@@ -130,6 +130,21 @@ const stacks = isEs ? [
 ✔ Hook installed: .git/hooks/pre-commit -> php tools/audit.php
 ✔ Enforcing: Idempotent Migrations & Safe Models`,
   },
+  {
+    id: "agent-os",
+    name: "Agent-OS (Domain)",
+    lang: "Markdown / JSON",
+    icon: "🤖",
+    detection: "skills/ / brand/ / agent-os",
+    runner: "Playbook / Contract Test",
+    gate: "node tools/audit.js",
+    rules: "HITL Gate + Symlinks Sync + Clean State",
+    snippet: `// Detectado: Agent-OS & Domain Workflows
+// Inicializado: AGENTS.md Dual (Ingeniería + Dominio)
+// Motor de Auditoría: Checkpoints HITL & Symlinks
+✔ Hook instalado: .githooks/pre-commit -> node tools/audit.js
+✔ Aplicando: Human-in-the-Loop & Métricas Limpias`,
+  },
 ] : [
   {
     id: "nextjs",
@@ -250,6 +265,21 @@ const stacks = isEs ? [
 // Audit Engine: PHP Native AST Validator
 ✔ Hook installed: .git/hooks/pre-commit -> php tools/audit.php
 ✔ Enforcing: Idempotent Migrations & Safe Models`,
+  },
+  {
+    id: "agent-os",
+    name: "Agent-OS (Domain)",
+    lang: "Markdown / JSON",
+    icon: "🤖",
+    detection: "skills/ / brand/ / agent-os",
+    runner: "Playbook / Contract Test",
+    gate: "node tools/audit.js",
+    rules: "HITL Gate + Symlinks Sync + Clean State",
+    snippet: `// Detected: Agent-OS & Domain Workflows
+// Initialized: Dual-Layer AGENTS.md (Dev + Domain)
+// Audit Engine: HITL Checkpoints & Symlinks
+✔ Hook installed: .githooks/pre-commit -> node tools/audit.js
+✔ Enforcing: Human-in-the-Loop & Clean State Metrics`,
   },
 ];
 

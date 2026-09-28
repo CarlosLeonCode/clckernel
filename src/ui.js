@@ -84,6 +84,11 @@ async function promptOptions(detected) {
         hint: 'Salvaguardas TDD, Clean Arch, N+1, Secrets'
       },
       {
+        value: 'agent-os',
+        label: 'Forzar modo AGENT-OS',
+        hint: 'Salvaguardas HITL, Symlinks, Schemas, Memoria SSOT'
+      },
+      {
         value: 'cancel',
         label: 'Cancelar',
         hint: 'Salir sin realizar cambios'
@@ -100,15 +105,24 @@ async function promptOptions(detected) {
     detected.projectType = 'frontend';
   } else if (choice === 'backend') {
     detected.projectType = 'backend';
+  } else if (choice === 'agent-os') {
+    detected.projectType = 'agent-os';
   }
 
   return detected;
 }
 
 function printSuccess(targetDir, isFront, config) {
+  const isAgentOS = config.projectType === 'agent-os';
+  const guardsDesc = isAgentOS
+    ? `${colors.cyan}6 Guardias Agent-OS (HITL, Symlinks, Schemas, Memoria, Secrets)${colors.reset}`
+    : isFront
+    ? `${colors.emerald}10 Guardias Frontend (A11y, Zod, Image, UI Reuse, Storybook)${colors.reset}`
+    : `${colors.violet}7 Guardias Backend (TDD, Architecture, Scope, Secret Scan)${colors.reset}`;
+
   const summary = [
     `🔨 ${colors.bold}Proyecto Inicializado:${colors.reset} ${colors.cyan}${targetDir}${colors.reset}`,
-    `🛡️  ${colors.bold}Salvaguardas:${colors.reset} ${isFront ? `${colors.emerald}10 Guardias Frontend (A11y, Zod, Image, UI Reuse, Storybook)` : `${colors.violet}7 Guardias Backend (TDD, Architecture, Scope, Secret Scan)`}${colors.reset}`,
+    `🛡️  ${colors.bold}Salvaguardas:${colors.reset} ${guardsDesc}`,
     `📝 ${colors.bold}Leyes & SDD:${colors.reset} AGENTS.md, sdds/, docs/Journal/ precargados`,
     `🔒 ${colors.bold}Git Hooks:${colors.reset} Configurados en ${colors.amber}${config.gitHooks === 'husky' ? '.husky/pre-commit' : '.githooks/pre-commit'}${colors.reset}`
   ].join('\n');

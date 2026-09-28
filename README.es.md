@@ -56,6 +56,7 @@ Los agentes suelen generar "tests tautológicos" que nunca fallan ante bugs real
 Las instrucciones en markdown se olvidan con facilidad. CLC Kernel provisiona linters basados en el Árbol de Sintaxis Abstracta (AST) en el lenguaje nativo del stack (Python `ast`, Go `ast`, RuboCop, PHPStan, TypeScript AST). Estos guardias validan físicamente los cambios y bloquean commits inválidos:
 - **📱 Frontend & UX:** Breakpoints mobile-first y touch targets de 44px (`check_responsive`), metadata SEO/tags GEO/prioridad LCP (`check_seo`), accesibilidad ARIA (`check_a11y`), reutilización de primitivas UI (`check_ui_reuse`), optimización de imágenes y tree-shaking (`check_performance`), y contratos Zod (`check_api_contracts`).
 - **🏛️ Backend & Arquitectura:** Aislamiento de capas Clean Architecture (`check_architecture`), prevención de queries N+1 en loops (`check_db_efficiency`), idempotencia de migraciones (`check_migrations`), y escaneo de secretos (`scan_secrets`).
+- **🤖 Agent-OS & Flujos de Dominio:** Validación de symlinks espejo para IDEs (`check_symlinks`), verificador de checkpoints obligatorios Human-in-the-Loop (`check_hitl`), e integridad de esquemas y estado limpio de métricas (`check_domain_data`).
 - **🎯 Proceso & Infraestructura:** Validación de alcance git diff vs SDD (`check_scope`), prueba de transición TDD Rojo-a-Verde (`verify_tdd`), y guardias de tecnologías (`docker_guard`, `celery_guard`, `redis_guard`, `postgres_guard`).
 
 ### 🔗 E. Single Source of Truth (SSOT) & Espejado Dinámico (Mirroring)
@@ -124,6 +125,7 @@ CLC Kernel cuenta con adaptadores dedicados para los principales ecosistemas:
 | 🐘 **Laravel** | `artisan` | Pest / PHPUnit | AST PHPStan, Detección de N+1 Eloquent, Migraciones |
 | 🎸 **Django** | `manage.py` | `pytest-django` | Idempotencia ORM Django, AST Ruff, Scope Guard, Eficiencia DB (N+1) |
 | 🚀 **Astro** | `astro.config` | Playwright | Tokens Tailwind v4, Content Collection Schema, A11y, Responsive, SEO |
+| 🤖 **Agent-OS** | `skills/`, `brand/`, `templates/`, `agent-os` | Playbook / Contract Test | AGENTS.md Dual, Checkpoints HITL (`check_hitl`), Symlinks IDE (`check_symlinks`), Integridad de Datos (`check_domain_data`), Secretos (`scan_secrets`) |
 
 ---
 

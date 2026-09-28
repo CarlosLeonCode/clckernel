@@ -29,14 +29,15 @@ function guardFileExists(file) {
 }
 
 describe('SAFEGUARD_CATALOG', () => {
-  it('exposes exactly 26 entries, one per safeguard the framework knows about', () => {
-    assert.strictEqual(SAFEGUARD_CATALOG.length, 26, `expected 26, got ${SAFEGUARD_CATALOG.length}`);
+  it('exposes exactly 29 entries, one per safeguard the framework knows about', () => {
+    assert.strictEqual(SAFEGUARD_CATALOG.length, 29, `expected 29, got ${SAFEGUARD_CATALOG.length}`);
     const names = SAFEGUARD_CATALOG.map(e => e.name);
     assert.deepStrictEqual(names, [
       'scan_secrets', 'check_architecture', 'check_custom', 'check_a11y',
       'check_ui_reuse', 'check_performance', 'check_responsive', 'check_seo', 'check_storybook', 'check_api_contracts',
       'check_migrations', 'verify_tdd', 'check_scope', 'celery_guard', 'redis_guard',
-      'postgres_guard', 'docker_guard', 'ruff', 'pytest', 'tsc', 'lint', 'graphify',
+      'postgres_guard', 'docker_guard', 'check_symlinks', 'check_hitl', 'check_domain_data',
+      'ruff', 'pytest', 'tsc', 'lint', 'graphify',
       'gentle_ai_review', 'check_openapi_drift', 'check_db_efficiency', 'check_observability',
     ]);
   });

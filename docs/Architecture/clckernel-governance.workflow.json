@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "CLC Kernel — Deterministic AI Agent Governance Engine",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "governance-flow",
+        "label": "Full Governance Pipeline",
+        "focus": ["user_task", "cli_setup", "agents_law", "sdd_spec", "tdd_red", "arch_green", "audit_gate", "git_sealed", "final_pr"],
+        "note": "Follow how CLC Kernel governs AI agent workflows from prompt to verified commit."
+      },
+      {
+        "id": "audit-gate",
+        "label": "Automated AST Enforcement",
+        "focus": ["arch_green", "audit_gate", "audit_blocked", "git_sealed"],
+        "note": "Inspect deterministic blocking when AST rules, N+1 queries, secrets, or a11y fail."
+      },
+      {
+        "id": "tdd-loop",
+        "label": "Specification & TDD Red-Green",
+        "focus": ["agents_law", "sdd_spec", "tdd_red", "arch_green"],
+        "note": "Examine mandatory Rule #0: failing regression test first before any source edit."
+      }
+    ],
+    "output": "docs/Architecture/clckernel-governance.html"
+  },
+  "lanes": [
+    { "id": "developer", "label": "Developer & Agents" },
+    { "id": "kernel", "label": "CLC Kernel Core" },
+    { "id": "harness", "label": "TDD & Quality Harness" },
+    { "id": "gate", "label": "Automated Audit & Pre-Commit", "variant": "exception" }
+  ],
+  "phases": [
+    { "id": "setup", "label": "Intake & Setup", "fromCol": 0, "toCol": 1 },
+    { "id": "loop", "label": "Spec & TDD Loop", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "seal", "label": "Audit & Git Seal", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "groups": [
+    { "id": "g_setup", "label": "Discovery & Harness Provision", "lane": "kernel", "fromCol": 0, "toCol": 1, "variant": "emphasis" },
+    { "id": "g_tdd", "label": "Red-Green Development Cycle", "lane": "harness", "fromCol": 2, "toCol": 3, "variant": "dashed" },
+    { "id": "g_gate", "label": "Audit Gate & Git Protection", "lane": "gate", "fromCol": 4, "toCol": 5, "variant": "security" }
+  ],
+  "mainPath": ["user_task", "cli_setup", "agents_law", "sdd_spec", "tdd_red", "arch_green", "audit_gate", "git_sealed", "final_pr"],
+  "nodes": [
+    { "id": "user_task", "lane": "developer", "col": 0, "type": "external", "label": "Developer Intent", "sublabel": "feature / bugfix", "width": 136 },
+    { "id": "cli_setup", "lane": "kernel", "col": 1, "type": "backend", "label": "CLC Kernel CLI", "sublabel": "stack auto-detect", "tag": "FastAPI / Next / Astro", "width": 136 },
+    { "id": "agents_law", "lane": "developer", "col": 1, "type": "frontend", "label": "AGENTS.md Laws", "sublabel": "Rule #0 active", "tag": "unbypassable", "width": 136 },
+    { "id": "sdd_spec", "lane": "kernel", "col": 2, "type": "backend", "label": "Local SDD Spec", "sublabel": "sdds/{change}/01-spec.md", "tag": "gitignored", "width": 136 },
+    { "id": "tdd_red", "lane": "harness", "col": 3, "type": "messagebus", "label": "TDD Red Phase", "sublabel": "failing test first", "tag": "Pytest / Vitest", "width": 136 },
+    { "id": "arch_green", "lane": "harness", "col": 4, "type": "backend", "label": "Clean Architecture", "sublabel": "layer isolated code", "tag": "test passes", "width": 136 },
+    { "id": "audit_gate", "lane": "gate", "col": 4, "type": "security", "label": "Audit Gate", "sublabel": "node tools/audit.js", "tag": "10 AST Guards", "width": 136 },
+    { "id": "audit_blocked", "lane": "gate", "col": 5, "type": "security", "label": "Commit Blocked", "sublabel": "N+1 / leak / AST flaw", "tag": "actionable feedback", "width": 136 },
+    { "id": "git_sealed", "lane": "harness", "col": 5, "type": "cloud", "label": "Git Pre-Commit", "sublabel": "receipt verified", "tag": "DoD 100/100", "width": 136 },
+    { "id": "final_pr", "lane": "developer", "col": 5, "type": "database", "label": "Verified PR", "sublabel": "conventional commit", "tag": "clean diff", "width": 136 }
+  ],
+  "edges": [
+    { "id": "e_task_cli", "from": "user_task", "to": "cli_setup", "label": "init governance", "variant": "emphasis" },
+    { "id": "e_cli_law", "from": "cli_setup", "to": "agents_law", "label": "provisions laws", "variant": "default" },
+    { "id": "e_law_sdd", "from": "agents_law", "to": "sdd_spec", "label": "author spec", "variant": "emphasis" },
+    { "id": "e_sdd_red", "from": "sdd_spec", "to": "tdd_red", "label": "write failing test", "variant": "emphasis" },
+    { "id": "e_red_green", "from": "tdd_red", "to": "arch_green", "label": "implement green", "variant": "default" },
+    { "id": "e_green_audit", "from": "arch_green", "to": "audit_gate", "label": "run audit", "variant": "security" },
+    { "id": "e_audit_denied", "from": "audit_gate", "to": "audit_blocked", "label": "AST violations", "variant": "security", "role": "error" },
+    { "id": "e_audit_ok", "from": "audit_gate", "to": "git_sealed", "label": "audit passed", "variant": "emphasis" },
+    { "id": "e_sealed_pr", "from": "git_sealed", "to": "final_pr", "label": "commit allowed", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "Rule #0: Deterministic Law",
+      "items": [
+        "Unbypassable law: research, local SDD, and failing test required before code edits",
+        "Local SDDs in sdds/ preserve architecture reasoning without git clutter"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "AST Guards & Pre-Commit Seal",
+      "items": [
+        "10 automated AST guards inspect architecture isolation, N+1 queries, and secrets",
+        "Pre-commit hooks validate audit receipt to block unverified code"
+      ]
+    }
+  ]
+}

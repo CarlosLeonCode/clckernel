@@ -62,7 +62,10 @@ Los agentes IA tienen ESTRICTAMENTE PROHIBIDO modificar código fuente sin:
 5. check_seo            -> Valida Core Web Vitals y etiquetas OpenGraph
 6. check_migrations     -> Idempotencia y reversibilidad en migraciones de BD
 7. docker_guard         -> Exige contenedores rootless y bloquea secretos en ENV
-8. check_scope          -> Bloquea cambios fuera del alcance del SDD local`,
+8. check_scope          -> Bloquea cambios fuera del alcance del SDD local
+9. check_symlinks       -> Valida symlinks de reglas para IDEs (CLAUDE.md, GEMINI.md, etc.)
+10. check_hitl          -> Exige compuertas Human-in-the-Loop en playbooks autónomos
+11. check_domain_data   -> Valida esquemas JSON y garantiza null por defecto ante métricas inventadas`,
       },
       {
         id: "ast-examples",
@@ -147,6 +150,46 @@ process.exit(0);`,
       ├── spec.md        # Contratos de API y límites de capas
       ├── plan.md        # Plan paso a paso de TDD Rojo->Verde
       └── verification.md # Recibos de test y compuertas AST aprobadas`,
+      }
+    ]
+  },
+  {
+    id: "agent-os-archetype",
+    title: "5. Arquetipo Agent-OS y Flujos de Dominio",
+    icon: "🧠",
+    items: [
+      {
+        id: "dual-layer-governance",
+        title: "Arquitectura de Gobernanza Dual-Layer",
+        desc: "Para repositorios que orquestan agentes autónomos (como sistemas de marketing, ventas o bots operativos), CLC Kernel desacopla el arnés de ingeniería de desarrollo de las leyes de ejecución en tiempo de ejecución del dominio.",
+        code: `# AGENTS.md (Estructura Dual-Layer)
+
+# CAPA 1: ARNÉS DE DESARROLLO DEL REPOSITORIO (Meta-Reglas)
+# Gobierna a los ingenieros y agentes que modifican el código fuente
+- Regla #0: Investigación -> SDD -> TDD Rojo-Verde -> Auditoría AST
+- Recibo de verificación obligatorio antes de cada commit
+
+# CAPA 2: FLUJOS DE AGENTES DE DOMINIO (Leyes Operativas en Runtime)
+# Gobierna a los agentes que ejecutan tareas de negocio y playbooks
+- Compuertas Human-in-the-Loop (HITL) obligatorias antes de mutaciones externas
+- Anti-Alucinación: Las métricas faltantes deben ser estrictamente null, nunca inventadas
+- Voz de Marca inmutable y directrices de seguridad de contenido`,
+      },
+      {
+        id: "domain-safeguards-spec",
+        title: "Salvaguardas de Dominio (< 5ms)",
+        desc: "Validadores especializados de cero dependencias que protegen la paridad de reglas en IDEs, compuertas de seguridad en playbooks y consistencia en esquemas de datos.",
+        code: `// 1. check_symlinks: Valida symlinks de reglas para todos los IDEs
+$ node tools/check_symlinks.js
+✔ Los 5 archivos de reglas de IDE son symlinks válidos hacia AGENTS.md
+
+// 2. check_hitl: Garantiza que los playbooks autónomos incluyan revisión humana
+$ node tools/check_hitl.js
+✔ Todas las skills definen puntos de control Human-in-the-Loop (HITL) explícitos
+
+// 3. check_domain_data: Protege contra métricas alucinadas y esquemas rotos
+$ node tools/check_domain_data.js
+✔ Datasets JSON validados contra esquemas (0 claves faltantes, nulls limpios)`,
       }
     ]
   }

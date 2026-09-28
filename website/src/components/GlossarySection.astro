@@ -73,6 +73,14 @@ const terms = isEs ? [
     category: "Rendimiento",
     definition: "Antipatrón crítico donde se ejecutan consultas a la base de datos dentro de un bucle iterativo (for/while). El parser AST de CLC Kernel lo intercepta en milisegundos antes del commit.",
     badge: "AST Blocked"
+  },
+  {
+    id: "term-agentos",
+    acronym: "Agent-OS",
+    fullName: "Agent Operating System & Domain Workflows",
+    category: "Arquetipo",
+    definition: "Arquetipo de gobernanza para repositorios basados en agentes autónomos, skills y playbooks de negocio. Aplica gobernanza Dual-Layer (desarrollo técnico + ejecución de dominio) e implementa salvaguardas para symlinks, compuertas HITL y esquemas de datos.",
+    badge: "Dual-Layer"
   }
 ] : [
   {
@@ -138,6 +146,14 @@ const terms = isEs ? [
     category: "Performance",
     definition: "Performance anti-pattern where a database query is executed inside a loop (for/while). CLC Kernel's AST parser flags this immediately before commit.",
     badge: "AST Blocked"
+  },
+  {
+    id: "term-agentos",
+    acronym: "Agent-OS",
+    fullName: "Agent Operating System & Domain Workflows",
+    category: "Archetype",
+    definition: "Governance archetype for repositories orchestrating autonomous agents, business playbooks, and specialized skills. Provides Dual-Layer governance (development runtime + domain execution) with guards for IDE symlinks, HITL contracts, and domain data integrity.",
+    badge: "Dual-Layer"
   }
 ];
 ---

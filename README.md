@@ -56,6 +56,7 @@ AI agents frequently generate "tautological tests" that never fail against bugs.
 Markdown instructions can be forgotten by LLMs. CLC Kernel provisions deterministic Abstract Syntax Tree (AST) linters in the stack's native language (Python `ast`, Go `ast`, RuboCop, PHPStan, TypeScript AST). These guards physically validate code changes and block non-compliant commits:
 - **📱 Frontend & UX:** Mobile-first responsive breakpoints & 44px touch targets (`check_responsive`), SEO metadata/GEO tags/LCP priority (`check_seo`), ARIA accessibility (`check_a11y`), UI primitive reuse (`check_ui_reuse`), image optimization & tree-shaking (`check_performance`), and Zod API contracts (`check_api_contracts`).
 - **🏛️ Backend & Architecture:** Clean Architecture layer boundaries (`check_architecture`), N+1 query loop prevention (`check_db_efficiency`), migration idempotency (`check_migrations`), and secret leak scanning (`scan_secrets`).
+- **🤖 Agent-OS & Domain Workflows:** AI IDE rule mirror symlink validation (`check_symlinks`), mandatory Human-in-the-Loop review checkpoint validator (`check_hitl`), domain deliverables schema & clean creation state metrics integrity (`check_domain_data`).
 - **🎯 Process & Infrastructure:** Git diff vs SDD scope validation (`check_scope`), TDD Red-to-Green transition proof (`verify_tdd`), and tech guards (`docker_guard`, `celery_guard`, `redis_guard`, `postgres_guard`).
 
 ### 🔗 E. Single Source of Truth (SSOT) & Dynamic Mirroring
@@ -124,6 +125,7 @@ CLC Kernel includes dedicated adapters for popular technology stacks:
 | 🐘 **Laravel** | `artisan` | Pest / PHPUnit | PHPStan AST, Eloquent N+1 Detection, Migrations |
 | 🎸 **Django** | `manage.py` | `pytest-django` | Django ORM Idempotency, Ruff AST, Scope Guard, DB Efficiency (N+1) |
 | 🚀 **Astro** | `astro.config` | Playwright | Tailwind v4 Tokens, Content Collection Schema, A11y, Responsive, SEO |
+| 🤖 **Agent-OS** | `skills/`, `brand/`, `templates/`, `agent-os` | Playbook / Contract Test | Dual-Layer AGENTS.md, HITL Checkpoints (`check_hitl`), AI IDE Symlinks (`check_symlinks`), Domain Data Integrity (`check_domain_data`), Secrets (`scan_secrets`) |
 
 ---
 

@@ -15,9 +15,11 @@ const RailsAdapter = require('./adapters/rails');
 const GoAdapter = require('./adapters/go');
 const RustAdapter = require('./adapters/rust');
 const LaravelAdapter = require('./adapters/laravel');
+const AgentOSAdapter = require('./adapters/agent-os');
 const { TechnologyDetector } = require('./technologies/detector');
 
 const adapters = [
+  new AgentOSAdapter(),
   new NextjsAdapter(),
   new FastApiAdapter(),
   new DjangoAdapter(),
