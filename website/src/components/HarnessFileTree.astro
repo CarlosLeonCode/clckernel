@@ -14,18 +14,21 @@ const fileData = {
     badgeColor: 'bg-cyan-50 border-cyan-200 text-cyan-900',
     type: 'Markdown • AI Law',
     desc: isEs 
-      ? 'Gobierna el comportamiento del agente mediante la Regla #0: prohíbe modificaciones ciegas de código sin research, SDD previo y test TDD en rojo. Se sincroniza automáticamente con Cursor, Claude y Antigravity.'
-      : 'Enforces Rule #0: strictly forbids blind code edits without research, local SDD specs, and failing TDD tests. Automatically symlinks across Cursor, Claude, and Antigravity.',
+      ? 'Gobierna el comportamiento del agente mediante la Regla #0 y la Interfaz Universal de Comandos (clckernel feature, fix, test, audit, doctor, commit). Se sincroniza automáticamente con Cursor, Claude Code, Copilot y Antigravity.'
+      : 'Enforces Rule #0 and the Universal Command Interface (clckernel feature, fix, test, audit, doctor, commit). Automatically symlinks across Cursor, Claude Code, Copilot, and Antigravity.',
     codeTitle: 'AGENTS.md',
     codeLang: 'markdown',
     code: `# CLC Kernel — AI AGENTS LAW (SSOT)
 > RULE #0: MANDATORY EXECUTION OVERRIDE
-> You are STRICTLY FORBIDDEN from modifying source code
-> without completing:
-> 1. Research & Root Cause Analysis
-> 2. SDD Specification under sdds/{change}/
-> 3. TDD Regression Test (Must fail first - RED)
-> 4. Mandatory AST Audit Gate (node tools/audit.js)`
+> Prohibits blind edits without Research, SDD, Red TDD, and AST Audit.
+
+## Universal Command Interface (All LLMs):
+- clckernel feature <name>   -> Full AIUP cycle
+- clckernel fix <issue>      -> Root cause -> Red TDD -> Clean fix
+- clckernel test             -> Run test runner cleanly
+- clckernel audit            -> Run AST safeguards gate
+- clckernel doctor           -> Health diagnostic
+- clckernel commit <message> -> Pre-flight audit & commit`
   },
   'clckernel_yaml': {
     path: '.clckernel.yaml',

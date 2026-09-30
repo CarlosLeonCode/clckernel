@@ -164,6 +164,31 @@ process.exit(0);`,
       ├── spec.md        # Contratos de API y límites de capas
       ├── plan.md        # Plan paso a paso de TDD Rojo->Verde
       └── verification.md # Recibos de test y compuertas AST aprobadas`,
+      },
+      {
+        id: "llm-command-dispatch",
+        title: "Despacho y Ejecución Multi-LLM",
+        desc: "Cómo consume y ejecuta cada asistente de programación agéntica los comandos universales clckernel a través de los enlaces de AGENTS.md.",
+        code: `# Claude Code (CLI de Terminal):
+$ claude
+> clckernel feature auth-jwt
+# Activa automáticamente la Regla #0, redacción del SDD local, TDD rojo y compuerta AST.
+
+# Cursor (Composer / Chat Cmd+L):
+> /clckernel fix "memory leak in session store"
+# Lee el espejo .cursorrules, investiga la traza y escribe test de regresión que falla.
+
+# Windsurf / Codeium Cascade:
+> clckernel feature payment-webhooks
+# Aísla capas automáticamente y ejecuta tools/audit.js antes de autorizar el commit.
+
+# GitHub Copilot (Modo Agente):
+> @workspace clckernel audit
+# Ejecuta las compuertas AST nativas y entrega el Resumen Educativo de Código.
+
+# Google Antigravity & Gemini CLI:
+> clckernel doctor
+# Emplea .agents/skills/clckernel_cli/SKILL.md para verificación integral de salud.`,
       }
     ]
   },

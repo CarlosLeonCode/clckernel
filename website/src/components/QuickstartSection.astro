@@ -16,39 +16,54 @@ const steps = isEs ? [
     name: "Inicialización",
     cmd: "npx clckernel start",
     title: "Inicialización Interactiva y Detección de Stack",
-    desc: "Detecta automáticamente el framework (Next.js, FastAPI, Django, etc.), genera el manifiesto .clckernel.yaml e inyecta las leyes del repositorio para Cursor, Claude Code y Antigravity.",
+    desc: "Detecta automáticamente el framework (Next.js, FastAPI, Django, etc.), genera el manifiesto .clckernel.yaml e inyecta las leyes del repositorio para Cursor, Claude Code, Copilot y Antigravity.",
     output: `$ npx clckernel start
 [clckernel] 🔍 Scanning workspace...
 [clckernel] ⚡ Detected framework: Next.js (TypeScript) + Vitest
 [clckernel] 📄 Generating .clckernel.yaml configuration...
-[clckernel] 🔗 Materializing rules: .cursorrules, CLAUDE.md, GEMINI.md
+[clckernel] 🔗 Materializing rules: .cursorrules, CLAUDE.md, GEMINI.md, .github/copilot-instructions.md
 [clckernel] 🛡️  Installing Git pre-commit hooks (Husky / Native)...
 [clckernel] ✨ Governance harness initialized successfully!`,
   },
   {
     id: "step2",
     num: "02",
-    name: "Auditoría de Salud",
-    cmd: "npx clckernel doctor",
-    title: "Comprobación Integral del Entorno",
-    desc: "Verifica que los hooks de git estén vinculados, que los test runners estén disponibles y que los parsers AST nativos funcionen sin dependencias externas.",
-    output: `$ npx clckernel doctor
-[clckernel] 🏥 Running Governance Doctor...
-✔ Git pre-commit hook active (.husky/pre-commit)
-✔ Test runner operational (npm test -> Vitest)
-✔ AST audit engine ready (Node.js native parser)
-✔ Rules synchronized (.cursorrules, CLAUDE.md)
-✔ Scope boundary active (sdds/ directory tracking)
-[clckernel] 🟢 100% HEALTHY: System is fully governed.`,
+    name: "Comando Feature",
+    cmd: "clckernel feature auth-jwt",
+    title: "Desarrollo Agéntico con Ciclo AIUP Completo",
+    desc: "Comando universal para Cursor, Claude Code, Copilot, Windsurf y Antigravity. Inicia investigación de capas, redacta el SDD local, exige revisión humana (HITL), ejecuta TDD rojo y verifica la arquitectura.",
+    output: `$ clckernel feature auth-jwt
+[clckernel] 🤖 Universal Command recognized by Agent
+[clckernel] 🔍 Phase 1: Researching affected layers (Domain -> Infra)
+[clckernel] 📝 Phase 2: Authoring local spec in sdds/auth-jwt/spec.md
+[clckernel] 👤 Phase 3: Waiting for Architect HITL review... Approved!
+[clckernel] 🔴 Phase 4: Writing failing test in test/auth.test.ts (Exit 1)
+[clckernel] 🟢 Phase 5: Implementing clean code in src/domain/auth.ts
+[clckernel] 🛡️  Phase 6: Running AST audit gate... 0 violations!`,
   },
   {
     id: "step3",
     num: "03",
-    name: "Compuerta de Calidad",
-    cmd: "node tools/audit.js",
-    title: "Ejecución Manual de la Compuerta AST",
-    desc: "Audita los cambios antes de hacer commit. Inspecciona el git diff, valida la arquitectura en capas y bloquea secretos con 0 falsos positivos.",
-    output: `$ node tools/audit.js
+    name: "Comando Fix (TDD)",
+    cmd: 'clckernel fix "token expiration returns 500"',
+    title: "Corrección Quirúrgica y Regresión Obligatoria",
+    desc: "Prohíbe ediciones a ciegas ('quick fixes'). Obliga al LLM a inspeccionar el traceback, reproducir el defecto con un test en rojo y aplicar un fix mínimo respetando Clean Architecture.",
+    output: `$ clckernel fix "token expiration returns 500"
+[clckernel] 🤖 Universal Command recognized by Agent
+[clckernel] 🔍 Phase 1: Investigating traceback (Zero blind edits)
+[clckernel] 🔴 Phase 2: Reproducing with failing test (Exit Code 1)
+[clckernel] 🟢 Phase 3: Surgical fix in src/infra/jwt.ts (Clean Arch)
+[clckernel] 🛡️  Phase 4: Running audit gate: node tools/audit.js
+[clckernel] ✨ Defect fixed cleanly with regression proof!`,
+  },
+  {
+    id: "step4",
+    num: "04",
+    name: "Auditoría & Doctor",
+    cmd: "clckernel audit",
+    title: "Compuerta de Calidad AST Determinista",
+    desc: "Ejecuta las salvaguardas nativas sobre el git diff en <5ms: bloquea fuga de secretos, valida capas limpias, detecta N+1 en BD y verifica límites de scope antes de autorizar el commit.",
+    output: `$ clckernel audit
 [clckernel-audit] 🛡️  Running AST Safeguards on staged diff...
   [1/6] scan_secrets .................... ✔ PASS (0 leaks found)
   [2/6] check_architecture .............. ✔ PASS (Clean layers intact)
@@ -56,7 +71,7 @@ const steps = isEs ? [
   [4/6] check_responsive ................ ✔ PASS (Mobile-first valid)
   [5/6] check_seo ....................... ✔ PASS (CWV & OG tags verified)
   [6/6] check_scope ..................... ✔ PASS (Within SDD boundary)
-[clckernel-audit] 🚀 ALL GUARDS PASSED. Ready to commit!`,
+[clckernel-audit] 🚀 ALL GUARDS PASSED. Ready to commit via 'clckernel commit'!`,
   },
 ] : [
   {
@@ -65,39 +80,54 @@ const steps = isEs ? [
     name: "Initialization",
     cmd: "npx clckernel start",
     title: "Interactive Initialization & Stack Detection",
-    desc: "Auto-detects your ecosystem (Next.js, FastAPI, Django, etc.), generates .clckernel.yaml, and installs symbolic rule links for Cursor, Claude Code, and Antigravity.",
+    desc: "Auto-detects your ecosystem (Next.js, FastAPI, Django, etc.), generates .clckernel.yaml, and installs symbolic rule links for Cursor, Claude Code, Copilot, and Antigravity.",
     output: `$ npx clckernel start
 [clckernel] 🔍 Scanning workspace...
 [clckernel] ⚡ Detected framework: Next.js (TypeScript) + Vitest
 [clckernel] 📄 Generating .clckernel.yaml configuration...
-[clckernel] 🔗 Materializing rules: .cursorrules, CLAUDE.md, GEMINI.md
+[clckernel] 🔗 Materializing rules: .cursorrules, CLAUDE.md, GEMINI.md, .github/copilot-instructions.md
 [clckernel] 🛡️  Installing Git pre-commit hooks (Husky / Native)...
 [clckernel] ✨ Governance harness initialized successfully!`,
   },
   {
     id: "step2",
     num: "02",
-    name: "Doctor Audit",
-    cmd: "npx clckernel doctor",
-    title: "Comprehensive Environment Health Check",
-    desc: "Validates active git hooks, test runner availability, and zero-dependency AST parser integrity before any AI agent writes code.",
-    output: `$ npx clckernel doctor
-[clckernel] 🏥 Running Governance Doctor...
-✔ Git pre-commit hook active (.husky/pre-commit)
-✔ Test runner operational (npm test -> Vitest)
-✔ AST audit engine ready (Node.js native parser)
-✔ Rules synchronized (.cursorrules, CLAUDE.md)
-✔ Scope boundary active (sdds/ directory tracking)
-[clckernel] 🟢 100% HEALTHY: System is fully governed.`,
+    name: "Feature Command",
+    cmd: "clckernel feature auth-jwt",
+    title: "Agentic Development via Full AIUP Cycle",
+    desc: "Universal command for Cursor, Claude Code, Copilot, Windsurf, and Antigravity. Drives layer research, authors local SDD specs, enforces Human-in-the-Loop approval, executes Red TDD, and verifies Clean Architecture.",
+    output: `$ clckernel feature auth-jwt
+[clckernel] 🤖 Universal Command recognized by Agent
+[clckernel] 🔍 Phase 1: Researching affected layers (Domain -> Infra)
+[clckernel] 📝 Phase 2: Authoring local spec in sdds/auth-jwt/spec.md
+[clckernel] 👤 Phase 3: Waiting for Architect HITL review... Approved!
+[clckernel] 🔴 Phase 4: Writing failing test in test/auth.test.ts (Exit 1)
+[clckernel] 🟢 Phase 5: Implementing clean code in src/domain/auth.ts
+[clckernel] 🛡️  Phase 6: Running AST audit gate... 0 violations!`,
   },
   {
     id: "step3",
     num: "03",
-    name: "Audit Gate",
-    cmd: "node tools/audit.js",
-    title: "Manual AST Audit Gate Execution",
-    desc: "Runs multi-guard checks against local staged diffs. Enforces Clean Architecture AST rules and blocks leaked credentials with zero false positives.",
-    output: `$ node tools/audit.js
+    name: "Fix Command (TDD)",
+    cmd: 'clckernel fix "token expiration returns 500"',
+    title: "Surgical Bug Fix with Mandatory Regression Test",
+    desc: "Strictly forbids blind 'quick fixes'. Forces the LLM to inspect tracebacks, reproduce the defect with a failing red test, and apply minimal fixes respecting Clean Architecture.",
+    output: `$ clckernel fix "token expiration returns 500"
+[clckernel] 🤖 Universal Command recognized by Agent
+[clckernel] 🔍 Phase 1: Investigating traceback (Zero blind edits)
+[clckernel] 🔴 Phase 2: Reproducing with failing test (Exit Code 1)
+[clckernel] 🟢 Phase 3: Surgical fix in src/infra/jwt.ts (Clean Arch)
+[clckernel] 🛡️  Phase 4: Running audit gate: node tools/audit.js
+[clckernel] ✨ Defect fixed cleanly with regression proof!`,
+  },
+  {
+    id: "step4",
+    num: "04",
+    name: "Audit & Doctor",
+    cmd: "clckernel audit",
+    title: "Deterministic AST Quality Gate",
+    desc: "Runs native stack safeguards against git diffs in <5ms: blocks secret leaks, validates clean layers, detects DB N+1 queries, and verifies scope boundaries before authorizing commits.",
+    output: `$ clckernel audit
 [clckernel-audit] 🛡️  Running AST Safeguards on staged diff...
   [1/6] scan_secrets .................... ✔ PASS (0 leaks found)
   [2/6] check_architecture .............. ✔ PASS (Clean layers intact)
@@ -105,7 +135,7 @@ const steps = isEs ? [
   [4/6] check_responsive ................ ✔ PASS (Mobile-first valid)
   [5/6] check_seo ....................... ✔ PASS (CWV & OG tags verified)
   [6/6] check_scope ..................... ✔ PASS (Within SDD boundary)
-[clckernel-audit] 🚀 ALL GUARDS PASSED. Ready to commit!`,
+[clckernel-audit] 🚀 ALL GUARDS PASSED. Ready to commit via 'clckernel commit'!`,
   },
 ];
 ---
@@ -130,11 +160,11 @@ const steps = isEs ? [
       </p>
     </div>
 
-    <!-- 3-Step Interactive Terminal Walkthrough (White Theme) -->
+    <!-- 4-Step Interactive Terminal & LLM Walkthrough (White Theme) -->
     <div class="bg-[#f8fafc] text-slate-900 rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 p-6 sm:p-8 relative overflow-hidden" id="quickstart-box">
       
       <!-- Top Step Tabs -->
-      <div class="grid grid-cols-3 gap-2 sm:gap-4 border-b border-slate-200 pb-6 mb-6">
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 border-b border-slate-200 pb-6 mb-6">
         {steps.map((step, idx) => (
           <button
             type="button"

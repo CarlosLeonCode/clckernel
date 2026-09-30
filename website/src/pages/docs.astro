@@ -164,6 +164,31 @@ process.exit(0);`,
       ├── spec.md        # API contracts & layer scope boundaries
       ├── plan.md        # Step-by-step Red->Green TDD implementation
       └── verification.md # Test receipts and AST audit pass proofs`,
+      },
+      {
+        id: "llm-command-dispatch",
+        title: "Cross-LLM Command Dispatch & Execution",
+        desc: "How each major AI coding assistant natively consumes and executes the universal clckernel commands via AGENTS.md mirror links.",
+        code: `# Claude Code (Terminal CLI):
+$ claude
+> clckernel feature user-auth
+# Automatically triggers Rule #0, local SDD authoring, Red TDD, and AST audit gate.
+
+# Cursor (Composer / Chat Cmd+L):
+> /clckernel fix "memory leak in session store"
+# Reads .cursorrules mirror, runs root cause analysis, and writes failing regression test.
+
+# Windsurf / Codeium Cascade:
+> clckernel feature payment-webhooks
+# Automatically isolates layers and executes tools/audit.js before committing.
+
+# GitHub Copilot (Agent Mode):
+> @workspace clckernel audit
+# Runs native AST guards and provides the Educational Code Summary.
+
+# Google Antigravity & Gemini CLI:
+> clckernel doctor
+# Leverages .agents/skills/clckernel_cli/SKILL.md for deterministic health verification.`,
       }
     ]
   },

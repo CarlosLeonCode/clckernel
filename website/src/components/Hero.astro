@@ -263,15 +263,19 @@ const isEs = lang === 'es';
     },
     {
       id: 'rule0',
-      title: isSpanish ? 'FASE 1: INTERCEPCIÓN REGLA #0' : 'PHASE 1: RULE #0 INTERCEPTION',
+      title: isSpanish ? 'FASE 1: COMANDO UNIVERSAL Y REGLA #0' : 'PHASE 1: UNIVERSAL CMD & RULE #0',
       status: 'RULE #0 LOCK',
       html: `
         <div class="space-y-3">
           <!-- User Prompt -->
           <div class="flex items-start gap-2.5 justify-end">
             <div class="bg-cyan-50 border border-cyan-200 text-slate-800 p-2.5 rounded-2xl rounded-tr-xs max-w-[85%] shadow-2xs">
-              <div class="text-[9px] font-bold text-cyan-900 font-mono mb-0.5">Senior Engineer</div>
-              <p class="text-xs text-slate-700">${isSpanish ? 'Implementa la autenticación JWT con expiración de tokens. Usa el arnés de gobernanza.' : 'Implement JWT authentication with token expiration. Use the governance harness.'}</p>
+              <div class="text-[9px] font-bold text-cyan-900 font-mono mb-1 flex items-center justify-between gap-2">
+                <span>Senior Engineer</span>
+                <span class="bg-cyan-200/70 text-cyan-900 px-1.5 py-0.2 rounded text-[8px] font-mono font-bold tracking-wider">UNIVERSAL CMD</span>
+              </div>
+              <p class="text-xs text-slate-900 font-mono font-bold">clckernel feature auth-jwt</p>
+              <p class="text-[11px] text-slate-600 font-sans mt-0.5">${isSpanish ? 'Implementa autenticación JWT con expiración de tokens.' : 'Implement JWT authentication with token expiration.'}</p>
             </div>
             <div class="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">👨‍💻</div>
           </div>
@@ -279,9 +283,9 @@ const isEs = lang === 'es';
           <div class="flex items-start gap-2.5">
             <div class="w-6 h-6 rounded-full bg-cyan-600 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">🤖</div>
             <div class="bg-slate-50 border border-slate-200 p-3 rounded-2xl rounded-tl-xs w-full space-y-1.5 font-mono text-[11px] shadow-2xs">
-              <div class="text-slate-500 italic text-[10px] font-sans">${isSpanish ? '🧠 Leyendo AGENTS.md: Regla #0 prohíbe modificar código a ciegas.' : '🧠 Reading AGENTS.md: Rule #0 forbids blind code edits.'}</div>
-              <div class="text-indigo-700 font-bold bg-indigo-50/90 px-2 py-1 rounded border border-indigo-200">⚡ Tool Call: read_file("AGENTS.md")</div>
-              <div class="text-rose-700 font-semibold bg-rose-50 px-2 py-1 rounded border border-rose-200">${isSpanish ? '🛡️ Intercepción activada: Prohibido editar sin SDD previo.' : '🛡️ Interception active: Code edit blocked without SDD.'}</div>
+              <div class="text-slate-500 italic text-[10px] font-sans">${isSpanish ? '🧠 Comando reconocido: clckernel feature auth-jwt. Activando máquina de estados AIUP.' : '🧠 Command recognized: clckernel feature auth-jwt. Activating AIUP state machine.'}</div>
+              <div class="text-indigo-700 font-bold bg-indigo-50/90 px-2 py-1 rounded border border-indigo-200">⚡ State Machine: Phase 1 (Research) ➔ Phase 2 (Local SDD)</div>
+              <div class="text-rose-700 font-semibold bg-rose-50 px-2 py-1 rounded border border-rose-200">${isSpanish ? '🛡️ Regla #0 activa: Prohibido editar código fuente sin sdds/auth-jwt/spec.md y aprobación HIT.' : '🛡️ Rule #0 active: Forbidden from editing source without sdds/auth-jwt/spec.md and HIT approval.'}</div>
             </div>
           </div>
         </div>
@@ -343,7 +347,7 @@ const isEs = lang === 'es';
             <div class="w-6 h-6 rounded-full bg-cyan-600 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">🤖</div>
             <div class="bg-slate-50 border border-slate-200 p-3 rounded-2xl rounded-tl-xs w-full space-y-2 font-mono text-[11px] shadow-2xs">
               <div class="text-slate-500 italic text-[10px] font-sans">${isSpanish ? '🧠 Ejecutando suite determinista de AST en Node.js y Python (<5ms).' : '🧠 Running deterministic native AST suite in Node.js & Python (<5ms).'}</div>
-              <div class="text-indigo-700 font-bold bg-indigo-50/90 px-2 py-1 rounded border border-indigo-200">⚡ Tool Call: run_command("node tools/audit.js")</div>
+              <div class="text-indigo-700 font-bold bg-indigo-50/90 px-2 py-1 rounded border border-indigo-200">⚡ Tool Call: run_command("clckernel audit")</div>
               <div class="bg-emerald-50 border border-emerald-200 p-2 rounded text-emerald-900 space-y-1 text-[10px]">
                 <div class="flex items-center justify-between font-semibold"><span>✔ scan_secrets: 0 hardcoded keys in diff</span><span class="text-emerald-700 font-bold">PASS</span></div>
                 <div class="flex items-center justify-between font-semibold"><span>✔ check_architecture: Clean layer isolation</span><span class="text-emerald-700 font-bold">PASS</span></div>
@@ -365,7 +369,7 @@ const isEs = lang === 'es';
             <div class="w-6 h-6 rounded-full bg-cyan-600 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">🤖</div>
             <div class="bg-slate-50 border border-slate-200 p-3 rounded-2xl rounded-tl-xs w-full space-y-2 font-mono text-[11px] shadow-2xs">
               <div class="text-slate-500 italic text-[10px] font-sans">${isSpanish ? '🧠 Todas las salvaguardas validadas. Ejecutando commit determinista.' : '🧠 All safeguards verified. Authorizing deterministic git commit.'}</div>
-              <div class="text-indigo-700 font-bold bg-indigo-50/90 px-2 py-1 rounded border border-indigo-200">⚡ Tool Call: run_command("git commit -m 'feat(auth): jwt verified'")</div>
+              <div class="text-indigo-700 font-bold bg-indigo-50/90 px-2 py-1 rounded border border-indigo-200">⚡ Tool Call: run_command("clckernel commit 'feat(auth): jwt verified'")</div>
               <div class="bg-slate-900 text-white p-2.5 rounded-xl space-y-1 text-[10px]">
                 <div class="text-emerald-400 font-bold">🚀 [clckernel] Pre-commit Hook: EXIT CODE 0</div>
                 <div class="text-slate-300">✔ Clean Architecture • Real TDD • Zero Leaks</div>
