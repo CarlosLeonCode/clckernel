@@ -33,7 +33,10 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
   // 3. Run harness generation (refreshes tools, hooks, skills, and symlinks)
   generateHarness(resolvedDir, detected);
 
-  // 4. Ensure AGENTS.md includes the update command in the command table
+  // 4. Ensure AGENTS.md documents the update command in its command table.
+  // Non-destructive: only inject into a file that already carries the CLC
+  // Kernel command table, and only when the row is missing (idempotent).
+  // A project-customized AGENTS.md without that structure is left untouched.
   const agentsPath = path.join(resolvedDir, 'AGENTS.md');
   if (fs.existsSync(agentsPath)) {
     let agentsContent = fs.readFileSync(agentsPath, 'utf-8');

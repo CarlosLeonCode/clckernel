@@ -341,7 +341,13 @@ When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`,
 | \`clckernel update\` | Maintenance | Non-destructive update: refresh core tools, playbooks & symlinks (preserves SDDs & custom guards). |
 | \`clckernel start\` | Setup | Scan codebase, propose governance plan, and materialize \`.clckernel.yaml\`. |
 `;
-    fs.writeFileSync(path.join(targetDir, 'AGENTS.md'), agentsContent, 'utf-8');
+    // Guard: never overwrite an existing project-customized AGENTS.md.
+    // This prevents clckernel update from replacing Laila MOS invariants
+    // (carousel format, one-question-onboarding, dynamic calendar, immutability).
+    if (!fs.existsSync(path.join(targetDir, 'AGENTS.md'))) {
+      fs.writeFileSync(path.join(targetDir, 'AGENTS.md'), agentsContent, 'utf-8');
+    }
+
   }
 
   // Step 2: Install tools (manifest-driven or fallback)
