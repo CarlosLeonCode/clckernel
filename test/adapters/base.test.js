@@ -83,4 +83,22 @@ describe('BaseAdapter', () => {
       }
     });
   });
+
+  describe('provision() AGENTS.md preservation', () => {
+    it('never overwrites an existing project-customized AGENTS.md', () => {
+      const custom = '# Mi Ley Propia\n- Regla propia del proyecto\n';
+      const adapter = new BaseAdapter('TestStack', 'backend', 'Pytest');
+      const dir = createTmpProject({ 'AGENTS.md': custom });
+      try {
+        adapter.provision(dir, {});
+        const after = require('fs').readFileSync(
+          require('path').join(dir, 'AGENTS.md'), 'utf-8'
+        );
+        assert.strictEqual(after, custom, 'AGENTS.md must be byte-identical');
+        assert.ok(!after.includes('TestStack'), 'adapter template must not be injected');
+      } finally {
+        teardown(dir);
+      }
+    });
+  });
 });

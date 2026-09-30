@@ -113,8 +113,11 @@ class AgentOSAdapter extends BaseAdapter {
   }
 
   provision(targetDir, config) {
-    // 1. Create docs/, sdds/, and tools/
-    super.provision(targetDir, config);
+    // 1. Create docs/, sdds/, and tools/. AGENTS.md is owned by this adapter
+    // (dual-layer template below), so BaseAdapter must not write its generic
+    // law file — otherwise the generic one lands first and, being present,
+    // would make the guard below skip the dual-layer render entirely.
+    super.provision(targetDir, { ...(config || {}), skipAgentsMd: true });
 
     // 2. Write Dual-Layer AGENTS.md
     const dualLayerAgents = `# Standard Operating Procedure (SOP) — AGENTS
@@ -174,7 +177,12 @@ When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`,
 ${this.getSafeguards().map(s => `- ${s}`).join('\n')}
 `;
 
-    fs.writeFileSync(path.join(targetDir, 'AGENTS.md'), dualLayerAgents, 'utf-8');
+    // Guard: never overwrite a project-customized AGENTS.md (e.g. a Laila MOS
+    // law file carrying domain invariants the template cannot know about).
+    const dualAgentsPath = path.join(targetDir, 'AGENTS.md');
+    if (!fs.existsSync(dualAgentsPath)) {
+      fs.writeFileSync(dualAgentsPath, dualLayerAgents, 'utf-8');
+    }
 
     // 3. Create AI IDE mirror symlinks
     const mirrors = ['CLAUDE.md', 'GEMINI.md', '.cursorrules', '.windsurfrules'];

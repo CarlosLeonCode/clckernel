@@ -57,6 +57,10 @@ class BaseAdapter {
   }
 
   provision(targetDir, config) {
+    // Subclasses that render their own AGENTS.md pass { skipAgentsMd: true }
+    // so this generic law file is never written alongside (or over) theirs.
+    const skipAgentsMd = !!(config && config.skipAgentsMd);
+
     // 1. Create docs/ and sdds/
     fs.mkdirSync(path.join(targetDir, 'docs', 'Journal'), { recursive: true });
     fs.mkdirSync(path.join(targetDir, 'docs', 'Architecture'), { recursive: true });
@@ -75,7 +79,7 @@ class BaseAdapter {
 
     // 3. Write AGENTS.md
     const isFront = this.projectType === 'frontend';
-    const agentsContent = `# 🔨 CLC Kernel ${this.name} (${this.projectType.toUpperCase()}) — AGENTS
+    const agentsContent = skipAgentsMd ? '' : `# 🔨 CLC Kernel ${this.name} (${this.projectType.toUpperCase()}) — AGENTS
 
 This document is the **authoritative law** for AI agents working in this repository.
 Forged by **CLC Kernel: The AI Agent Governance Engine**.
@@ -102,7 +106,14 @@ Forged by **CLC Kernel: The AI Agent Governance Engine**.
 ## 2. Core AI Safeguards (${this.name})
 ${this.getSafeguards().map(s => `- ${s}`).join('\n')}
 `;
-    fs.writeFileSync(path.join(targetDir, 'AGENTS.md'), agentsContent, 'utf-8');
+    // Guard: never overwrite a project-customized AGENTS.md.
+    if (skipAgentsMd) {
+      return;
+    }
+    const agentsPath = path.join(targetDir, 'AGENTS.md');
+    if (!fs.existsSync(agentsPath)) {
+      fs.writeFileSync(agentsPath, agentsContent, 'utf-8');
+    }
   }
 }
 

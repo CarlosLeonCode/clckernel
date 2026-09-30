@@ -81,6 +81,30 @@ describe('AgentOSAdapter', () => {
   });
 
   describe('provision()', () => {
+    it('never overwrites an existing project-customized AGENTS.md', () => {
+      const custom = [
+        '# Laila MOS — 13 reglas',
+        '',
+        '- Regla de formato nativo de Carruseles y Reels',
+        '- One-question-at-a-time onboarding',
+        '- Estrategia dinamica obligatoria por calendario',
+        '- Invariante de inmutabilidad del calendario',
+        '',
+      ].join('\n');
+      const dir = createTmpProject({ 'AGENTS.md': custom });
+      try {
+        const adapter = new AgentOSAdapter();
+        adapter.provision(dir, { gitHooks: 'githooks' });
+
+        const after = fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8');
+        assert.strictEqual(after, custom, 'AGENTS.md must be byte-identical after provision');
+        assert.ok(!after.includes('Layer 2: Domain Runtime'), 'dual-layer template must not be injected');
+        assert.ok(after.includes('One-question-at-a-time onboarding'), 'project invariants must survive');
+      } finally {
+        teardown(dir);
+      }
+    });
+
     it('creates Dual-Layer AGENTS.md, symlinks, and tools directory', () => {
       const dir = createTmpProject({});
       try {
