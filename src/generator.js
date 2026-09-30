@@ -325,6 +325,20 @@ ${isFront ? `- UI Component Reuse First (components/ui/ & semantic tokens)
 - Database Efficiency & N+1 Performance Guard
 - Database Migration Idempotency Guard
 - Memory Guard (Engram / Graphify)`}
+
+## 3. Universal Command Interface (All LLMs & Agents)
+When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`, execute the deterministic state machine below:
+
+| Command | Lifecycle Phase | Mandatory Execution Protocol |
+|---|---|---|
+| \`clckernel feature <name>\` | New Feature | 1. Research affected layers.<br>2. Author local spec in \`sdds/{name}/spec.md\`.<br>3. Present HIT review to user and wait for approval.<br>4. Write failing test (Red Phase).<br>5. Implement clean code (Green Phase).<br>6. Run \`node tools/audit.js\` (or \`audit.py\`). |
+| \`clckernel fix <issue>\` | Bug Fix | 1. Investigate root cause (no code edits).<br>2. Reproduce with failing test (Red Phase).<br>3. Minimal surgical fix respecting Clean Arch (Green Phase).<br>4. Run audit gate without skipping. |
+| \`clckernel test\` | Verification | Run test suite (\`${config.testRunner || 'npm test'}\`) and verify clean pass (exit code 0). |
+| \`clckernel audit\` | Verification | Run \`node tools/audit.js\` or \`python tools/audit.py\` and output the Educational Summary. |
+| \`clckernel doctor\` | Diagnostics | Check git pre-commit hooks, IDE symlinks, and AST engine integrity. |
+| \`clckernel commit <message>\` | Version Control | Run full audit, verify tests pass, ensure no changes outside SDD scope, and commit with conventional commits (never add AI attribution). |
+| \`clckernel guard create <name>\` | Safeguards | Scaffold a new AST guard in the stack's native language in \`tools/guards/\`. |
+| \`clckernel start\` | Setup | Scan codebase, propose governance plan, and materialize \`.clckernel.yaml\`. |
 `;
     fs.writeFileSync(path.join(targetDir, 'AGENTS.md'), agentsContent, 'utf-8');
   }
@@ -372,68 +386,31 @@ function installAgenticCLI(targetDir) {
   // 1. Crear el Directorio de Skills
   const skillDir = path.join(targetDir, '.agents', 'skills', 'clckernel_cli');
   const legacySkillDir = path.join(targetDir, '.agents', 'skills', 'clc_forge_cli');
-  fs.mkdirSync(skillDir, { recursive: true });
-  fs.mkdirSync(legacySkillDir, { recursive: true });
+  const skillRefDir = path.join(skillDir, 'reference');
+  const legacySkillRefDir = path.join(legacySkillDir, 'reference');
+  fs.mkdirSync(skillRefDir, { recursive: true });
+  fs.mkdirSync(legacySkillRefDir, { recursive: true });
 
-  // 2. Inyectar el SKILL.md Maestro
-  const skillContent = `---
-name: clckernel_cli
-description: Conversational CLI Orchestrator for the CLC Kernel AI Agent Governance Engine.
-triggers:
-  - clckernel start
-  - clckernel create_guard
-  - clckernel remove_guard
-  - clckernel add_phase
-  - clckernel remove_phase
-  - clc_forge start
-  - clc_forge create_guard
----
+  // 2. Inyectar el SKILL.md Maestro y Playbooks de Referencia
+  const bundledSkillDir = path.join(__dirname, '..', '.agents', 'skills', 'clckernel_cli');
+  const bundledSkillFile = path.join(bundledSkillDir, 'SKILL.md');
+  const bundledRefDir = path.join(bundledSkillDir, 'reference');
 
-# 🤖 CLC Kernel — Conversational CLI
+  if (fs.existsSync(bundledSkillFile)) {
+    fs.copyFileSync(bundledSkillFile, path.join(skillDir, 'SKILL.md'));
+    fs.copyFileSync(bundledSkillFile, path.join(legacySkillDir, 'SKILL.md'));
+  }
 
-You are the internal runtime engine of CLC Kernel (AIUP Orchestrator). 
-DO NOT suggest terminal bash commands for these triggers; YOU are the execution environment. Your job is to guide the user through the agent governance lifecycle via chat, dynamically discovering the environment, and manipulating configuration files.
-
-## 🚀 INTENT: \`clckernel start\` (or \`clc_forge start\`)
-Execute this exact sequence without skipping steps:
-
-### Phase 1: Silent Discovery
-Scan the current project using your file-reading capabilities. Identify the primary tech stack by looking for signature files (e.g., \`package.json\`, \`Gemfile\`, \`Cargo.toml\`, \`go.mod\`). 
-*Golden Rule: Do not assume the language. Read the files to establish context.*
-
-### Phase 2: Interview & Proposal
-Introduce yourself as CLC Kernel and state the detected stack.
-Propose a standard governance plan for that ecosystem (SDD + TDD + stack-specific Safeguards).
-ASK the user directly: 
-1. "Should we activate these standard phases, or do you want to define custom ones?"
-2. "Do you have any specific security needs that require a custom Guard?"
-**STOP.** Wait for the user's response.
-
-### Phase 3: Materialization
-Based on user approval, generate and write the \`.clckernel.yaml\` file in the project root.
-
----
-
-## 🛠️ INTENT: \`clckernel create_guard\`
-1. Ask the user what behavior they want to audit or block. **STOP.** Wait for technical details.
-2. Based on the detected stack, write the linter/guard script in the **NATIVE ECOSYSTEM LANGUAGE** (Ruby for Rails, Go \`ast\` for Golang, Python \`ast\` for FastAPI, JS for Node). Save it in \`tools/guards/\`.
-3. Update the \`.clckernel.yaml\` file to include the new Guard.
-
----
-
-## 🗑️ INTENT: \`clckernel remove_guard\`
-1. Ask which guard to remove and if the script should be deleted. **STOP.** Wait for response.
-2. Update \`.clckernel.yaml\` and delete the script from \`tools/guards/\` if requested.
-
----
-
-## 🔄 INTENT: \`clckernel add_phase\` / \`clckernel remove_phase\`
-1. Ask for details of the lifecycle phase to add or remove. **STOP.** Wait for response.
-2. Update the \`execution_phases\` block in \`.clckernel.yaml\`, preserving the logical sequence.
-`;
-  
-  fs.writeFileSync(path.join(skillDir, 'SKILL.md'), skillContent, 'utf-8');
-  fs.writeFileSync(path.join(legacySkillDir, 'SKILL.md'), skillContent, 'utf-8');
+  if (fs.existsSync(bundledRefDir)) {
+    const playbooks = fs.readdirSync(bundledRefDir);
+    for (const pb of playbooks) {
+      const srcPb = path.join(bundledRefDir, pb);
+      if (fs.statSync(srcPb).isFile()) {
+        fs.copyFileSync(srcPb, path.join(skillRefDir, pb));
+        fs.copyFileSync(srcPb, path.join(legacySkillRefDir, pb));
+      }
+    }
+  }
 
   // 3. Crear Symlinks Dinámicos al AGENTS.md (El Single Source of Truth)
   const sourceFile = 'AGENTS.md';

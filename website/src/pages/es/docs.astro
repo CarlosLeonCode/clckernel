@@ -42,6 +42,20 @@ Los agentes IA tienen ESTRICTAMENTE PROHIBIDO modificar código fuente sin:
 3. Fase Roja TDD Determinista (Exit code != 0)
 4. Implementación Limpia de Arquitectura (Fase Verde)
 5. Ejecución Obligatoria de la Compuerta AST (node tools/audit.js)`,
+      },
+      {
+        id: "universal-commands",
+        title: "Interfaz Universal de Comandos (Todos los LLMs)",
+        desc: "Gramática determinista soportada por Claude Code, Cursor, Codeium/Windsurf, Copilot, Gemini y Antigravity a través de los enlaces espejo de AGENTS.md.",
+        code: `# Gramática Universal de Comandos:
+$ clckernel feature <nombre> -> Ciclo AIUP completo (Spec -> HIT -> TDD -> Implementación -> Auditoría)
+$ clckernel fix <descrip>    -> Análisis de causa raíz -> Test de regresión -> Fix -> Auditoría
+$ clckernel test             -> Ejecuta suite de pruebas en el runner nativo y valida salida limpia
+$ clckernel audit            -> Ejecuta node tools/audit.js o audit.py y emite resumen
+$ clckernel doctor           -> Verifica hooks de Git, symlinks de IDEs y motor AST
+$ clckernel commit <mensaje> -> Auditoría pre-flight, verificación de scope SDD y commit convencional
+$ clckernel guard create <n> -> Genera scaffold de linter AST nativo en tools/guards/
+$ clckernel start            -> Detecta el stack y genera .clckernel.yaml`,
       }
     ]
   },

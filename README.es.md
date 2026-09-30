@@ -20,8 +20,9 @@ Los agentes de programación con IA (Cursor, Claude Code, Windsurf, Copilot) cod
 ## 📋 Tabla de Contenidos
 - [🎯 Casos de Uso](#-casos-de-uso)
 - [🏛️ El Proceso Unificado de IA (AIUP)](#️-el-proceso-unificado-de-ia-aiup)
+- [⚡ Guía Paso a Paso (Ciclo Completo)](#-guía-paso-a-paso-ciclo-completo)
+- [🎮 Interfaz Universal de Comandos](#-interfaz-universal-de-comandos)
 - [🌐 Ecosistemas Soportados y Arquetipos](#-ecosistemas-soportados-y-arquetipos)
-- [🚀 Inicio Rápido](#-inicio-rápido)
 - [🧩 Herramientas Complementarias (Opcionales)](#-herramientas-complementarias-opcionales)
 - [📄 Licencia](#-licencia)
 
@@ -60,6 +61,72 @@ Los agentes de programación con IA (Cursor, Claude Code, Windsurf, Copilot) cod
 
 ---
 
+<a id="guia-paso-a-paso"></a>
+## ⚡ Guía Paso a Paso (Ciclo Completo)
+
+```
+[1. Terminal]           [2. Chat del LLM]            [3. Bucle TDD]                [4. Git Commit]
+npx clckernel   ───►   clckernel start   ───►   "Feature X con harness"   ───►   Hooks Pre-commit
+(Bootstrap)            (Setup Interactivo)          (SDD -> HIT -> Tests)         (Guardián AST & Secretos)
+```
+
+### 1️⃣ Paso 1: Inicializar el Repositorio (Terminal)
+```bash
+npx clckernel start
+```
+Detecta el framework, genera `AGENTS.md`, crea symlinks dinámicos para todos los IDEs (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`), provisiona hooks pre-commit e instala verificadores AST en `tools/`.
+
+### 2️⃣ Paso 2: Inicializar en el Chat del IDE (CLI Conversacional)
+Abrí Cursor, Claude Code, Gemini CLI, Windsurf o Copilot y escribí:
+> `clckernel start`
+
+El agente escanea tu código en silencio, propone un plan de gobernanza adaptado a tu stack y genera `.clckernel.yaml`.
+
+### 3️⃣ Paso 3: Desarrollar con el Arnés AIUP
+Al solicitar una funcionalidad o corrección, indicá al agente:
+> *"Implementa el endpoint de autenticación. **Usa el harness de CLC Kernel**."*
+
+El agente ejecutará de forma autónoma el ciclo AIUP completo:
+1. **Investigación y Causa Raíz:** Inspecciona el código base y dependencias.
+2. **Especificación SDD Local:** Redacta contratos de API y planes de prueba en `sdds/{cambio}/spec.md`.
+3. **Revisión HIT:** Solicita tu revisión y aprobación de los contratos propuestos.
+4. **Fase Roja TDD:** Escribe un test de regresión que falle demostrando el requerimiento.
+5. **Implementación Verde:** Escribe el código mínimo necesario respetando el aislamiento de capas.
+6. **Compuerta de Auditoría AST:** Ejecuta `node tools/audit.js` y emite el resumen de verificación.
+
+### 4️⃣ Paso 4: Verificación Determinística de Guards (Git Commit)
+```bash
+git add .
+git commit -m "feat(auth): add user authentication endpoint"
+```
+Los hooks pre-commit ejecutan automáticamente los escáneres AST (Clean Architecture, Fuga de Secretos, Scope Guard, Idempotencia de Migraciones). Cualquier violación **bloquea físicamente** el commit.
+
+### 5️⃣ Paso 5: Auditar la Salud del Repositorio en Cualquier Momento (Doctor)
+```bash
+npx clckernel doctor
+```
+Audita el 100% de cumplimiento en `AGENTS.md`, `sdds/`, `tools/`, runners de pruebas activos y hooks de Git.
+
+---
+
+<a id="interfaz-universal-de-comandos"></a>
+## 🎮 Interfaz Universal de Comandos (Todos los LLMs y Agentes)
+
+CLC Kernel provee una gramática de comandos determinista soportada de forma nativa por **Claude Code, Cursor, Codeium/Windsurf, Copilot, Gemini y Antigravity**:
+
+| Comando | Categoría | Protocolo de Ejecución Obligatorio |
+|---|---|---|
+| `clckernel feature <nombre>` | Funcionalidad | Ciclo AIUP completo: Investigación -> Spec Local (`sdds/{nombre}/spec.md`) -> Revisión HIT -> Fase Roja TDD -> Implementación Verde -> Auditoría. |
+| `clckernel fix <descripción>` | Corrección | Análisis de causa raíz (sin editar código) -> Test de regresión que falle -> Corrección quirúrgica limpia -> Compuerta de auditoría. |
+| `clckernel test` | Verificación | Ejecuta la suite de pruebas en el runner nativo del stack y confirma estado verde limpio. |
+| `clckernel audit` | Verificación | Ejecuta `node tools/audit.js` o `python tools/audit.py` y emite el Resumen Educativo. |
+| `clckernel doctor` | Diagnóstico | Valida hooks pre-commit de Git, symlinks espejo para IDEs e integridad del motor AST. |
+| `clckernel commit <mensaje>` | Control de Versiones | Auditoría pre-flight, verificación de scope diff vs SDD y commit con Conventional Commits (cero atribución de IA). |
+| `clckernel guard create <nombre>` | Salvaguardas | Genera el scaffold de un nuevo script de guard AST en el lenguaje nativo del stack en `tools/guards/`. |
+| `clckernel start` | Configuración | Detecta el stack automáticamente, propone el ciclo de vida AIUP y genera `.clckernel.yaml`. |
+
+---
+
 <a id="ecosistemas-soportados"></a>
 ## 🌐 Ecosistemas Soportados y Arquetipos
 
@@ -74,29 +141,6 @@ Los agentes de programación con IA (Cursor, Claude Code, Windsurf, Copilot) cod
 | 🎸 **Django** | `manage.py` | `pytest-django` | Idempotencia ORM Django, AST Ruff, Scope Guard, Eficiencia DB (N+1) |
 | 🚀 **Astro** | `astro.config` | Playwright | Tokens Tailwind v4, Esquemas de Colección, A11y, Responsive, SEO |
 | 🤖 **Agent-OS** | `skills/`, `brand/`, `templates/` | Tests de Contrato | AGENTS.md Dual-Layer, Compuertas HITL (`check_hitl`), Symlinks (`check_symlinks`), Integridad de Datos (`check_domain_data`) |
-
----
-
-<a id="inicio-rapido"></a>
-## 🚀 Inicio Rápido
-
-### 1. Inicializar en Terminal
-```bash
-npx clckernel start
-```
-Detecta el framework, genera `AGENTS.md`, crea symlinks para todos los IDEs, provisiona hooks pre-commit e instala verificadores AST en `tools/`.
-
-### 2. Verificar Estado de Salud
-```bash
-npx clckernel doctor
-```
-Audita hooks de Git, test runners activos y la integridad del motor AST.
-
-### 3. Desarrollar con Gobernanza
-En el chat del IDE (Cursor, Claude Code, Gemini CLI, Windsurf):
-> *"Implementa el endpoint de autenticación. **Usa el harness de CLC Kernel**."*
-
-El agente ejecutará el ciclo AIUP completo: **Especificación SDD -> Aprobación HIT -> Test Rojo -> Implementación Verde -> Auditoría AST**.
 
 ---
 

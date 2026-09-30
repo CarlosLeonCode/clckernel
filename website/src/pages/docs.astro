@@ -42,6 +42,20 @@ AI agents are STRICTLY FORBIDDEN from modifying source code directly without:
 3. Deterministic Red TDD Phase (Exit code != 0)
 4. Clean Architecture Implementation (Green Phase)
 5. Mandatory AST Audit Gate (node tools/audit.js)`,
+      },
+      {
+        id: "universal-commands",
+        title: "Universal Command Interface (All LLMs)",
+        desc: "Deterministic command grammar supported by Claude Code, Cursor, Codeium/Windsurf, Copilot, Gemini, and Antigravity via AGENTS.md mirror links.",
+        code: `# Universal Command Grammar:
+$ clckernel feature <name>   -> Full AIUP cycle (Spec -> HIT -> TDD -> Implementation -> Audit)
+$ clckernel fix <issue>      -> Root cause investigation -> Failing regression test -> Fix -> Audit
+$ clckernel test             -> Runs stack test runner and verifies clean pass
+$ clckernel audit            -> Runs node tools/audit.js or audit.py and outputs summary
+$ clckernel doctor           -> Checks git pre-commit hooks, IDE symlinks & AST engine
+$ clckernel commit <message> -> Pre-flight audit, SDD scope check & Conventional Commit
+$ clckernel guard create <n> -> Scaffolds custom AST guard in stack native language
+$ clckernel start            -> Auto-detects stack & generates .clckernel.yaml`,
       }
     ]
   },

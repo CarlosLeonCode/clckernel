@@ -20,8 +20,9 @@ AI coding agents (Cursor, Claude Code, Windsurf, Copilot) code fast, but without
 ## 📋 Table of Contents
 - [🎯 Use Cases](#-use-cases)
 - [🏛️ The AI Unified Process (AIUP)](#️-the-ai-unified-process-aiup)
+- [⚡ Step-by-Step Guide (Full Lifecycle)](#-step-by-step-guide-full-lifecycle)
+- [🎮 Universal Command Interface](#-universal-command-interface)
 - [🌐 Supported Stacks & Archetypes](#-supported-stacks--archetypes)
-- [🚀 Quickstart](#-quickstart)
 - [🧩 Optional Ecosystem Companions](#-optional-ecosystem-companions)
 - [📄 License](#-license)
 
@@ -60,6 +61,72 @@ AI coding agents (Cursor, Claude Code, Windsurf, Copilot) code fast, but without
 
 ---
 
+<a id="step-by-step-guide"></a>
+## ⚡ Step-by-Step Guide (Full Lifecycle)
+
+```
+[1. Terminal]           [2. AI Chat]                 [3. TDD Loop]                 [4. Git Commit]
+npx clckernel   ───►   clckernel start   ───►   "Feature X with harness"   ───►   Pre-commit Hooks
+(Bootstrap)            (Interactive Setup)          (SDD -> HIT -> Tests)         (AST & Secret Guard)
+```
+
+### 1️⃣ Step 1: Bootstrap the Repository (Terminal)
+```bash
+npx clckernel start
+```
+Auto-detects your framework, generates `AGENTS.md`, creates dynamic IDE symlinks (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`), provisions pre-commit hooks, and creates native AST checks in `tools/`.
+
+### 2️⃣ Step 2: Initialize in Your AI Chat (Conversational CLI)
+Open Cursor, Claude Code, Gemini CLI, Windsurf, or Copilot and type:
+> `clckernel start`
+
+The agent scans your codebase silently, proposes an AIUP governance plan tailored to your framework, and generates `.clckernel.yaml`.
+
+### 3️⃣ Step 3: Develop with the AIUP Harness
+When requesting features or bugfixes, instruct your agent:
+> *"Add user authentication endpoint. **Follow the CLC Kernel harness**."*
+
+The agent autonomously executes the complete AIUP cycle:
+1. **Research & Root Cause Analysis:** Inspects codebase and dependencies.
+2. **Local SDD Spec:** Writes API contracts and test plans in `sdds/{change}/spec.md`.
+3. **HIT Review:** Requests your review and approval on proposed contracts.
+4. **TDD Red Phase:** Writes a failing regression test proving the requirement.
+5. **Clean Implementation (Green Phase):** Writes minimal code to pass tests while respecting layer isolation.
+6. **AST Audit Gate:** Runs `node tools/audit.js` and outputs the verification summary.
+
+### 4️⃣ Step 4: Deterministic Guard Verification (Git Commit)
+```bash
+git add .
+git commit -m "feat(auth): add user authentication endpoint"
+```
+Pre-commit hooks automatically execute AST scanners (Clean Architecture, Secret Leaks, Scope Guard, Migration Idempotency). Any non-compliant commit is **physically blocked** before touching Git history.
+
+### 5️⃣ Step 5: Verify Repository Health Anytime (Doctor)
+```bash
+npx clckernel doctor
+```
+Audits 100% compliance across `AGENTS.md`, `sdds/`, `tools/`, active test runners, and Git hooks.
+
+---
+
+<a id="universal-command-interface"></a>
+## 🎮 Universal Command Interface (All LLMs & Agents)
+
+CLC Kernel provides a deterministic command grammar supported natively by **Claude Code, Cursor, Codeium/Windsurf, Copilot, Gemini, and Antigravity**:
+
+| Command | Category | Mandatory Execution Protocol |
+|---|---|---|
+| `clckernel feature <name>` | Feature | Full AIUP cycle: Research -> Local Spec (`sdds/{name}/spec.md`) -> HIT review -> TDD Red Phase -> Green Implementation -> Audit. |
+| `clckernel fix <issue>` | Bug Fix | Root-cause analysis (no direct code edits) -> Failing regression test -> Surgical clean fix -> Audit gate. |
+| `clckernel test` | Verification | Runs repository test suite in the native stack runner and confirms clean pass. |
+| `clckernel audit` | Verification | Runs `node tools/audit.js` or `python tools/audit.py` and emits the Educational Summary. |
+| `clckernel doctor` | Diagnostics | Checks Git pre-commit hooks, IDE mirror symlinks, and AST engine integrity. |
+| `clckernel commit <message>` | Version Control | Pre-flight audit, verifies diff vs SDD scope, and commits with Conventional Commits (zero AI attribution). |
+| `clckernel guard create <name>` | Safeguards | Scaffolds a new AST guard script in the stack's native language in `tools/guards/`. |
+| `clckernel start` | Setup | Auto-detects stack, proposes AIUP lifecycle, and generates `.clckernel.yaml`. |
+
+---
+
 <a id="supported-stacks"></a>
 ## 🌐 Supported Stacks & Archetypes
 
@@ -74,29 +141,6 @@ AI coding agents (Cursor, Claude Code, Windsurf, Copilot) code fast, but without
 | 🎸 **Django** | `manage.py` | `pytest-django` | Django ORM Idempotency, Ruff AST, Scope Guard, DB Efficiency (N+1) |
 | 🚀 **Astro** | `astro.config` | Playwright | Tailwind v4 Tokens, Content Schema, A11y, Responsive, SEO |
 | 🤖 **Agent-OS** | `skills/`, `brand/`, `templates/` | Contract Tests | Dual-Layer AGENTS.md, HITL Gates (`check_hitl`), Symlinks (`check_symlinks`), Domain Data (`check_domain_data`) |
-
----
-
-<a id="quickstart"></a>
-## 🚀 Quickstart
-
-### 1. Initialize in Terminal
-```bash
-npx clckernel start
-```
-Auto-detects your framework, generates `AGENTS.md`, creates IDE rule symlinks, provisions pre-commit hooks, and creates native AST checks in `tools/`.
-
-### 2. Verify Health
-```bash
-npx clckernel doctor
-```
-Audits Git hooks, active test runners, and AST engine integrity.
-
-### 3. Develop with Agentic Governance
-In your IDE chat (Cursor, Claude Code, Gemini CLI, Windsurf):
-> *"Implement authentication endpoint. **Follow the CLC Kernel harness**."*
-
-The agent executes the full AIUP loop: **SDD Spec -> HIT Review -> Failing Test (Red) -> Implementation (Green) -> AST Audit**.
 
 ---
 

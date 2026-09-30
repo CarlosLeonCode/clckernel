@@ -306,6 +306,29 @@ describe('generateHarness', () => {
       }
     });
 
+    it('creates AGENTS.md with Universal Command Interface', () => {
+      const config = {
+        projectType: 'frontend',
+        framework: 'Next.js',
+        testRunner: 'Vitest',
+        adapter: null,
+      };
+
+      const dir = createTmpProject({});
+      try {
+        generateHarness(dir, config);
+
+        const agents = fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8');
+        assert.ok(agents.includes('Universal Command Interface'), 'should include command interface section');
+        assert.ok(agents.includes('clckernel feature'), 'should include clckernel feature command');
+        assert.ok(agents.includes('clckernel fix'), 'should include clckernel fix command');
+        assert.ok(agents.includes('clckernel audit'), 'should include clckernel audit command');
+        assert.ok(agents.includes('clckernel commit'), 'should include clckernel commit command');
+      } finally {
+        teardown(dir);
+      }
+    });
+
     it('writes .gitignore with sdds/* entry', () => {
       const config = {
         projectType: 'backend',
