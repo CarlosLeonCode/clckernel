@@ -1,23 +1,11 @@
 ---
-name: clckernel_cli
-description: Conversational Agent Governance & Universal CLI Orchestrator for CLC Kernel. Use when initiating features, fixing bugs, auditing architecture, running tests, diagnosing health (doctor), or committing changes via chat or command (clckernel <cmd> or /clckernel).
-triggers:
-  - /clckernel
-  - clckernel start
-  - clckernel update
-  - clckernel feature
-  - clckernel fix
-  - clckernel test
-  - clckernel audit
-  - clckernel doctor
-  - clckernel commit
-  - clckernel create_guard
-  - clckernel remove_guard
-  - clckernel add_phase
-  - clckernel remove_phase
-  - inicializar con clckernel
-  - auditar con clckernel
-  - actualizar con clckernel
+name: clc-forge-cli
+description: >-
+  Conversational Agent Governance & Universal CLI Orchestrator for CLC Kernel.
+  Use when the user issues a clckernel command (e.g. clckernel feature, clckernel fix,
+  clckernel audit, clckernel doctor, clckernel commit, clckernel update, clckernel start)
+  or /clckernel, or asks to initiate a feature, fix a bug, audit architecture, run tests,
+  diagnose health, or commit changes in a project governed by CLC Kernel.
 ---
 
 # 🤖 CLC Kernel — Agent Governance Engine
