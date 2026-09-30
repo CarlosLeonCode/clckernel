@@ -22,6 +22,7 @@ Los agentes de programación con IA (Cursor, Claude Code, Windsurf, Copilot) cod
 - [🏛️ El Proceso Unificado de IA (AIUP)](#️-el-proceso-unificado-de-ia-aiup)
 - [⚡ Guía Paso a Paso (Ciclo Completo)](#-guía-paso-a-paso-ciclo-completo)
 - [🎮 Interfaz Universal de Comandos](#-interfaz-universal-de-comandos)
+- [🔄 Actualización de Proyectos Existentes](#-actualización-de-proyectos-existentes)
 - [🌐 Ecosistemas Soportados y Arquetipos](#-ecosistemas-soportados-y-arquetipos)
 - [🧩 Herramientas Complementarias (Opcionales)](#-herramientas-complementarias-opcionales)
 - [📄 Licencia](#-licencia)
@@ -123,7 +124,31 @@ CLC Kernel provee una gramática de comandos determinista soportada de forma nat
 | `clckernel doctor` | Diagnóstico | Valida hooks pre-commit de Git, symlinks espejo para IDEs e integridad del motor AST. |
 | `clckernel commit <mensaje>` | Control de Versiones | Auditoría pre-flight, verificación de scope diff vs SDD y commit con Conventional Commits (cero atribución de IA). |
 | `clckernel guard create <nombre>` | Salvaguardas | Genera el scaffold de un nuevo script de guard AST en el lenguaje nativo del stack en `tools/guards/`. |
+| `clckernel update` | Mantenimiento | Actualización no destructiva: refresca herramientas core, skills y symlinks de IDEs sin sobreescribir SDDs, guards personalizados ni `.clckernel.yaml`. |
 | `clckernel start` | Configuración | Detecta el stack automáticamente, propone el ciclo de vida AIUP y genera `.clckernel.yaml`. |
+
+---
+
+<a id="actualizacion-de-proyectos-existentes"></a>
+## 🔄 Actualización de Proyectos Existentes (No Destructiva)
+
+Cuando se publican nuevas versiones de CLC Kernel con nuevos guards AST, playbooks actualizados o reglas optimizadas para IDEs, podés actualizar tu repositorio de forma segura sin perder tu trabajo:
+
+```bash
+npx clckernel update
+```
+O directamente desde el chat de tu agente IA:
+```bash
+clckernel update
+```
+
+### 🔒 La Garantía de Actualización No Destructiva:
+- **Refresca y Actualiza:** Orquestadores centrales (`tools/audit.js`, `tools/audit.py`), guards AST nativos, Skills de agentes (`.agents/skills/`) y symlinks de IDEs (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`, Copilot, Antigravity).
+- **100% Preservado:**
+  - `sdds/`: Todas las especificaciones locales, planes y recibos de verificación permanecen intactos.
+  - `tools/guards/`: Todos los guards AST personalizados creados por el equipo se conservan sin modificaciones.
+  - `.clckernel.yaml`: Todas las configuraciones y umbrales personalizados se mantienen.
+  - El código fuente de la aplicación y modelos de dominio jamás se tocan.
 
 ---
 

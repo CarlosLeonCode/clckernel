@@ -59,19 +59,21 @@ const steps = isEs ? [
   {
     id: "step4",
     num: "04",
-    name: "Auditoría & Doctor",
-    cmd: "clckernel audit",
-    title: "Compuerta de Calidad AST Determinista",
-    desc: "Ejecuta las salvaguardas nativas sobre el git diff en <5ms: bloquea fuga de secretos, valida capas limpias, detecta N+1 en BD y verifica límites de scope antes de autorizar el commit.",
-    output: `$ clckernel audit
-[clckernel-audit] 🛡️  Running AST Safeguards on staged diff...
-  [1/6] scan_secrets .................... ✔ PASS (0 leaks found)
-  [2/6] check_architecture .............. ✔ PASS (Clean layers intact)
-  [3/6] check_db_efficiency ............. ✔ PASS (0 N+1 loops)
-  [4/6] check_responsive ................ ✔ PASS (Mobile-first valid)
-  [5/6] check_seo ....................... ✔ PASS (CWV & OG tags verified)
-  [6/6] check_scope ..................... ✔ PASS (Within SDD boundary)
-[clckernel-audit] 🚀 ALL GUARDS PASSED. Ready to commit via 'clckernel commit'!`,
+    name: "Auditoría & Update",
+    cmd: "clckernel update",
+    title: "Auditoría de Calidad y Actualización No Destructiva",
+    desc: "Corre auditorías AST en <5ms ('clckernel audit') y actualiza herramientas y playbooks a la última versión ('clckernel update') preservando 100% tus specs (sdds/), guards propios y .clckernel.yaml.",
+    output: `$ clckernel update
+[clckernel] 🔄 Actualizando CLC Kernel en el repositorio...
+✔ Salvaguardas estándar actualizadas en tools/
+✔ Playbooks y Skills agénticos actualizados en .agents/skills/
+✔ Enlaces simbióticos de IDEs actualizados (Cursor, Claude, Copilot, Antigravity)
+✔ Hooks de git sincronizados
+🔒 ACTIVOS PRESERVADOS AL 100%:
+   • sdds/ (Especificaciones locales intactas)
+   • tools/guards/ (Reglas y salvaguardas personalizadas intactas)
+   • .clckernel.yaml (Configuraciones de equipo intactas)
+✨ ¡Proyecto actualizado con éxito a la última versión!`,
   },
 ] : [
   {
@@ -123,19 +125,21 @@ const steps = isEs ? [
   {
     id: "step4",
     num: "04",
-    name: "Audit & Doctor",
-    cmd: "clckernel audit",
-    title: "Deterministic AST Quality Gate",
-    desc: "Runs native stack safeguards against git diffs in <5ms: blocks secret leaks, validates clean layers, detects DB N+1 queries, and verifies scope boundaries before authorizing commits.",
-    output: `$ clckernel audit
-[clckernel-audit] 🛡️  Running AST Safeguards on staged diff...
-  [1/6] scan_secrets .................... ✔ PASS (0 leaks found)
-  [2/6] check_architecture .............. ✔ PASS (Clean layers intact)
-  [3/6] check_db_efficiency ............. ✔ PASS (0 N+1 loops)
-  [4/6] check_responsive ................ ✔ PASS (Mobile-first valid)
-  [5/6] check_seo ....................... ✔ PASS (CWV & OG tags verified)
-  [6/6] check_scope ..................... ✔ PASS (Within SDD boundary)
-[clckernel-audit] 🚀 ALL GUARDS PASSED. Ready to commit via 'clckernel commit'!`,
+    name: "Audit & Update",
+    cmd: "clckernel update",
+    title: "Quality Gate & Non-Destructive Update",
+    desc: "Runs instant AST audits (<5ms via 'clckernel audit') and safely upgrades tools and playbooks ('clckernel update') while 100% preserving your specs (sdds/), custom guards, and .clckernel.yaml.",
+    output: `$ clckernel update
+[clckernel] 🔄 Upgrading CLC Kernel in repository...
+✔ Core AST safeguards refreshed in tools/
+✔ Agent skills & playbooks updated in .agents/skills/
+✔ Cross-IDE symlinks verified (Cursor, Claude, Copilot, Antigravity)
+✔ Git pre-commit hooks synchronized
+🔒 100% PRESERVED INTACT:
+   • sdds/ (All local specifications preserved)
+   • tools/guards/ (All custom team AST guards preserved)
+   • .clckernel.yaml (All configuration & thresholds preserved)
+✨ Repository updated successfully to latest CLC Kernel!`,
   },
 ];
 ---

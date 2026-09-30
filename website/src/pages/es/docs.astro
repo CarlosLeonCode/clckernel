@@ -55,7 +55,22 @@ $ clckernel audit            -> Ejecuta node tools/audit.js o audit.py y emite r
 $ clckernel doctor           -> Verifica hooks de Git, symlinks de IDEs y motor AST
 $ clckernel commit <mensaje> -> Auditoría pre-flight, verificación de scope SDD y commit convencional
 $ clckernel guard create <n> -> Genera scaffold de linter AST nativo en tools/guards/
+$ clckernel update           -> Actualización no destructiva de tools, playbooks y symlinks
 $ clckernel start            -> Detecta el stack y genera .clckernel.yaml`,
+      },
+      {
+        id: "update-project",
+        title: "Actualización No Destructiva de Proyectos",
+        desc: "Actualiza las herramientas base, playbooks agénticos y symlinks a la última versión de CLC Kernel sin borrar ni modificar tus especificaciones, guards propios ni configuraciones.",
+        code: `# Ejecución desde la terminal CLI:
+$ npx clckernel update
+
+# O directamente desde el chat de tu agente IA:
+> clckernel update
+
+# Garantía No Destructiva:
+✔ Refresca: tools/audit.js, guards AST estándar, .agents/skills/, symlinks de IDEs
+🔒 100% Preservado: sdds/ (specs), tools/guards/ (guards propios), .clckernel.yaml (config)`,
       }
     ]
   },

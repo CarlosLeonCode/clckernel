@@ -165,6 +165,7 @@ When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`,
 | \`clckernel doctor\` | Diagnostics | Check git pre-commit hooks, IDE symlinks, and AST engine integrity. |
 | \`clckernel commit <message>\` | Version Control | Run full audit, verify tests pass, ensure no changes outside SDD scope, and commit with conventional commits (never add AI attribution). |
 | \`clckernel guard create <name>\` | Safeguards | Scaffold a new AST guard in the stack's native language in \`tools/guards/\`. |
+| \`clckernel update\` | Maintenance | Non-destructive update: refresh core tools, playbooks & symlinks (preserves SDDs & custom guards). |
 | \`clckernel start\` | Setup | Scan codebase, propose governance plan, and materialize \`.clckernel.yaml\`. |
 
 ---

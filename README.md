@@ -22,6 +22,7 @@ AI coding agents (Cursor, Claude Code, Windsurf, Copilot) code fast, but without
 - [🏛️ The AI Unified Process (AIUP)](#️-the-ai-unified-process-aiup)
 - [⚡ Step-by-Step Guide (Full Lifecycle)](#-step-by-step-guide-full-lifecycle)
 - [🎮 Universal Command Interface](#-universal-command-interface)
+- [🔄 Updating an Existing Project](#-updating-an-existing-project)
 - [🌐 Supported Stacks & Archetypes](#-supported-stacks--archetypes)
 - [🧩 Optional Ecosystem Companions](#-optional-ecosystem-companions)
 - [📄 License](#-license)
@@ -123,7 +124,31 @@ CLC Kernel provides a deterministic command grammar supported natively by **Clau
 | `clckernel doctor` | Diagnostics | Checks Git pre-commit hooks, IDE mirror symlinks, and AST engine integrity. |
 | `clckernel commit <message>` | Version Control | Pre-flight audit, verifies diff vs SDD scope, and commits with Conventional Commits (zero AI attribution). |
 | `clckernel guard create <name>` | Safeguards | Scaffolds a new AST guard script in the stack's native language in `tools/guards/`. |
+| `clckernel update` | Maintenance | Non-destructive update: refreshes core tools, skills & IDE symlinks without overwriting SDDs, custom guards, or `.clckernel.yaml`. |
 | `clckernel start` | Setup | Auto-detects stack, proposes AIUP lifecycle, and generates `.clckernel.yaml`. |
+
+---
+
+<a id="updating-an-existing-project"></a>
+## 🔄 Updating an Existing Project (Non-Destructive)
+
+When new versions of CLC Kernel are released with new AST guards, upgraded playbooks, or improved IDE rules, update your project safely without losing your work:
+
+```bash
+npx clckernel update
+```
+Or from your AI agent chat:
+```bash
+clckernel update
+```
+
+### 🔒 The Non-Destructive Update Guarantee:
+- **Refreshes & Upgrades:** Core orchestrators (`tools/audit.js`, `tools/audit.py`), built-in AST guards, Agent Skills (`.agents/skills/`), and IDE symlinks (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`, Copilot, Antigravity).
+- **100% Preserved:**
+  - `sdds/`: All local specifications, plans, and verification receipts remain intact.
+  - `tools/guards/`: All team-authored custom AST guards are preserved without modification.
+  - `.clckernel.yaml`: All custom thresholds and active safeguard selections are preserved.
+  - Application source code and domain models are never touched.
 
 ---
 

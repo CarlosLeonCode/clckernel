@@ -14,13 +14,20 @@ async function runCli() {
   const command = args[0];
 
   let targetDir = process.cwd();
-  if (command && !command.startsWith('-') && command !== 'doctor') {
+  if (command && !command.startsWith('-') && command !== 'doctor' && command !== 'update') {
     targetDir = path.resolve(command);
   }
 
   if (command === 'doctor' || args.includes('--doctor')) {
-    if (args[1]) targetDir = path.resolve(args[1]);
+    if (args[1] && args[1] !== '--doctor') targetDir = path.resolve(args[1]);
     runDoctor(targetDir);
+    return;
+  }
+
+  if (command === 'update' || args.includes('--update')) {
+    if (args[1] && args[1] !== '--update') targetDir = path.resolve(args[1]);
+    const { runUpdate } = require('./updater');
+    await runUpdate(targetDir);
     return;
   }
 
