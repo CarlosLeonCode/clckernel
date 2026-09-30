@@ -52,7 +52,7 @@ export const ui = {
     'opensource.kicker': '100% Free & Open Source',
     'opensource.title': 'Built in the Open, Governed Locally',
     'opensource.desc': 'MIT Licensed, completely self-hosted, zero telemetry, and zero remote dependencies. Your codebase, your rules.',
-    'footer.crafted': 'Engineered by Carlos Leon Code',
+    'footer.crafted': 'by CarlosLeonCode',
   },
   es: {
     'nav.why': 'Por qué CLC Kernel',
@@ -100,7 +100,7 @@ export const ui = {
     'opensource.kicker': '100% Gratuito y de Código Abierto',
     'opensource.title': 'Construido en abierto, gobernado en local',
     'opensource.desc': 'Licencia MIT, 100% local, sin telemetría y sin dependencias remotas. Tu código, tus reglas.',
-    'footer.crafted': 'Diseñado por Carlos León Code',
+    'footer.crafted': 'by CarlosLeonCode',
   }
 };
 
