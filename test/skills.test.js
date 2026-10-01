@@ -13,7 +13,9 @@ describe('CLC Kernel Skills & Playbooks Structure', () => {
     const content = fs.readFileSync(skillPath, 'utf8');
     
     assert.match(content, /^---\n/, 'Must start with frontmatter');
-    assert.match(content, /name:\s*clckernel_cli/, 'Must declare skill name');
+    // Frontmatter uses the hyphenated id: Antigravity skill discovery keys off
+    // `name`, and the underscore form was not registering the skill.
+    assert.match(content, /name:\s*clckernel-cli\s*\n/, 'Must declare skill name as clckernel-cli');
     assert.match(content, /description:/, 'Must declare description');
     assert.match(content, /clckernel feature/, 'Must declare clckernel feature trigger');
     assert.match(content, /clckernel fix/, 'Must declare clckernel fix trigger');

@@ -1,8 +1,8 @@
 /**
  * CLC Forge — Config tests for the extracted zero-dependency YAML parser.
- * Covers: parser reuse (src/yaml.js), unsupported anchor/alias syntax,
+ * Covers: parser reuse (tools/yaml.js), unsupported anchor/alias syntax,
  * existing custom-rules behavior via tools/check_custom.js subprocess,
- * and `../src/yaml.js` resolution from a generated-style layout.
+ * and `./yaml.js` resolution from a generated-style layout.
  */
 
 const { describe, it } = require('node:test');
@@ -12,7 +12,7 @@ const path = require('path');
 const fs = require('fs');
 const { createTmpProject, teardown } = require('./helpers');
 
-const { parseYaml } = require('../src/yaml.js');
+const { parseYaml } = require('../tools/yaml.js');
 
 const {
   loadConfig,
@@ -97,7 +97,7 @@ function initGitRepo(dir) {
   spawnSync('git', ['commit', '-m', 'initial'], { cwd: dir });
 }
 
-describe('config: src/yaml.js parser reuse', () => {
+describe('config: tools/yaml.js parser reuse', () => {
   it('parses a valid .clc-forge.yml with scalars, block sequence, flow mapping', () => {
     assert.deepStrictEqual(parseYaml(VALID_CONFIG), EXPECTED_CONFIG);
   });
@@ -205,7 +205,7 @@ describe('config: check_custom behavior preserved (subprocess)', () => {
     }
   });
 
-  it('ships src/yaml.js to generated projects so check_custom resolves', async () => {
+  it('ships tools/yaml.js to generated projects so check_custom resolves', async () => {
     const { autoDetectStack } = require('../src/detector');
     const { generateHarness } = require('../src/generator');
 
@@ -218,8 +218,8 @@ describe('config: check_custom behavior preserved (subprocess)', () => {
     generateHarness(dir, config);
 
     try {
-      // The generated project must ship src/yaml.js next to tools/check_custom.js.
-      assert.ok(fs.existsSync(path.join(dir, 'src', 'yaml.js')), 'src/yaml.js shipped');
+      // The generated project must ship the parser next to tools/check_custom.js.
+      assert.ok(fs.existsSync(path.join(dir, 'tools', 'yaml.js')), 'tools/yaml.js shipped');
 
       const generatedCheck = path.join(dir, 'tools', 'check_custom.js');
       assert.ok(fs.existsSync(generatedCheck), 'tools/check_custom.js shipped');

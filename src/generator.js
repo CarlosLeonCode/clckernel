@@ -106,6 +106,10 @@ function installToolsFromManifest(targetDir, manifest, config) {
   const sourceToolsDir = path.join(__dirname, '..', 'tools');
   const isFront = config.projectType === 'frontend';
 
+  // tools/ must exist before anything is copied into it. Provisioning a project
+  // that has no tools/ yet used to throw ENOENT on the first copyFileSync.
+  fs.mkdirSync(path.join(targetDir, 'tools'), { recursive: true });
+
   // Validate descriptors: skip + warn tools missing required fields
   const validTools = manifest.filter(tool => {
     if (!tool.name || !tool.language || !tool.command) {
@@ -137,25 +141,29 @@ function installToolsFromManifest(targetDir, manifest, config) {
     }
   });
 
-  // check_custom.js requires the shared YAML parser (../src/yaml.js),
-  // so the generated project must ship it too.
+  // check_custom.js parses the project YAML config, so the generated project
+  // must ship the parser alongside it.
   if (validTools.some(tool => tool.path === 'check_custom.js')) {
-    installYamlModule(targetDir, sourceToolsDir);
+    installYamlModule(targetDir);
   }
 }
 
 /**
- * Copies the zero-dependency YAML parser into a generated project's src/.
- * Required by tools/check_custom.js (require('../src/yaml.js')).
+ * Copies the zero-dependency YAML parser into the target's tools/ directory.
+ *
+ * It deliberately does NOT go into the consumer's src/: that directory belongs
+ * to the project, and writing there both pollutes it and silently overwrites a
+ * consumer file that happens to be named yaml.js. tools/ is the directory the
+ * harness provisions and owns.
+ *
  * @param {string} targetDir - Target project root
- * @param {string} sourceToolsDir - Bundled tools/ directory of this package
  */
-function installYamlModule(targetDir, sourceToolsDir) {
-  const yamlSrc = path.join(sourceToolsDir, '..', 'src', 'yaml.js');
+function installYamlModule(targetDir) {
+  const yamlSrc = path.join(__dirname, '..', 'tools', 'yaml.js');
   if (!fs.existsSync(yamlSrc)) return;
-  const yamlDest = path.join(targetDir, 'src', 'yaml.js');
-  fs.mkdirSync(path.join(targetDir, 'src'), { recursive: true });
-  fs.copyFileSync(yamlSrc, yamlDest);
+  const toolsDest = path.join(targetDir, 'tools');
+  fs.mkdirSync(toolsDest, { recursive: true });
+  fs.copyFileSync(yamlSrc, path.join(toolsDest, 'yaml.js'));
 }
 
 /**
@@ -183,7 +191,7 @@ function installFallbackTools(targetDir) {
   });
 
   if (fallbackFiles.includes('check_custom.js')) {
-    installYamlModule(targetDir, sourceToolsDir);
+    installYamlModule(targetDir);
   }
 }
 

@@ -4,7 +4,7 @@
  * never a silent fallback.
  */
 
-const { parseYaml } = require('./yaml.js');
+const { parseYaml } = require('../tools/yaml.js');
 const {
   SAFEGUARD_CATALOG,
   VALID_SEVERITIES,

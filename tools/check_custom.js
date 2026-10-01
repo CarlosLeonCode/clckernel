@@ -7,7 +7,7 @@
  * @param {string} targetDir - Directory to scan (defaults to cwd)
  * @returns {{ exitCode: number, skipped: boolean, name: string, data: object }}
  */
-const { parseYaml, globToRegex } = require('../src/yaml.js');
+const { parseYaml, globToRegex } = require('./yaml.js');
 const check = async function checkCustom(targetDir) {
   const fs = require('fs');
   const path = require('path');
