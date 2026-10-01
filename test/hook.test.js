@@ -23,6 +23,40 @@ function makeAdapter(overrides = {}) {
   };
 }
 
+describe('published package contains the skills the installer copies', () => {
+  it('packs the clckernel_cli skill that installAgenticCLI reads', () => {
+    const { execFileSync } = require('child_process');
+    const repoRoot = path.join(__dirname, '..');
+    const out = execFileSync('npm', ['pack', '--dry-run', '--json'], {
+      cwd: repoRoot,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 120000,
+    });
+    const files = JSON.parse(out)[0].files.map((f) => f.path);
+
+    // installAgenticCLI (generator.js) copies from this path into every target
+    // project. If it is not published, provisioned projects get no playbooks.
+    const skillFiles = files.filter((f) => f.startsWith('.agents/skills/clckernel_cli/'));
+    assert.ok(
+      skillFiles.length > 0,
+      'published tarball must include .agents/skills/clckernel_cli'
+    );
+    assert.ok(
+      skillFiles.some((f) => f.endsWith('SKILL.md')),
+      'published tarball must include the clckernel_cli SKILL.md'
+    );
+    assert.ok(
+      files.some((f) => f.startsWith('tools/')),
+      'published tarball must include the bundled tools'
+    );
+    assert.ok(
+      files.some((f) => f.startsWith('src/')),
+      'published tarball must include src (yaml.js, generator, adapters)'
+    );
+  });
+});
+
 describe('generateHookFromManifest() produces a working hook', () => {
   it('never sources a husky bootstrap file that the generator does not create', () => {
     const dir = createTmpProject({});
