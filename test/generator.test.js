@@ -8,13 +8,13 @@ const { generateHookFromManifest, generateHarness } = require('../src/generator'
 
 describe('generateHookFromManifest', () => {
   describe('frontend hook', () => {
-    it('creates .husky/pre-commit with shebang and husky.sh line', () => {
+    it('creates a .husky/pre-commit that is safe without a husky install', () => {
       const adapter = {
         projectType: 'frontend',
         name: 'Next.js (App Router)',
         getTools: () => [
           { name: 'scan', command: 'node tools/scan_secrets.js', language: 'js', path: 'scan_secrets.js' },
-          { name: 'tsc', command: 'npx tsc --noEmit', language: 'external', path: '' },
+          { name: 'tsc', command: 'npx tsc --noEmit', language: 'external', path: '', extCLI: 'tsc' },
         ],
       };
       const dir = createTmpProject({});
@@ -26,9 +26,13 @@ describe('generateHookFromManifest', () => {
 
         const content = fs.readFileSync(hookFile, 'utf-8');
         assert.ok(content.startsWith('#!/usr/bin/env sh'), 'should start with sh shebang');
-        assert.ok(content.includes('husky.sh'), 'should include husky.sh reference');
         assert.ok(content.includes('node tools/scan_secrets.js'), 'should include tool command');
-        assert.ok(content.includes('npx tsc --noEmit'), 'should include external tool command');
+        // The generator never runs `husky init`, so _/husky.sh does not exist
+        // and sourcing it would break every commit.
+        assert.ok(!content.includes('husky.sh'), 'must not source a bootstrap that does not exist');
+        // tsc is not a dependency of this project, so the hook must not call it.
+        assert.ok(!content.includes('npx tsc'), 'must not call an uninstalled external CLI');
+        assert.ok(content.includes('tsc'), 'should note the skipped CLI so the gap is visible');
 
         // Frontend should NOT have .githooks directory
         assert.ok(!fs.existsSync(path.join(dir, '.githooks')), 'should not create .githooks for frontend');
@@ -144,7 +148,7 @@ describe('generateHookFromManifest', () => {
       }
     });
 
-    it('generates empty hook when all tools lack commands', () => {
+    it('generates a no-op hook when all tools lack commands', () => {
       const adapter = {
         projectType: 'frontend',
         name: 'Next.js (App Router)',
@@ -158,9 +162,9 @@ describe('generateHookFromManifest', () => {
 
         const hookFile = path.join(dir, '.husky', 'pre-commit');
         const content = fs.readFileSync(hookFile, 'utf-8');
-        // Just shebang + husky.sh line
+        // Just the shebang: no bootstrap, and nothing to run.
         assert.ok(content.startsWith('#!/usr/bin/env sh'));
-        assert.ok(content.includes('husky.sh'));
+        assert.ok(!content.includes('husky.sh'));
         assert.ok(!content.includes('tsc'));
       } finally {
         teardown(dir);
@@ -408,7 +412,7 @@ describe('generateHarness', () => {
 
         const content = fs.readFileSync(hookFile, 'utf-8');
         assert.ok(content.startsWith('#!/usr/bin/env sh'), 'should have sh shebang');
-        assert.ok(content.includes('husky.sh'), 'should include husky.sh');
+        assert.ok(!content.includes('husky.sh'), 'fallback hook must not source a missing bootstrap');
         assert.ok(content.includes('scan_secrets'), 'should reference scan_secrets');
       } finally {
         teardown(dir);

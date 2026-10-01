@@ -9,8 +9,32 @@ const { execSync } = require('child_process');
 const { resolveConfig } = require('./config.js');
 
 /**
+ * Detects whether a Node CLI required by a hook command is actually installed
+ * in the target project. Resolving through node_modules/.bin is what `npx` does
+ * first, so a missing entry there means `npx` would download it on the fly (or
+ * fail inside a commit hook, where the network is not available).
+ * @param {string} targetDir - Target project root
+ * @param {string} pkg - Package name to look for
+ * @returns {boolean}
+ */
+function isCliInstalled(targetDir, pkg) {
+  if (!pkg) return false;
+  try {
+    return fs.existsSync(path.join(targetDir, 'node_modules', '.bin', pkg));
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
  * Generates a pre-commit hook dynamically from the adapter's tool manifest.
  * Frontend projects use .husky; backend projects use .githooks.
+ *
+ * External CLIs (language === 'external', e.g. tsc, lint-staged) are only emitted
+ * when the target project already depends on them: the generator does not add
+ * dependencies, so referencing an uninstalled binary produces a hook that fails
+ * on every commit.
+ *
  * @param {object} adapter - Adapter with getTools() and projectType
  * @param {string} targetDir - Target project root
  */
@@ -23,10 +47,17 @@ function generateHookFromManifest(adapter, targetDir) {
     : path.join(targetDir, '.githooks');
   const hookFile = path.join(hookDir, 'pre-commit');
 
+  // The husky bootstrap only exists when the project ran `husky init`. Source it
+  // only in that case, so a generated hook never points at a missing file.
+  const huskyBootstrap = path.join(hookDir, '_', 'husky.sh');
+  const useHuskyBootstrap = isFront && fs.existsSync(huskyBootstrap);
+
   const lines = [];
   if (isFront) {
     lines.push('#!/usr/bin/env sh');
-    lines.push('. "$(dirname -- "$0")/_/husky.sh"');
+    if (useHuskyBootstrap) {
+      lines.push('. "$(dirname -- "$0")/_/husky.sh"');
+    }
     lines.push('');
   } else {
     lines.push('#!/usr/bin/env bash');
@@ -34,13 +65,26 @@ function generateHookFromManifest(adapter, targetDir) {
     lines.push('');
   }
 
+  const skipped = [];
   tools.forEach(tool => {
     if (!tool.command) return;
+    if (tool.language === 'external') {
+      if (!isCliInstalled(targetDir, tool.extCLI)) {
+        skipped.push(tool.extCLI || tool.command);
+        return;
+      }
+    }
     lines.push(tool.command);
   });
 
+  if (skipped.length > 0) {
+    lines.push('');
+    lines.push(`# Not run here (not a dependency of this project): ${skipped.join(', ')}`);
+    lines.push('# Install it and re-run `clckernel update` to enable it.');
+  }
+
   fs.mkdirSync(hookDir, { recursive: true });
-  fs.writeFileSync(hookFile, lines.join('\n'), 'utf-8');
+  fs.writeFileSync(hookFile, lines.join('\n') + '\n', 'utf-8');
   try { fs.chmodSync(hookFile, '755'); } catch (e) {}
 
   if (!isFront) {
@@ -155,9 +199,12 @@ function generateFallbackHook(targetDir, projectType) {
     const hookDir = path.join(targetDir, '.husky');
     fs.mkdirSync(hookDir, { recursive: true });
     const hookFile = path.join(hookDir, 'pre-commit');
+    // Only source the husky bootstrap when the project actually has it.
+    const bootstrap = fs.existsSync(path.join(hookDir, '_', 'husky.sh'))
+      ? '. "$(dirname -- "$0")/_/husky.sh"\n'
+      : '';
     fs.writeFileSync(hookFile, `#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
+${bootstrap}
 node tools/scan_secrets.js || true
 `, 'utf-8');
     try { fs.chmodSync(hookFile, '755'); } catch (e) {}
