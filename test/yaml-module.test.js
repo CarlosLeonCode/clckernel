@@ -17,6 +17,92 @@ function makeAdapter() {
   };
 }
 
+describe('IDE mirror files are not destroyed by symlinking', () => {
+  const MIRRORS = [
+    'CLAUDE.md',
+    'GEMINI.md',
+    '.cursorrules',
+    '.github/copilot-instructions.md',
+  ];
+
+  for (const mirror of MIRRORS) {
+    it(`leaves a consumer-owned ${mirror} untouched`, () => {
+      const own = '# Mis reglas propias\n- No toques X\n';
+      const dir = createTmpProject({ [mirror]: own });
+      try {
+        generateHarness(dir, { projectType: 'backend' });
+
+        const target = path.join(dir, mirror);
+        assert.ok(fs.existsSync(target), `${mirror} must still exist`);
+        assert.ok(
+          !fs.lstatSync(target).isSymbolicLink(),
+          `${mirror} must not be replaced by a symlink`
+        );
+        assert.strictEqual(
+          fs.readFileSync(target, 'utf-8'),
+          own,
+          `${mirror} content must survive provisioning byte-identical`
+        );
+      } finally {
+        teardown(dir);
+      }
+    });
+  }
+
+  it('still links mirrors that do not already exist', () => {
+    const dir = createTmpProject({});
+    try {
+      generateHarness(dir, { projectType: 'backend' });
+
+      for (const mirror of MIRRORS) {
+        const target = path.join(dir, mirror);
+        assert.ok(fs.existsSync(target), `${mirror} should be created`);
+        assert.ok(
+          fs.lstatSync(target).isSymbolicLink(),
+          `${mirror} should be a symlink to AGENTS.md`
+        );
+      }
+    } finally {
+      teardown(dir);
+    }
+  });
+
+  it('replaces a mirror that is already a symlink (stale link refresh)', () => {
+    const dir = createTmpProject({ 'AGENTS.md': '# Ley\n' });
+    try {
+      fs.symlinkSync('AGENTS.md', path.join(dir, 'CLAUDE.md'));
+      generateHarness(dir, { projectType: 'backend' });
+
+      const target = path.join(dir, 'CLAUDE.md');
+      assert.ok(fs.lstatSync(target).isSymbolicLink(), 'should remain a symlink');
+      assert.strictEqual(
+        fs.readFileSync(target, 'utf-8'),
+        '# Ley\n',
+        'an existing symlink must keep resolving to AGENTS.md'
+      );
+    } finally {
+      teardown(dir);
+    }
+  });
+
+  it('does not delete a regular file to make room for the symlink', () => {
+    const dir = createTmpProject({
+      'AGENTS.md': '# Ley\n',
+      'CLAUDE.md': 'contenido del consumidor\n',
+    });
+    try {
+      generateHarness(dir, { projectType: 'backend' });
+      assert.strictEqual(
+        fs.readFileSync(path.join(dir, 'CLAUDE.md'), 'utf-8'),
+        'contenido del consumidor\n',
+        'a regular file must never be unlinked'
+      );
+    } finally {
+      teardown(dir);
+    }
+  });
+});
+
 describe('the YAML parser is not written into the consumer src/', () => {
   it('never creates src/yaml.js in the target project', () => {
     const dir = createTmpProject({ 'tools/.gitkeep': '' });

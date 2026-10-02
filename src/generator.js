@@ -489,19 +489,27 @@ function installAgenticCLI(targetDir) {
   symlinks.forEach(link => {
     const linkPath = path.join(targetDir, link);
     const linkDir = path.dirname(linkPath);
-    
+
     if (!fs.existsSync(linkDir)) {
       fs.mkdirSync(linkDir, { recursive: true });
     }
 
     const relPath = path.relative(linkDir, path.join(targetDir, sourceFile));
-    
+
     try {
+      // Only replace an existing symlink (a stale mirror needs refreshing).
+      // A regular file belongs to the consumer: unlinking it would destroy
+      // their own rules, so leave it in place instead.
+      let existing = null;
       try {
-        if (fs.lstatSync(linkPath)) {
-          fs.unlinkSync(linkPath);
-        }
+        existing = fs.lstatSync(linkPath);
       } catch (err) {}
+
+      if (existing) {
+        if (!existing.isSymbolicLink()) return;
+        fs.unlinkSync(linkPath);
+      }
+
       fs.symlinkSync(relPath, linkPath, 'file');
     } catch (e) {
       // Ignorar fallos de permisos o symlinks existentes
