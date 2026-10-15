@@ -16,9 +16,11 @@ const {
   VALID_GATE_MODES,
   VALID_PHASES,
   VALID_APPLIES_WHEN,
+  VALID_LENSES,
   applyTo,
   severityFor,
   gateFor,
+  lensFor,
 } = require('../src/catalog.js');
 
 const TOOLS_DIR = path.join(__dirname, '..', 'tools');
@@ -51,7 +53,7 @@ describe('SAFEGUARD_CATALOG', () => {
   });
 
   it('validates every required field on every entry (shape loop)', () => {
-    const required = ['name', 'labels', 'checks', 'verify', 'applies_when', 'severity', 'gate_mode', 'config_keys', 'phase', 'file', 'manifest', 'planned'];
+    const required = ['name', 'labels', 'checks', 'verify', 'applies_when', 'severity', 'gate_mode', 'config_keys', 'phase', 'file', 'manifest', 'planned', 'lens'];
     for (const entry of SAFEGUARD_CATALOG) {
       for (const key of required) {
         assert.ok(key in entry, `${entry.name} is missing required field "${key}"`);
@@ -64,12 +66,23 @@ describe('SAFEGUARD_CATALOG', () => {
       assert.ok(VALID_APPLIES_WHEN.includes(entry.applies_when), `${entry.name}: applies_when "${entry.applies_when}"`);
       assert.ok(VALID_SEVERITIES.includes(entry.severity), `${entry.name}: severity "${entry.severity}"`);
       assert.ok(VALID_GATE_MODES.includes(entry.gate_mode), `${entry.name}: gate_mode "${entry.gate_mode}"`);
+      assert.ok(VALID_LENSES.includes(entry.lens), `${entry.name}: lens "${entry.lens}"`);
       assert.ok(Array.isArray(entry.config_keys) && entry.config_keys.every(k => typeof k === 'string'), `${entry.name}: config_keys`);
       assert.ok(VALID_PHASES.includes(entry.phase), `${entry.name}: phase "${entry.phase}"`);
       assert.ok(entry.file === null || typeof entry.file === 'string', `${entry.name}: file`);
       assert.strictEqual(typeof entry.manifest, 'boolean', `${entry.name}: manifest`);
       assert.strictEqual(typeof entry.planned, 'boolean', `${entry.name}: planned`);
     }
+  });
+
+  it('correctly maps guards to canonical RDD lenses via lensFor()', () => {
+    assert.deepStrictEqual(VALID_LENSES, ['correctness', 'security', 'architecture', 'performance']);
+    assert.strictEqual(lensFor('scan_secrets'), 'security');
+    assert.strictEqual(lensFor('verify_tdd'), 'correctness');
+    assert.strictEqual(lensFor('check_architecture'), 'architecture');
+    assert.strictEqual(lensFor('check_db_efficiency'), 'performance');
+    assert.strictEqual(lensFor('check_test_calendar_sync'), 'performance');
+    assert.strictEqual(lensFor('unknown_guard'), null);
   });
 
   it('every verify token references a plausible verify_* audit goal', () => {

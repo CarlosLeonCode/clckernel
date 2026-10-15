@@ -17,6 +17,48 @@ import traceback
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 
+# ── 4 Canonical RDD Lenses Mapping ──────────────────────────────────────────
+
+LENS_MAP = {
+    # Correctness
+    "verify_tdd": "correctness",
+    "check_scope": "correctness",
+    "check_a11y": "correctness",
+    "check_api_contracts": "correctness",
+    "check_openapi_drift": "correctness",
+    "pytest": "correctness",
+    "tsc": "correctness",
+    "lint": "correctness",
+    "ruff": "correctness",
+    # Security
+    "scan_secrets": "security",
+    "docker_guard": "security",
+    "redis_guard": "security",
+    "celery_guard": "security",
+    "postgres_guard": "security",
+    # Architecture
+    "check_architecture": "architecture",
+    "check_custom": "architecture",
+    "check_ui_reuse": "architecture",
+    "check_symlinks": "architecture",
+    "check_hitl": "architecture",
+    "check_domain_data": "architecture",
+    "check_migrations": "architecture",
+    "graphify": "architecture",
+    "gentle_ai_review": "architecture",
+    # Performance
+    "check_db_efficiency": "performance",
+    "check_performance": "performance",
+    "check_seo": "performance",
+    "check_responsive": "performance",
+    "check_storybook": "performance",
+    "check_test_calendar_sync": "performance",
+    "check_observability": "performance",
+}
+
+def get_lens(guard_name: str) -> str:
+    return LENS_MAP.get(guard_name, "architecture")
+
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -87,12 +129,14 @@ def run_guard(guard_path: pathlib.Path, target_dir: str) -> dict:
             "exit_code": result.get("exit_code", 0),
             "skipped": bool(result.get("skipped", False)),
             "name": result.get("name", guard_name),
+            "lens": get_lens(guard_name),
             "data": result.get("data", result),
         }
 
     except Exception as exc:
         return {
             "exit_code": 0, "skipped": True, "name": guard_name,
+            "lens": get_lens(guard_name),
             "data": {"message": f"Guard unavailable: {exc}"},
         }
 
@@ -151,7 +195,7 @@ def _format_guard_section(name: str, result: dict) -> str:
 
 
 def generate_report(results: list[dict], sdd_dir: pathlib.Path) -> str:
-    """Generate the 05-audit-report.md from aggregated guard results."""
+    """Generate the 05-audit-report.md from aggregated guard results grouped by 4 RDD lenses."""
     task_name = sdd_dir.name
     passed = sum(1 for r in results if not r.get("skipped") and r.get("exit_code") == 0)
     failed = sum(1 for r in results if not r.get("skipped") and r.get("exit_code") != 0)
@@ -161,8 +205,8 @@ def generate_report(results: list[dict], sdd_dir: pathlib.Path) -> str:
     sections: list[str] = []
     sections.append(f"# Code Audit Report: {task_name}")
     sections.append("")
-    sections.append("> **Note for reviewer:** This report summarizes security, architecture,")
-    sections.append("> scope, migration safety, and TDD coverage to facilitate code review.")
+    sections.append("> **Review-Driven Development (RDD) Report:**")
+    sections.append("> Segmented across the 4 Canonical Review Lenses (Correctness, Security, Architecture, Performance).")
     sections.append("")
     sections.append("---")
     sections.append("")
@@ -178,39 +222,116 @@ def generate_report(results: list[dict], sdd_dir: pathlib.Path) -> str:
     sections.append("---")
     sections.append("")
 
-    for result in results:
-        sections.append(_format_guard_section(result.get("name", "unknown"), result))
+    lenses = ["correctness", "security", "architecture", "performance"]
+    headers = {
+        "correctness": "## 🎯 Correctness Lens",
+        "security": "## 🛡️ Security Lens",
+        "architecture": "## 🏛️ Architecture Lens",
+        "performance": "## ⚡ Performance Lens",
+    }
+
+    for lens in lenses:
+        sections.append(headers[lens])
         sections.append("")
+        lens_results = [r for r in results if r.get("lens") == lens]
+        if not lens_results:
+            sections.append("_No guards registered for this lens._\n")
+        else:
+            for result in lens_results:
+                sections.append(_format_guard_section(result.get("name", "unknown"), result))
+                sections.append("")
         sections.append("---")
         sections.append("")
 
     return "\n".join(sections)
 
 
+def generate_receipt(results: list[dict], target_dir: str) -> dict:
+    """Generate an immutable machine-readable audit receipt (audit-receipt.json)."""
+    import datetime
+
+    lenses = ["correctness", "security", "architecture", "performance"]
+    lens_summary = {}
+    has_failure = False
+
+    for lens in lenses:
+        lens_results = [r for r in results if r.get("lens") == lens]
+        passed = sum(1 for r in lens_results if not r.get("skipped") and r.get("exit_code") == 0)
+        failed = sum(1 for r in lens_results if not r.get("skipped") and r.get("exit_code") != 0)
+        skipped = sum(1 for r in lens_results if r.get("skipped"))
+        if failed > 0:
+            has_failure = True
+        lens_summary[lens] = {
+            "status": "FAILED" if failed > 0 else "PASSED",
+            "passed": passed,
+            "failed": failed,
+            "skipped": skipped,
+        }
+
+    commit_hash = "UNKNOWN"
+    try:
+        commit_hash = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=target_dir,
+            stderr=subprocess.DEVNULL,
+            encoding="utf-8"
+        ).strip()
+    except Exception:
+        pass
+
+    import shutil
+    gentle_ai_detected = shutil.which("gentle-ai") is not None
+
+    return {
+        "$schema": "https://clckernel.dev/schemas/audit-receipt.v1.json",
+        "contract": "clckernel.audit-receipt/v1",
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "commitHash": commit_hash,
+        "verdict": "FAILED" if has_failure else "PASSED",
+        "lenses": lens_summary,
+        "generator": "clckernel",
+        "gentle_ai": {
+            "compatible": True,
+            "rdd_ready": True,
+            "cli_installed": gentle_ai_detected,
+        },
+    }
+
+
 # ── Console Summary ──────────────────────────────────────────────────────────
 
-def print_summary(results: list[dict], report_path: pathlib.Path) -> None:
+def print_summary(results: list[dict], report_path: pathlib.Path, receipt_path: pathlib.Path | None = None) -> None:
     """Print an educational summary to the terminal."""
     print("\n" + "=" * 65)
-    print("  CLC FORGE \u2014 EDUCATIONAL AUDIT SUMMARY")
+    print("  CLC KERNEL — 4-LENS RDD AUDIT SUMMARY")
     print("=" * 65 + "\n")
 
-    for result in results:
-        skipped = result.get("skipped", False)
-        exit_code = result.get("exit_code", 0)
-        name = result.get("name", "unknown").replace("_", " ")
-        msg = result.get("data", {}).get("message", "")
+    lenses = ["correctness", "security", "architecture", "performance"]
+    labels = {
+        "correctness": "🎯 CORRECTNESS LENS",
+        "security": "🛡️ SECURITY LENS",
+        "architecture": "🏛️ ARCHITECTURE LENS",
+        "performance": "⚡ PERFORMANCE LENS",
+    }
 
-        if skipped:
-            icon = "\u23ed\ufe0f"
-        elif exit_code == 0:
-            icon = "\u2705"
+    for lens in lenses:
+        lens_results = [r for r in results if r.get("lens") == lens]
+        print(f"  {labels[lens]}:")
+        if not lens_results:
+            print("     — No guards active for this lens")
         else:
-            icon = "\u274c"
+            for result in lens_results:
+                skipped = result.get("skipped", False)
+                exit_code = result.get("exit_code", 0)
+                name = result.get("name", "unknown").replace("_", " ")
+                msg = result.get("data", {}).get("message", "Passed" if exit_code == 0 else "Failed")
+                icon = "⏭️" if skipped else ("✅" if exit_code == 0 else "❌")
+                print(f"     {icon} {name}: {msg}")
+        print("")
 
-        print(f"  {icon} {name}: {msg}")
-
-    print(f"\n  Report: {report_path}")
+    print(f"📄 Full report: {report_path}")
+    if receipt_path:
+        print(f"🧾 Audit receipt: {receipt_path}")
     print("=" * 65 + "\n")
 
 
@@ -229,7 +350,7 @@ def main(target_dir: str | None = None) -> int:
         sdd_dir = sdds_dir / "audit-run"
         sdd_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"\nRunning CLC Forge audit for: {sdd_dir.name}\n")
+    print(f"\nRunning CLC Kernel audit for: {sdd_dir.name}\n")
 
     guard_paths = discover_guards(tools_dir)
 
@@ -253,8 +374,13 @@ def main(target_dir: str | None = None) -> int:
     report_path = sdd_dir / "05-audit-report.md"
     report_path.write_text(report_content, encoding="utf-8")
 
+    # Generate and write receipt
+    receipt = generate_receipt(results, dir_path)
+    receipt_path = sdd_dir / "audit-receipt.json"
+    receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+
     # Print summary
-    print_summary(results, report_path)
+    print_summary(results, report_path, receipt_path)
 
     # Exit with failure if any guard failed (not skipped)
     has_failure = any(
@@ -270,4 +396,4 @@ if __name__ == "__main__":
         sys.exit(main(target))
     except Exception:
         traceback.print_exc()
-        sys.exit(0)  # Graceful degradation
+        sys.exit(1)
