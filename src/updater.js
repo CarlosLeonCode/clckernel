@@ -32,6 +32,8 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
 
   // 3. Run harness generation (refreshes tools, hooks, skills, and symlinks)
   generateHarness(resolvedDir, detected);
+  const { ensureGitignoreEntries } = require('./gitignore');
+  ensureGitignoreEntries(resolvedDir);
 
   // 4. Ensure AGENTS.md documents the update command in its command table.
   // Non-destructive: only inject into a file that already carries the CLC

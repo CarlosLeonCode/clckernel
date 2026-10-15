@@ -12,3 +12,21 @@ node_modules/
 website/dist/
 website/.astro/
 website/node_modules/
+
+# CLC Kernel: Local AI IDE Mirror Symlinks (SSOT: AGENTS.md)
+CLAUDE.md
+GEMINI.md
+.cursorrules
+.windsurfrules
+.cursor/
+.antigravity/
+.github/copilot-instructions.md
+
+# CLC Kernel: CLI Agent Skills & Playbooks
+.agents/skills/clckernel_cli/
+.agents/skills/clc_forge_cli/
+
+# CLC Kernel: Local SDD Specs & Ephemeral Harness Artifacts
+.clckernel.resolved.json
+.clc-forge.resolved.json
+.husky/_/

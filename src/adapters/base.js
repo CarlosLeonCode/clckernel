@@ -68,13 +68,9 @@ class BaseAdapter {
     fs.mkdirSync(path.join(targetDir, 'sdds'), { recursive: true });
     fs.mkdirSync(path.join(targetDir, 'tools'), { recursive: true });
 
-    // 2. Gitignore sdds/*
-    const gitignorePath = path.join(targetDir, '.gitignore');
-    let gitignore = fs.existsSync(gitignorePath) ? fs.readFileSync(gitignorePath, 'utf-8') : '';
-    if (!gitignore.includes('sdds/*')) {
-      gitignore += '\n\n# Local Spec-Driven Development (SDD) files\nsdds/*\n!sdds/.gitkeep\nopenspec/*\n!openspec/.gitkeep\n.ruff_cache/\n';
-      fs.writeFileSync(gitignorePath, gitignore, 'utf-8');
-    }
+    // 2. Gitignore local SDD specs, ephemeral artifacts, and AI IDE mirrors
+    const { ensureGitignoreEntries } = require('../gitignore');
+    ensureGitignoreEntries(targetDir);
     fs.writeFileSync(path.join(targetDir, 'sdds', '.gitkeep'), '', 'utf-8');
 
     // 3. Write AGENTS.md

@@ -330,12 +330,8 @@ function generateHarness(targetDir, configOrNull) {
     fs.mkdirSync(path.join(targetDir, 'sdds'), { recursive: true });
     fs.mkdirSync(path.join(targetDir, 'tools'), { recursive: true });
 
-    const gitignorePath = path.join(targetDir, '.gitignore');
-    let gitignoreContent = fs.existsSync(gitignorePath) ? fs.readFileSync(gitignorePath, 'utf-8') : '';
-    if (!gitignoreContent.includes('sdds/*')) {
-      gitignoreContent += '\n\n# Local Spec-Driven Development (SDD) files\nsdds/*\n!sdds/.gitkeep\nopenspec/*\n!openspec/.gitkeep\n.ruff_cache/\n';
-      fs.writeFileSync(gitignorePath, gitignoreContent, 'utf-8');
-    }
+    const { ensureGitignoreEntries } = require('./gitignore');
+    ensureGitignoreEntries(targetDir);
     fs.writeFileSync(path.join(targetDir, 'sdds', '.gitkeep'), '', 'utf-8');
 
     const agentsContent = `# CLC Kernel ${config.framework || 'Generic'} (${(config.projectType || 'unknown').toUpperCase()}) — AGENTS
