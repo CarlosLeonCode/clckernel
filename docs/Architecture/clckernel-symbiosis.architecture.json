@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "CLC Kernel — Standalone vs. Gentle AI Symbiosis",
+    "output": "docs/Architecture/clckernel-symbiosis.html",
+    "visual_preset": "signal-flow",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    { "id": "dev", "type": "external", "label": "Developer / Agent", "sublabel": "Cursor, Claude, Copilot", "pos": [30, 240], "size": [136, 60] },
+    { "id": "ssot", "type": "frontend", "label": "AGENTS.md Laws", "sublabel": "SSOT IDE Symlinks", "pos": [210, 130], "size": [140, 60], "tag": "Rule #0" },
+    { "id": "aiup", "type": "backend", "label": "AIUP Harness", "sublabel": "Local SDD + TDD Red-Green", "pos": [210, 240], "size": [140, 60], "tag": "Unbypassable" },
+    { "id": "ast_guards", "type": "security", "label": "AST Safeguards", "sublabel": "Native Parsers (<5ms)", "pos": [210, 350], "size": [140, 60], "tag": "Zero Foreign Deps" },
+    { "id": "receipt", "type": "cloud", "label": "Audit Receipt", "sublabel": "audit-receipt.json", "pos": [395, 240], "size": [145, 62], "tag": "Immutable Proof" },
+    { "id": "report_local", "type": "backend", "label": "Local Audit Report", "sublabel": "05-audit-report.md", "pos": [600, 130], "size": [145, 60], "tag": "4-Lens Summary" },
+    { "id": "precommit", "type": "security", "label": "Git Pre-Commit", "sublabel": "Blocks Invalid Commits", "pos": [600, 240], "size": [145, 60], "tag": "Deterministic Gate" },
+    { "id": "git_repo", "type": "database", "label": "Git Commit Sealed", "sublabel": "Conventional Commits", "pos": [860, 240], "size": [140, 60], "tag": "Clean Diff" },
+    { "id": "gentle_rdd", "type": "security", "label": "Gentle AI (RDD)", "sublabel": "Adversarial 4-Lens Review", "pos": [600, 420], "size": [145, 62], "tag": "Judges & Refuters" },
+    { "id": "engram_mcp", "type": "messagebus", "label": "Engram (MCP)", "sublabel": "Memory & ADR Tracking", "pos": [860, 360], "size": [140, 60], "tag": "Persistent Memory" },
+    { "id": "graphify", "type": "external", "label": "Graphify", "sublabel": "Topology & Blast Radius", "pos": [860, 480], "size": [140, 60], "tag": "Visual Graph" }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "CLC Kernel Core Engine (100% Local Governance)", "wraps": ["ssot", "aiup", "ast_guards", "receipt"], "pad": 16 },
+    { "kind": "security-group", "label": "MODE 1: Standalone Operation (Air-Gapped & Offline)", "wraps": ["report_local", "precommit", "git_repo"], "pad": 16 },
+    { "kind": "security-group", "label": "MODE 2: + Gentle AI Symbiosis (High-Assurance Companions)", "wraps": ["gentle_rdd", "engram_mcp", "graphify"], "pad": 16 }
+  ],
+  "connections": [
+    { "from": "dev", "to": "aiup", "label": "intent", "variant": "emphasis" },
+    { "from": "ssot", "to": "aiup", "label": "governs" },
+    { "from": "aiup", "to": "ast_guards", "label": "evaluates", "variant": "emphasis" },
+    { "from": "ast_guards", "to": "receipt", "label": "generates", "variant": "security" },
+    { "from": "receipt", "to": "report_local", "label": "renders" },
+    { "from": "receipt", "to": "precommit", "label": "verifies", "variant": "emphasis" },
+    { "from": "precommit", "to": "git_repo", "label": "allows commit", "variant": "emphasis" },
+    { "from": "receipt", "to": "gentle_rdd", "label": "receipt handshake", "variant": "security" },
+    { "from": "gentle_rdd", "to": "engram_mcp", "label": "records ADR", "variant": "emphasis" },
+    { "from": "gentle_rdd", "to": "graphify", "label": "queries topology", "variant": "dashed" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Mode 1: Standalone (Air-Gapped & Local)",
+      "items": [
+        "Operates with zero foreign dependencies or network access required",
+        "Executes native AST guards in < 5ms before every git commit",
+        "Generates self-contained 4-lens reports and receipts in sdds/"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Mode 2: Progressive Gentle AI Symbiosis",
+      "items": [
+        "Passes audit-receipt.json to Gentle AI review without vendor lock-in",
+        "Engram MCP stores persistent memory and records ADRs in docs/Journal/",
+        "Graphify generates codebase topology and computes blast-radius"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Unbypassable Governance Contract",
+      "items": [
+        "Rule #0 enforced identically in both standalone and companion modes",
+        "Human-in-the-Loop approval gate required before source code edits",
+        "Pre-commit hook physically blocks non-compliant commits"
+      ]
+    }
+  ]
+}

@@ -200,8 +200,10 @@ clckernel update
 CLC Kernel está diseñado bajo una **filosofía de cero dependencias forzadas**: opera como un motor de gobernanza 100% autosuficiente y local, ofreciendo a su vez interoperabilidad nativa y fluida con el ecosistema de [Gentle AI](https://github.com/Gentleman-Programming/gentle-ai).
 
 <div align="center">
-  <img src="./docs/Architecture/clckernel-gentle-ai-symbiosis.png" alt="CLC Kernel Standalone vs Simbiosis con Gentle AI" width="100%" />
+  <img src="./docs/Architecture/clckernel-symbiosis.visual-check.2048x1320.dark.png" alt="CLC Kernel Standalone vs Simbiosis con Gentle AI (Diagrama Archify)" width="100%" />
 </div>
+
+> 💡 *Diagrama Interactivo: Generado con [Archify](https://github.com/tt-a1i/archify). Podés abrir [`docs/Architecture/clckernel-symbiosis.html`](./docs/Architecture/clckernel-symbiosis.html) para explorar la animación de flujo, cambiar entre modo claro/oscuro e inspeccionar detalles de cada nodo.*
 
 ```mermaid
 flowchart TD
