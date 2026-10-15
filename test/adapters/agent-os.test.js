@@ -131,6 +131,70 @@ describe('AgentOSAdapter', () => {
         assert.ok(fs.existsSync(path.join(dir, 'tools', 'check_symlinks.js')), 'check_symlinks must exist');
         assert.ok(fs.existsSync(path.join(dir, 'tools', 'check_hitl.js')), 'check_hitl must exist');
         assert.ok(fs.existsSync(path.join(dir, 'tools', 'check_domain_data.js')), 'check_domain_data must exist');
+        assert.ok(fs.existsSync(path.join(dir, 'tools', 'check_test_calendar_sync.js')), 'check_test_calendar_sync must exist');
+      } finally {
+        teardown(dir);
+      }
+    });
+  });
+
+  describe('getTools() contract', () => {
+    it('declares tool paths without "tools/" prefix and all declared files exist in bundled tools/', () => {
+      const adapter = new AgentOSAdapter();
+      const tools = adapter.getTools();
+      assert.ok(tools.length >= 5, 'must declare at least 5 tools');
+      const bundledToolsDir = path.join(__dirname, '..', '..', 'tools');
+
+      for (const tool of tools) {
+        assert.ok(
+          !tool.path.startsWith('tools/'),
+          `tool path for ${tool.name} must not start with tools/: got ${tool.path}`
+        );
+        const bundledFile = path.join(bundledToolsDir, tool.path);
+        assert.ok(
+          fs.existsSync(bundledFile),
+          `bundled tool file for ${tool.name} must exist on disk at ${bundledFile}`
+        );
+      }
+    });
+  });
+
+  describe('full harness generation & pre-commit hook execution', () => {
+    it('generateHarness copies all tools and pre-commit hook runs without MODULE_NOT_FOUND', () => {
+      const { generateHarness } = require('../../src/generator');
+      const { execSync } = require('child_process');
+      const adapter = new AgentOSAdapter();
+      const dir = createTmpProject({});
+
+      try {
+        generateHarness(dir, {
+          adapter,
+          projectType: adapter.projectType,
+          framework: adapter.name,
+          testRunner: adapter.testRunner,
+          gitHooks: 'githooks'
+        });
+
+        // 1. All manifest tools must exist in tools/
+        for (const tool of adapter.getTools()) {
+          const installedPath = path.join(dir, 'tools', tool.path);
+          assert.ok(
+            fs.existsSync(installedPath),
+            `Tool ${tool.name} must be copied to ${installedPath}`
+          );
+        }
+
+        // 2. audit.js should be installed, NOT audit.py
+        assert.ok(fs.existsSync(path.join(dir, 'tools', 'audit.js')), 'audit.js must be installed for agent-os');
+        assert.ok(!fs.existsSync(path.join(dir, 'tools', 'audit.py')), 'audit.py must NOT be installed for agent-os');
+
+        // 3. Pre-commit hook runs to completion without module errors
+        const hookFile = path.join(dir, '.githooks', 'pre-commit');
+        assert.ok(fs.existsSync(hookFile), '.githooks/pre-commit must exist');
+
+        const hookOutput = execSync(`bash "${hookFile}"`, { cwd: dir, encoding: 'utf-8' });
+        assert.ok(hookOutput.includes('Running CLC Kernel Agent-OS'), 'hook executed header');
+        assert.ok(!hookOutput.includes('MODULE_NOT_FOUND'), 'hook must not fail with MODULE_NOT_FOUND');
       } finally {
         teardown(dir);
       }

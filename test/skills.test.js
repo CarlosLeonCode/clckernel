@@ -28,9 +28,9 @@ describe('CLC Kernel Skills & Playbooks Structure', () => {
     const content = fs.readFileSync(skillPath, 'utf8');
     const referenceMatches = [...content.matchAll(/\[reference\/([a-zA-Z0-9_-]+\.md)\]\(reference\/([a-zA-Z0-9_-]+\.md)\)/g)];
     
-    assert.ok(referenceMatches.length >= 8, 'Must reference at least 8 playbooks (start, guard, phase, audit, doctor, feature, fix, commit)');
+    assert.ok(referenceMatches.length >= 10, 'Must reference at least 10 playbooks');
 
-    const expectedPlaybooks = ['start.md', 'guard.md', 'phase.md', 'audit.md', 'doctor.md', 'feature.md', 'fix.md', 'commit.md'];
+    const expectedPlaybooks = ['start.md', 'guard.md', 'phase.md', 'audit.md', 'doctor.md', 'feature.md', 'fix.md', 'commit.md', 'test.md', 'update.md'];
     for (const pb of expectedPlaybooks) {
       assert.ok(
         referenceMatches.some(m => m[1] === pb),

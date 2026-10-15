@@ -22,10 +22,22 @@ const check = async function checkHitl(targetDir) {
   for (const sDir of searchDirs) {
     if (fs.existsSync(sDir)) {
       try {
-        const files = fs.readdirSync(sDir);
-        for (const file of files) {
-          if (file.endsWith('.md')) {
-            skillFiles.push(path.join(sDir, file));
+        const entries = fs.readdirSync(sDir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.isFile() && entry.name.endsWith('.md')) {
+            skillFiles.push(path.join(sDir, entry.name));
+          } else if (entry.isDirectory()) {
+            // Exclude framework CLI scaffolding and tool plugins
+            if (entry.name === 'clckernel_cli' || entry.name === 'clc_forge_cli' || entry.name === 'impeccable') {
+              continue;
+            }
+            const subDirPath = path.join(sDir, entry.name);
+            const subEntries = fs.readdirSync(subDirPath, { withFileTypes: true });
+            for (const sub of subEntries) {
+              if (sub.isFile() && sub.name.endsWith('.md')) {
+                skillFiles.push(path.join(subDirPath, sub.name));
+              }
+            }
           }
         }
       } catch {}

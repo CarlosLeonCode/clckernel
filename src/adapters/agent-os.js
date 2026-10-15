@@ -76,36 +76,36 @@ class AgentOSAdapter extends BaseAdapter {
     return [
       {
         name: 'check_symlinks',
-        language: 'node',
-        path: 'tools/check_symlinks.js',
+        language: 'js',
+        path: 'check_symlinks.js',
         command: 'node tools/check_symlinks.js',
         description: 'AI IDE symlinks and rule mirror verification'
       },
       {
         name: 'check_hitl',
-        language: 'node',
-        path: 'tools/check_hitl.js',
+        language: 'js',
+        path: 'check_hitl.js',
         command: 'node tools/check_hitl.js',
         description: 'Human-in-the-Loop review checkpoint validator'
       },
       {
         name: 'check_domain_data',
-        language: 'node',
-        path: 'tools/check_domain_data.js',
+        language: 'js',
+        path: 'check_domain_data.js',
         command: 'node tools/check_domain_data.js',
         description: 'Domain deliverables schema and clean state integrity'
       },
       {
         name: 'check_test_calendar_sync',
-        language: 'node',
-        path: 'tools/check_test_calendar_sync.js',
+        language: 'js',
+        path: 'check_test_calendar_sync.js',
         command: 'node tools/check_test_calendar_sync.js',
         description: 'Test calendar harness synchronization and parity check'
       },
       {
         name: 'scan_secrets',
-        language: 'node',
-        path: 'tools/scan_secrets.js',
+        language: 'js',
+        path: 'scan_secrets.js',
         command: 'node tools/scan_secrets.js',
         description: 'Security & API key leak scanner'
       }
@@ -198,7 +198,7 @@ ${this.getSafeguards().map(s => `- ${s}`).join('\n')}
     // 4. Copy domain guard tools into tools/
     const srcToolsDir = path.join(__dirname, '..', '..', 'tools');
     const targetToolsDir = path.join(targetDir, 'tools');
-    const toolsToCopy = ['check_symlinks.js', 'check_hitl.js', 'check_domain_data.js', 'scan_secrets.js', 'audit.js'];
+    const toolsToCopy = ['check_symlinks.js', 'check_hitl.js', 'check_domain_data.js', 'check_test_calendar_sync.js', 'scan_secrets.js', 'audit.js'];
 
     for (const toolFile of toolsToCopy) {
       const srcFile = path.join(srcToolsDir, toolFile);

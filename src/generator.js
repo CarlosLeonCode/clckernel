@@ -120,7 +120,8 @@ function installToolsFromManifest(targetDir, manifest, config) {
   });
 
   // Always copy the audit orchestrator for the right language
-  const orchestrator = isFront ? 'audit.js' : 'audit.py';
+  const isNodeStack = config.projectType === 'frontend' || config.projectType === 'agent-os';
+  const orchestrator = isNodeStack ? 'audit.js' : 'audit.py';
   const orchestratorSrc = path.join(sourceToolsDir, orchestrator);
   const orchestratorDest = path.join(targetDir, 'tools', orchestrator);
   if (fs.existsSync(orchestratorSrc)) {

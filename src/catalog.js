@@ -125,6 +125,11 @@ const SAFEGUARD_CATALOG = [
     applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
     phase: 'audit', file: 'check_domain_data.js', manifest: true, planned: false },
 
+  { name: 'check_test_calendar_sync', labels: ['check_test_calendar_sync', 'check_test_calendar_sync.js'],
+    checks: 'Test calendar harness synchronization and parity check', verify: ['verify_calendar_sync', 'verify_test_calendar_sync'],
+    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
+    phase: 'audit', file: 'check_test_calendar_sync.js', manifest: true, planned: false },
+
   { name: 'ruff', labels: ['ruff'],
     checks: 'Python AST linter (external CLI)', verify: ['verify_python_lint'],
     applies_when: 'backend', severity: 'warning', gate_mode: 'advisory', config_keys: [],
