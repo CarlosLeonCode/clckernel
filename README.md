@@ -20,11 +20,13 @@ AI coding agents (Cursor, Claude Code, Windsurf, Copilot) code fast, but without
 ## 📋 Table of Contents
 - [🎯 Use Cases](#-use-cases)
 - [🏛️ The AI Unified Process (AIUP)](#️-the-ai-unified-process-aiup)
+- [🔍 Review-Driven Development (RDD) & the 4 Canonical Lenses](#-review-driven-development-rdd--the-4-canonical-lenses)
 - [⚡ Step-by-Step Guide (Full Lifecycle)](#-step-by-step-guide-full-lifecycle)
 - [🎮 Universal Command Interface](#-universal-command-interface)
 - [🔄 Updating an Existing Project](#-updating-an-existing-project)
 - [🌐 Supported Stacks & Archetypes](#-supported-stacks--archetypes)
 - [🧩 Optional Ecosystem Companions](#-optional-ecosystem-companions)
+- [📖 Glossary of Key Terms](#-glossary-of-key-terms)
 - [📄 License](#-license)
 
 ---
@@ -59,6 +61,28 @@ AI coding agents (Cursor, Claude Code, Windsurf, Copilot) code fast, but without
 3. **TDD (Red-to-Green):** Agent must prove failure with a failing regression test (Red Phase) before writing implementation code (Green Phase).
 4. **AST (Deterministic Safeguards):** Native stack parsers (Python `ast`, Go `ast`, RuboCop, TypeScript AST) inspect diffs and physically block invalid commits.
 5. **SSOT (Single Source of Truth):** `AGENTS.md` is forged once and mirrored via filesystem symlinks to `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, and Copilot.
+
+---
+
+<a id="rdd-and-lenses"></a>
+## 🔍 Review-Driven Development (RDD) & the 4 Canonical Lenses
+
+CLC Kernel structures all verification and audit gates around **Review-Driven Development (RDD)**, categorizing every safeguard across the **4 Canonical Review Lenses**:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       THE 4 CANONICAL REVIEW LENSES                         │
+├─────────────────────┬───────────────────┬───────────────────┬───────────────┤
+│    🎯 CORRECTNESS   │    🛡️ SECURITY    │  🏛️ ARCHITECTURE  │ ⚡ PERFORMANCE│
+│ Functional bugs,    │ Secret leaks,     │ Layer violations, │ N+1 queries,  │
+│ scope drift, TDD,   │ permission bypass,│ domain boundaries,│ bundle size,  │
+│ API contracts       │ dangerous eval    │ circular deps     │ memory leaks  │
+└─────────────────────┴───────────────────┴───────────────────┴───────────────┘
+```
+
+When you run `clckernel audit` (or `node tools/audit.js`), CLC Kernel generates:
+1. **Human-Readable Educational Report (`05-audit-report.md`):** Explains exactly what passed, failed, or was skipped grouped by lens.
+2. **Machine-Readable Audit Receipt (`audit-receipt.json`):** An immutable JSON receipt bound to the active `commitHash` certifying the verdict for automated review gates (such as Gentle AI).
 
 ---
 
@@ -176,6 +200,24 @@ CLC Kernel focuses strictly on governance and runs with **zero foreign dependenc
 - 🧠 **[Engram (MCP)](https://github.com/Gentleman-Programming/gentle-ai):** Persistent architectural memory and ADR tracking across agent sessions.
 - 🕸️ **[Graphify](https://github.com/carlosleoncode/graphify):** Visual dependency graphs and codebase topology mapping.
 - 🛡️ **[Gentle AI (RDD)](https://github.com/Gentleman-Programming/gentle-ai):** Multi-lens adversarial code review gate.
+
+---
+
+<a id="glossary"></a>
+## 📖 Glossary of Key Terms
+
+| Term | Definition |
+|---|---|
+| **SDD** *(Spec-Driven Development)* | A specification-first methodology where detailed technical contracts, schemas, acceptance criteria, and test scenarios are authored in local, gitignored specs (`sdds/{change}/spec.md`) before modifying source code. |
+| **RDD** *(Review-Driven Development)* | An adversarial and structured code verification methodology where changes are audited across four orthogonal lenses (Correctness, Security, Architecture, Performance) to ensure systematic quality gates before merge or commit. |
+| **AIUP** *(AI Unified Process)* | The end-to-end governed lifecycle implemented by CLC Kernel: Research $\rightarrow$ Local SDD $\rightarrow$ Human-in-the-Loop (HITL) approval $\rightarrow$ TDD Red-to-Green $\rightarrow$ AST Guard Audit Gate $\rightarrow$ Conventional Commit. |
+| **HIT / HITL** *(Human-in-the-Loop)* | A mandatory approval gate where a human engineer validates contracts, architecture decisions, and proposed tests before an autonomous agent executes production code edits. |
+| **TDD** *(Test-Driven Development)* | The engineering practice of writing a failing automated regression test (Red Phase) to reproduce an issue or specify a new feature before writing the minimal production code to make it pass (Green Phase). |
+| **AST Guard** *(Abstract Syntax Tree Safeguard)* | A lightweight, zero-dependency static analysis script in the stack's native language (Python `ast`, TypeScript Compiler API, Go `go/parser`, RuboCop, etc.) executing in under 5ms to physically block architectural violations before git commits. |
+| **SSOT** *(Single Source of Truth)* | The centralized governance principle where `AGENTS.md` acts as the single source of truth, mirrored automatically to all AI IDE config files (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`, Copilot) via filesystem symlinks. |
+| **Audit Receipt** | An immutable, machine-readable JSON artifact (`audit-receipt.json`) produced by the audit engine containing the timestamp, commit hash, per-lens verdicts, and Gentle AI RDD compatibility metadata. |
+| **ADR** *(Architectural Decision Record)* | A standardized document in `docs/Journal/` capturing significant architectural decisions, context, evaluated alternatives, and consequences. |
+| **Agent-OS** | An operating system archetype for non-tech domain workflows (e.g. Marketing OS, Content Ops, Research OS) governed by dual-layer architecture, strict schema validation, and HITL checkpoints. |
 
 ---
 

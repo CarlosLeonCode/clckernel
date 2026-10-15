@@ -20,11 +20,13 @@ Los agentes de programación con IA (Cursor, Claude Code, Windsurf, Copilot) cod
 ## 📋 Tabla de Contenidos
 - [🎯 Casos de Uso](#-casos-de-uso)
 - [🏛️ El Proceso Unificado de IA (AIUP)](#️-el-proceso-unificado-de-ia-aiup)
+- [🔍 Desarrollo Guiado por Revisión (RDD) y los 4 Lentes](#-desarrollo-guiado-por-revisión-rdd-y-los-4-lentes)
 - [⚡ Guía Paso a Paso (Ciclo Completo)](#-guía-paso-a-paso-ciclo-completo)
 - [🎮 Interfaz Universal de Comandos](#-interfaz-universal-de-comandos)
 - [🔄 Actualización de Proyectos Existentes](#-actualización-de-proyectos-existentes)
 - [🌐 Ecosistemas Soportados y Arquetipos](#-ecosistemas-soportados-y-arquetipos)
 - [🧩 Herramientas Complementarias (Opcionales)](#-herramientas-complementarias-opcionales)
+- [📖 Glosario de Términos Clave](#-glosario-de-términos-clave)
 - [📄 Licencia](#-licencia)
 
 ---
@@ -59,6 +61,28 @@ Los agentes de programación con IA (Cursor, Claude Code, Windsurf, Copilot) cod
 3. **TDD (Rojo a Verde):** El agente debe demostrar un test de regresión fallido (Fase Roja) antes de escribir la solución en producción (Fase Verde).
 4. **AST (Salvaguardas Deterministas):** Parsers nativos del stack (Python `ast`, Go `ast`, RuboCop, TypeScript AST) inspeccionan el diff y bloquean físicamente commits no conformes.
 5. **SSOT (Única Fuente de Verdad):** `AGENTS.md` se define una sola vez y se proyecta mediante symlinks hacia `CLAUDE.md`, `GEMINI.md`, `.cursorrules` y Copilot.
+
+---
+
+<a id="rdd-y-lentes"></a>
+## 🔍 Desarrollo Guiado por Revisión (RDD) y los 4 Lentes
+
+CLC Kernel estructura todas sus compuertas de auditoría bajo los principios de **Review-Driven Development (RDD)**, organizando cada salvaguarda en torno a los **4 Lentes Canónicos de Revisión**:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       LOS 4 LENTES CANÓNICOS DE REVISIÓN                    │
+├─────────────────────┬───────────────────┬───────────────────┬───────────────┤
+│    🎯 CORRECTITUD   │    🛡️ SEGURIDAD   │  🏛️ ARQUITECTURA  │ ⚡ RENDIMIENTO│
+│ Bugs funcionales,   │ Fuga de secretos, │ Violación capas,  │ N+1 queries,  │
+│ scope drift, TDD,   │ bypass permisos,  │ límites de dominio│ tamaño bundle,│
+│ contratos API       │ eval peligroso    │ deps circulares   │ memory leaks  │
+└─────────────────────┴───────────────────┴───────────────────┴───────────────┘
+```
+
+Al ejecutar `clckernel audit` (o `node tools/audit.js`), CLC Kernel genera:
+1. **Informe Educativo para Humanos (`05-audit-report.md`):** Explica detalladamente qué pasó, falló o fue omitido agrupado por cada lente.
+2. **Recibo Inmutable de Auditoría (`audit-receipt.json`):** Un archivo JSON inmutable y legible por máquina vinculado al `commitHash` actual que certifica el resultado para compuertas automatizadas de revisión (como Gentle AI).
 
 ---
 
@@ -176,6 +200,24 @@ CLC Kernel se enfoca estrictamente en gobernanza y opera con **cero dependencias
 - 🧠 **[Engram (MCP)](https://github.com/Gentleman-Programming/gentle-ai):** Memoria arquitectónica persistente y registro de ADRs entre sesiones.
 - 🕸️ **[Graphify](https://github.com/carlosleoncode/graphify):** Generación de grafos visuales de dependencias y topología del código.
 - 🛡️ **[Gentle AI (RDD)](https://github.com/Gentleman-Programming/gentle-ai):** Compuerta de revisión multi-lente adversaria antes de commitear.
+
+---
+
+<a id="glosario"></a>
+## 📖 Glosario de Términos Clave
+
+| Término | Definición |
+|---|---|
+| **SDD** *(Spec-Driven Development)* | Metodología orientada a especificaciones previas donde los contratos técnicos, esquemas, criterios de aceptación y escenarios de prueba se redactan en specs locales gitignoradas (`sdds/{cambio}/spec.md`) antes de modificar código fuente. |
+| **RDD** *(Review-Driven Development)* | Metodología de verificación adversarial y estructurada donde los cambios se auditan a través de cuatro lentes ortogonales (Correctitud, Seguridad, Arquitectura y Rendimiento) para garantizar compuertas sistemáticas de calidad antes del merge o commit. |
+| **AIUP** *(AI Unified Process)* | El ciclo de vida gobernado de punta a punta implementado por CLC Kernel: Investigación $\rightarrow$ SDD local $\rightarrow$ Aprobación Human-in-the-Loop (HITL) $\rightarrow$ TDD Rojo a Verde $\rightarrow$ Compuerta de Auditoría AST $\rightarrow$ Conventional Commit. |
+| **HIT / HITL** *(Human-in-the-Loop)* | Compuerta obligatoria de aprobación donde un ingeniero humano valida contratos, decisiones arquitectónicas y pruebas propuestas antes de que un agente autónomo edite código de producción. |
+| **TDD** *(Test-Driven Development)* | Práctica de ingeniería de reproducir bugs o especificar nuevas funcionalidades mediante un test automatizado que falle (Fase Roja) antes de escribir el código mínimo de producción para que pase (Fase Verde). |
+| **Guard AST** *(Salvaguarda de Árbol de Sintaxis Abstracta)* | Script liviano de análisis estático sin dependencias foráneas escrito en el lenguaje nativo del stack (Python `ast`, TypeScript Compiler API, Go `go/parser`, RuboCop, etc.) que se ejecuta en menos de 5ms para bloquear físicamente violaciones antes del commit. |
+| **SSOT** *(Single Source of Truth / Única Fuente de Verdad)* | Principio de gobernanza centralizada donde `AGENTS.md` funciona como la ley única, proyectándose automáticamente a todos los entornos de agentes (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`, Copilot) mediante symlinks del sistema de archivos. |
+| **Recibo de Auditoría** *(Audit Receipt)* | Artefacto JSON inmutable y legible por máquina (`audit-receipt.json`) producido por el motor de auditoría con la marca de tiempo, hash del commit, veredictos por cada lente y metadatos de compatibilidad RDD para Gentle AI. |
+| **ADR** *(Architectural Decision Record)* | Documento estandarizado bajo `docs/Journal/` que captura decisiones arquitectónicas clave, contexto histórico, alternativas evaluadas y consecuencias. |
+| **Agent-OS** | Arquetipo de sistema operativo para flujos de agentes y dominios no técnicos (por ejemplo: Marketing OS, Content Ops, Research OS) gobernado por arquitectura de dos capas, validación estricta de esquemas y compuertas HITL. |
 
 ---
 
