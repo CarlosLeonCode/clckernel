@@ -25,6 +25,7 @@ Los agentes de programación con IA (Cursor, Claude Code, Windsurf, Copilot) cod
 - [🎮 Interfaz Universal de Comandos](#-interfaz-universal-de-comandos)
 - [🔄 Actualización de Proyectos Existentes](#-actualización-de-proyectos-existentes)
 - [🌐 Ecosistemas Soportados y Arquetipos](#-ecosistemas-soportados-y-arquetipos)
+- [🏛️ Arquitectura: Standalone vs. Simbiosis con Gentle AI](#-arquitectura-standalone-vs-simbiosis-con-gentle-ai)
 - [🧩 Herramientas Complementarias (Opcionales)](#-herramientas-complementarias-opcionales)
 - [📖 Glosario de Términos Clave](#-glosario-de-términos-clave)
 - [📄 Licencia](#-licencia)
@@ -190,6 +191,47 @@ clckernel update
 | 🎸 **Django** | `manage.py` | `pytest-django` | Idempotencia ORM Django, AST Ruff, Scope Guard, Eficiencia DB (N+1) |
 | 🚀 **Astro** | `astro.config` | Playwright | Tokens Tailwind v4, Esquemas de Colección, A11y, Responsive, SEO |
 | 🤖 **Agent-OS** | `skills/`, `brand/`, `templates/` | Tests de Contrato | AGENTS.md Dual-Layer, Compuertas HITL (`check_hitl`), Symlinks (`check_symlinks`), Integridad de Datos (`check_domain_data`) |
+
+---
+
+<a id="arquitectura-simbiosis"></a>
+## 🏛️ Arquitectura: Standalone vs. Simbiosis con Gentle AI
+
+CLC Kernel está diseñado bajo una **filosofía de cero dependencias forzadas**: opera como un motor de gobernanza 100% autosuficiente y local, ofreciendo a su vez interoperabilidad nativa y fluida con el ecosistema de [Gentle AI](https://github.com/Gentleman-Programming/gentle-ai).
+
+<div align="center">
+  <img src="./docs/Architecture/clckernel-gentle-ai-symbiosis.png" alt="CLC Kernel Standalone vs Simbiosis con Gentle AI" width="100%" />
+</div>
+
+```mermaid
+flowchart TD
+  subgraph CORE["🤖 CLC KERNEL (Motor Central de Gobernanza)"]
+    SSOT["1. Ley SSOT<br/>(AGENTS.md y Symlinks para IDEs)"]
+    AIUP["2. Arnés AIUP<br/>(SDD + HITL + TDD Rojo-a-Verde)"]
+    AST["3. Linters AST &lt;5ms<br/>(Reglas de Capas, Secretos y Migraciones)"]
+    RECEIPT["4. Motor de Auditoría 4-Lentes<br/>(Genera audit-receipt.json)"]
+    SSOT --> AIUP --> AST --> RECEIPT
+  end
+
+  RECEIPT -->|audit-receipt.json| MODES{Modo de Ejecución}
+
+  subgraph MODE1["🟢 MODO 1: STANDALONE (100% Local y Desconectado)"]
+    M1_1["• Cero dependencias externas"]
+    M1_2["• Ejecución nativa AST en &lt; 5ms"]
+    M1_3["• Hook Git pre-commit bloquea físicamente commits inválidos"]
+    M1_4["• Reporte autosuficiente 05-audit-report.md"]
+  end
+
+  subgraph MODE2["🟣 MODO 2: + SIMBIOSIS CON GENTLE AI"]
+    M2_1["🧠 Engram (MCP): Contexto persistente y seguimiento de ADRs"]
+    M2_2["🛡️ Gentle AI (RDD): Revisión multi-agente adversarial"]
+    M2_3["🕸️ Graphify: Topología de código y análisis de impacto"]
+    M2_4["🔗 Sin bloqueo de proveedor: Consume audit-receipt.json sin fricción"]
+  end
+
+  MODES -->|Solo Local| MODE1
+  MODES -->|Con Herramientas Companion| MODE2
+```
 
 ---
 

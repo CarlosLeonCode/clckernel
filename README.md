@@ -25,6 +25,7 @@ AI coding agents (Cursor, Claude Code, Windsurf, Copilot) code fast, but without
 - [🎮 Universal Command Interface](#-universal-command-interface)
 - [🔄 Updating an Existing Project](#-updating-an-existing-project)
 - [🌐 Supported Stacks & Archetypes](#-supported-stacks--archetypes)
+- [🏛️ Architecture: Standalone vs. Gentle AI Symbiosis](#-architecture-standalone-vs-gentle-ai-symbiosis)
 - [🧩 Optional Ecosystem Companions](#-optional-ecosystem-companions)
 - [📖 Glossary of Key Terms](#-glossary-of-key-terms)
 - [📄 License](#-license)
@@ -190,6 +191,47 @@ clckernel update
 | 🎸 **Django** | `manage.py` | `pytest-django` | Django ORM Idempotency, Ruff AST, Scope Guard, DB Efficiency (N+1) |
 | 🚀 **Astro** | `astro.config` | Playwright | Tailwind v4 Tokens, Content Schema, A11y, Responsive, SEO |
 | 🤖 **Agent-OS** | `skills/`, `brand/`, `templates/` | Contract Tests | Dual-Layer AGENTS.md, HITL Gates (`check_hitl`), Symlinks (`check_symlinks`), Domain Data (`check_domain_data`) |
+
+---
+
+<a id="architecture-symbiosis"></a>
+## 🏛️ Architecture: Standalone vs. Gentle AI Symbiosis
+
+CLC Kernel is architected with a **zero-lock-in philosophy**: it functions as a 100% self-sufficient local governance engine, while offering seamless, native interoperability with the [Gentle AI](https://github.com/Gentleman-Programming/gentle-ai) ecosystem.
+
+<div align="center">
+  <img src="./docs/Architecture/clckernel-gentle-ai-symbiosis.png" alt="CLC Kernel Standalone vs Gentle AI Symbiosis" width="100%" />
+</div>
+
+```mermaid
+flowchart TD
+  subgraph CORE["🤖 CLC KERNEL (Core Governance Engine)"]
+    SSOT["1. SSOT Law<br/>(AGENTS.md & IDE Mirrors)"]
+    AIUP["2. AIUP Harness<br/>(SDD + HITL + TDD Red-to-Green)"]
+    AST["3. AST Guards &lt;5ms<br/>(Layer, Secret & Migration Rules)"]
+    RECEIPT["4. 4-Lens Audit Engine<br/>(Emits audit-receipt.json)"]
+    SSOT --> AIUP --> AST --> RECEIPT
+  end
+
+  RECEIPT -->|audit-receipt.json| MODES{Deployment Mode}
+
+  subgraph MODE1["🟢 MODE 1: STANDALONE (100% Local & Offline)"]
+    M1_1["• Zero foreign dependencies"]
+    M1_2["• Native stack AST execution in &lt; 5ms"]
+    M1_3["• Git pre-commit hook physically blocks invalid commits"]
+    M1_4["• Self-contained 05-audit-report.md"]
+  end
+
+  subgraph MODE2["🟣 MODE 2: + GENTLE AI SYMBIOSIS"]
+    M2_1["🧠 Engram (MCP): Persistent context & ADR tracking"]
+    M2_2["🛡️ Gentle AI (RDD): Multi-agent adversarial review"]
+    M2_3["🕸️ Graphify: Codebase topology & blast radius analysis"]
+    M2_4["🔗 Zero-Lock-In: Consumes audit-receipt.json seamlessly"]
+  end
+
+  MODES -->|Local Only| MODE1
+  MODES -->|With Companions| MODE2
+```
 
 ---
 
