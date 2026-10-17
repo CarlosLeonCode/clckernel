@@ -38,6 +38,9 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
+      # verify_tdd runs pytest; PyYAML stays absent on purpose.
+      - run: python -m pip install pytest
+
       - run: npm ci
 
       - run: npm test
