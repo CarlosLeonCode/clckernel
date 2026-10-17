@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
 Alembic / Django Migration Reversibility & Safety Guard
-Checks that database migration scripts follow safe practices:
-  - Migrations have both upgrade() and downgrade()
-  - No destructive operations without downgrade safeguards
-  - Migration files are not empty
-  - Django migrations reference existing model classes
-Self-contained: uses only Python stdlib (regex-based checks; pathlib, subprocess, json).
+Checks that database migration scripts are reversible:
+  - Alembic migrations have both upgrade() and downgrade()
+  - A destructive op in upgrade() (drop_table/drop_column/drop_index/
+    drop_constraint) has a matching create/add op in downgrade()
+  - Django RunPython/RunSQL operations pass a reverse (positionally or by keyword)
+  - Django migration files are not empty
+Self-contained: uses only Python stdlib (ast-based checks; pathlib, subprocess, json).
 """
 from __future__ import annotations
 
@@ -14,7 +15,6 @@ import ast
 import json
 import os
 import pathlib
-import re
 import sys
 
 # Sibling helper shipped next to the guards; works both as a script and when
@@ -67,51 +67,104 @@ def _find_migration_files(target_dir: str) -> list[str]:
     return migrations
 
 
+# Destructive Alembic ops and the ops in downgrade() that undo each of them.
+_DESTRUCTIVE_OPS = {
+    "drop_table": ("create_table",),
+    "drop_column": ("add_column",),
+    "drop_index": ("create_index",),
+    "drop_constraint": (
+        "create_foreign_key", "create_unique_constraint", "create_check_constraint",
+        "create_primary_key", "create_exclude_constraint",
+    ),
+}
+
+
+def _method_calls(node: ast.AST | None) -> list[ast.Call]:
+    """Every `<receiver>.<method>(...)` call under node (op.x, batch_op.x, ...)."""
+    if node is None:
+        return []
+    return [
+        n for n in ast.walk(node)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+    ]
+
+
+def _module_function(tree: ast.Module, name: str) -> ast.FunctionDef | None:
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == name:
+            return node
+    return None
+
+
 def _check_alembic_migration(filepath: str, content: str) -> list[dict]:
-    """Check an Alembic migration file for issues."""
+    """Check an Alembic migration file for reversibility."""
     violations: list[dict] = []
 
-    # Check for upgrade function
-    if "def upgrade(" not in content:
+    try:
+        tree = ast.parse(content, filename=filepath)
+    except SyntaxError as exc:
+        return [{
+            "lineNo": exc.lineno or 0,
+            "rule": "unparseable-migration",
+            "reason": "Migration is not valid Python — reversibility cannot be checked",
+        }]
+
+    upgrade = _module_function(tree, "upgrade")
+    downgrade = _module_function(tree, "downgrade")
+
+    if upgrade is None:
         violations.append({
             "lineNo": 0,
             "rule": "missing-upgrade",
             "reason": "Migration has no upgrade() function",
         })
 
-    # Check for downgrade function
-    if "def downgrade(" not in content:
+    if downgrade is None:
         violations.append({
             "lineNo": 0,
             "rule": "missing-downgrade",
             "reason": "Migration has no downgrade() function — rollback impossible",
         })
 
-    # Check for destructive operations
-    destructive_patterns = [
-        (r"\.drop_table\(", "DROP TABLE", "Destructive: table drop without safeguard"),
-        (r"\.drop_column\(", "DROP COLUMN", "Destructive: column drop without safeguard"),
-        (r"\.drop_index\(", "DROP INDEX", "Destructive: index drop"),
-        (r"batch_alter_table.*\.drop_column", "BATCH DROP COLUMN", "Batch column drop"),
-    ]
-    for pattern, label, reason in destructive_patterns:
-        if re.search(pattern, content):
-            # Check if there's a corresponding downgrade
-            if "def downgrade(" in content:
-                downgrade_section = content.split("def downgrade(")[1] if "def downgrade(" in content else ""
-                if label.lower().replace(" ", "_") not in downgrade_section.lower().replace(" ", "_"):
-                    # More lenient: just flag it
-                    violations.append({
-                        "lineNo": 0,
-                        "rule": f"destructive-{label.lower().replace(' ', '_')}",
-                        "reason": f"{reason} — verify downgrade covers this",
-                    })
+    # A destructive op in upgrade() is reversible only when downgrade()
+    # recreates what it removed. An empty / `pass` downgrade recreates nothing.
+    undo_ops = {call.func.attr for call in _method_calls(downgrade)}
+    for call in _method_calls(upgrade):
+        op = call.func.attr
+        if op in _DESTRUCTIVE_OPS and not undo_ops.intersection(_DESTRUCTIVE_OPS[op]):
+            violations.append({
+                "lineNo": call.lineno,
+                "rule": f"destructive-{op}",
+                "reason": (
+                    f"upgrade() calls {op}() but downgrade() has no "
+                    f"{' / '.join(_DESTRUCTIVE_OPS[op])}() — the migration is not reversible"
+                ),
+            })
 
     return violations
 
 
+# Django operations that need a reverse, with the keyword that supplies it.
+# The reverse is also accepted as the second positional argument.
+_DJANGO_REVERSIBLE = {
+    "RunPython": ("reverse_code", "run-python-no-reverse",
+                  "RunPython without reverse_code — rollback may fail"),
+    "RunSQL": ("reverse_sql", "run-sql-no-reverse",
+               "RunSQL without reverse_sql — rollback may fail"),
+}
+
+
+def _call_name(call: ast.Call) -> str:
+    func = call.func
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    if isinstance(func, ast.Name):
+        return func.id
+    return ""
+
+
 def _check_django_migration(filepath: str, content: str) -> list[dict]:
-    """Check a Django migration file for issues."""
+    """Check a Django migration file for reversibility."""
     violations: list[dict] = []
 
     # Check for empty migration
@@ -122,30 +175,26 @@ def _check_django_migration(filepath: str, content: str) -> list[dict]:
             "reason": "Migration file appears empty or near-empty",
         })
 
-    # Check for RunPython without reverse_code
-    if "RunPython(" in content:
-        # Find RunPython calls and check for reverse_code
-        run_python_pattern = re.compile(r"RunPython\(([^)]*)\)")
-        for match in run_python_pattern.finditer(content):
-            args = match.group(1)
-            if "reverse_code" not in args and "run_python" not in args.lower():
-                violations.append({
-                    "lineNo": content[:match.start()].count("\n") + 1,
-                    "rule": "run-python-no-reverse",
-                    "reason": "RunPython without reverse_code — rollback may fail",
-                })
+    try:
+        tree = ast.parse(content, filename=filepath)
+    except SyntaxError as exc:
+        violations.append({
+            "lineNo": exc.lineno or 0,
+            "rule": "unparseable-migration",
+            "reason": "Migration is not valid Python — reversibility cannot be checked",
+        })
+        return violations
 
-    # Check for RunSQL without reverse_sql
-    if "RunSQL(" in content:
-        run_sql_pattern = re.compile(r"RunSQL\(([^)]*)\)")
-        for match in run_sql_pattern.finditer(content):
-            args = match.group(1)
-            if "reverse_sql" not in args:
-                violations.append({
-                    "lineNo": content[:match.start()].count("\n") + 1,
-                    "rule": "run-sql-no-reverse",
-                    "reason": "RunSQL without reverse_sql — rollback may fail",
-                })
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        spec = _DJANGO_REVERSIBLE.get(_call_name(node))
+        if spec is None:
+            continue
+        keyword, rule, reason = spec
+        has_reverse = len(node.args) >= 2 or any(kw.arg == keyword for kw in node.keywords)
+        if not has_reverse:
+            violations.append({"lineNo": node.lineno, "rule": rule, "reason": reason})
 
     return violations
 
