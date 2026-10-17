@@ -81,9 +81,9 @@ const SAFEGUARD_CATALOG = [
     phase: 'audit', file: 'check_migrations.py', manifest: true, planned: false, lens: 'architecture' },
 
   { name: 'verify_tdd', labels: ['verify_tdd', 'verify_tdd.py'],
-    checks: 'Real red→green TDD validation', verify: ['verify_tdd_red_green', 'verify_tdd_evidence'],
+    checks: 'pytest red→green: changed tests fail on BASE and pass on the staged code', verify: ['verify_tdd_red_green', 'verify_tdd_evidence'],
     applies_when: 'backend', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
-    phase: 'audit', file: 'verify_tdd.py', manifest: false, planned: false, lens: 'correctness' },
+    phase: 'audit', file: 'verify_tdd.py', manifest: true, planned: false, lens: 'correctness' },
 
   { name: 'check_scope', labels: ['check_scope', 'check_scope.py'],
     checks: 'git-diff vs SDD-authorization scope guardrail', verify: ['verify_scope_authorization', 'verify_sdd_scope'],
