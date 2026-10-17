@@ -137,6 +137,9 @@ function runRules(dir, configPath, configName) {
       rule.regex.lastIndex = 0;
       let match;
       while ((match = rule.regex.exec(content)) !== null) {
+        // An empty match does not move lastIndex: step over one code point
+        // (never between surrogates) so the loop ends, like Python's finditer.
+        if (match[0] === '') rule.regex.lastIndex = nextCodePointIndex(content, rule.regex.lastIndex);
         const lineNo = content.slice(0, match.index).split('\n').length;
         if (!violations[file]) violations[file] = [];
         violations[file].push({
@@ -163,6 +166,17 @@ function runRules(dir, configPath, configName) {
         : 'No custom rule violations',
     },
   };
+}
+
+/**
+ * Index just past the code point at `i` (two UTF-16 units for a surrogate pair).
+ * @param {string} s
+ * @param {number} i
+ * @returns {number}
+ */
+function nextCodePointIndex(s, i) {
+  const code = s.codePointAt(i);
+  return i + (code !== undefined && code > 0xffff ? 2 : 1);
 }
 
 /**

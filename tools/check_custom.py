@@ -630,6 +630,8 @@ def _run_rules(dir_path: pathlib.Path, config_path: pathlib.Path, config_name: s
             if any(re.match(str(ex.pattern), file) for ex in rule['exclude_re']):
                 continue
 
+            # Empty matches (e.g. `x*`, `^`) are violations too; check_custom.js
+            # steps over them one code point at a time to report the same ones.
             for m in rule['regex'].finditer(content):
                 line_no = content[:m.start()].count('\n') + 1
                 if file not in violations:
