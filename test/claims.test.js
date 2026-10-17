@@ -159,6 +159,43 @@ describe('honest claims — fallback AGENTS.md (no adapter)', () => {
   }
 });
 
+// sdds/fullstack-monorepo, decision 6: a multi-part AGENTS.md makes the same
+// honest claims: the verifier is named only when some part installs it.
+describe('honest claims — multi-part AGENTS.md', () => {
+  const { autoDetectStack } = require('../src/detector');
+  const { git } = require('./helpers');
+  const PKG = (deps) => JSON.stringify({ name: 'x', private: true, dependencies: deps });
+  const FIXTURES = {
+    'Next.js + backend/ FastAPI': { 'package.json': PKG({ next: '14' }), 'backend/requirements.txt': 'fastapi\n' },
+    'frontend/ Astro + backend/ Go': { 'frontend/package.json': PKG({ astro: '4' }), 'backend/go.mod': 'module x\n' },
+    'server/ Go + api/ Rust': { 'server/go.mod': 'module x\n', 'api/Cargo.toml': '[package]\nname = "x"\n' },
+  };
+
+  for (const [name, files] of Object.entries(FIXTURES)) {
+    it(`${name}: no overstated phrases, no vague AST, verifier iff a part installs it`, () => {
+      const dir = createTmpProject(files);
+      const warn = console.warn;
+      try {
+        git(dir, 'init', '-q');
+        const config = autoDetectStack(dir);
+        assert.ok(config.parts && config.parts.length === 2, `expected two parts in ${name}`);
+        console.warn = () => {};
+        generateHarness(dir, config);
+        const text = fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8');
+        const hasVerifier = config.parts.some((p) => p.adapter.getTools(dir).some((t) => t.name === 'verify_tdd'));
+        assert.deepStrictEqual(findForbidden(text), []);
+        assert.strictEqual(text.includes(VERIFIER), hasVerifier);
+        const hasAstGuard = config.parts.some((p) => manifestFiles(p.adapter).some((f) => REAL_AST_GUARDS.includes(f)));
+        if (hasAstGuard) assert.deepStrictEqual(vagueAstLines(text), []);
+        else assert.ok(!AST_RE.test(text), `unexpected AST claim in ${name}`);
+      } finally {
+        console.warn = warn;
+        teardown(dir);
+      }
+    });
+  }
+});
+
 function listMarkdown(dir) {
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

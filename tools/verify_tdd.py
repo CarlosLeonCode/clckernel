@@ -12,6 +12,13 @@ Both trees are materialized from git into temporary directories, so the
 working copy is never evaluated and the caller's index/HEAD/worktree are
 never touched.
 
+Each changed file belongs to its project root: the nearest ancestor (inside
+the repository) holding a Python project marker, else the repository root.
+Files are grouped by root and each group is verified on its own, with
+cwd and PYTHONPATH set to that root in the temporary tree; a group whose code
+changed without a changed test in the same group fails. With a single root
+the result is the same as a whole-repository run.
+
 Self-contained: Python 3.9+ standard library only.
 """
 from __future__ import annotations
@@ -39,6 +46,8 @@ OUTPUT_TAIL_LINES = 40
 TEST_DIRS = {"tests", "test"}
 # Collected test-support files: overlaid on BASE, never passed to pytest.
 SUPPORT_NAMES = {"conftest.py", "__init__.py"}
+# Files that make their directory a Python project root.
+PROJECT_MARKERS = ("pyproject.toml", "requirements.txt", "setup.cfg", "setup.py", "manage.py")
 
 
 class GitError(Exception):
@@ -74,10 +83,35 @@ def _resolve_trees(repo: str) -> dict | None:
         if not has_head and not changes["files"]:
             return None  # no commits and nothing staged
         return {"mode": "staged", "base": "HEAD" if has_head else None,
-                "candidate": None, "changed": changes["files"]}
+                "candidate": None, "changed": changes["files"], "snapshot": changes["mode"]}
 
     base = "HEAD~1" if _rev_exists(repo, "HEAD~1") else None
-    return {"mode": "manual", "base": base, "candidate": "HEAD", "changed": changes["files"]}
+    return {"mode": "manual", "base": base, "candidate": "HEAD", "changed": changes["files"],
+            "snapshot": changes["mode"]}
+
+
+def _project_root(rel: str, files: set) -> str:
+    """Nearest ancestor dir of rel holding a project marker; "." for the repository root."""
+    parts = pathlib.PurePosixPath(rel).parts[:-1]
+    for depth in range(len(parts), 0, -1):
+        root = "/".join(parts[:depth])
+        if any(f"{root}/{marker}" in files for marker in PROJECT_MARKERS):
+            return root
+    return "."
+
+
+def _by_root(repo: str, trees: dict) -> dict:
+    """Changed .py files grouped by project root (insertion order: first seen)."""
+    files = set(_changes.list_files(repo, trees["snapshot"]))
+    roots: dict = {}
+    for rel in trees["changed"]:
+        if rel.endswith(".py"):
+            roots.setdefault(_project_root(rel, files), []).append(rel)
+    return roots
+
+
+def _relative(rel: str, root: str) -> str:
+    return rel if root == "." else rel[len(root) + 1:]
 
 
 def _is_test_path(rel: str) -> bool:
@@ -177,49 +211,132 @@ def _result(exit_code: int, data: dict, skipped: bool = False) -> dict:
     return {"exit_code": exit_code, "skipped": skipped, "name": NAME, "data": data}
 
 
-def _verify(repo: str, trees: dict, groups: dict, data: dict) -> dict:
-    if importlib.util.find_spec("pytest") is None:
+def _pytest_missing(data: dict) -> dict | None:
+    if importlib.util.find_spec("pytest") is not None:
+        return None
+    data["message"] = (
+        f"pytest is not importable by {sys.executable}: red->green cannot be verified. "
+        "Install it with `pip install pytest`."
+    )
+    return _result(1, data)
+
+
+def _materialize_trees(repo: str, trees: dict, tmp: str) -> tuple:
+    candidate_dir = os.path.join(tmp, "candidate")
+    base_dir = os.path.join(tmp, "base")
+    os.makedirs(candidate_dir)
+    os.makedirs(base_dir)
+    _materialize(repo, trees["candidate"], candidate_dir)
+    if trees["base"] is not None:
+        _materialize(repo, trees["base"], base_dir)
+    return candidate_dir, base_dir
+
+
+def _red_green(candidate_root: str, base_root: str, root: str, groups: dict, data: dict) -> dict:
+    """Green on CANDIDATE, then red on BASE + the changed tests, inside one project root."""
+    run_files = [_relative(f, root) for f in groups["tests"]]
+    overlay_files = [_relative(f, root) for f in groups["tests"] + groups["support"]]
+    candidate_dir = candidate_root if root == "." else os.path.join(candidate_root, root)
+    base_dir = base_root if root == "." else os.path.join(base_root, root)
+    os.makedirs(base_dir, exist_ok=True)
+
+    green = _run_pytest(candidate_dir, run_files)
+    data["green"] = green
+    if green["exit_code"] != 0:
+        reason = "timed out" if green["timed_out"] else f"pytest exit {green['exit_code']}"
+        data["message"] = f"Changed tests do not pass with the change ({reason})."
+        return _result(1, data)
+
+    _overlay(candidate_dir, base_dir, overlay_files)
+    red = _run_pytest(base_dir, run_files)
+    data["red"] = red
+    if red["exit_code"] in (1, 2):
         data["message"] = (
-            f"pytest is not importable by {sys.executable}: red->green cannot be verified. "
-            "Install it with `pip install pytest`."
+            f"TDD red->green verified: {len(run_files)} test file(s) fail without the change "
+            f"and pass with it."
+        )
+        return _result(0, data)
+    if red["exit_code"] == 0:
+        data["message"] = (
+            "Changed tests pass without the change: they do not prove the new behavior."
         )
         return _result(1, data)
+    reason = "timed out" if red["timed_out"] else f"pytest exit {red['exit_code']}"
+    data["message"] = f"Red run on BASE did not fail cleanly ({reason}); see red output."
+    return _result(1, data)
 
-    run_files = groups["tests"]
-    overlay_files = groups["tests"] + groups["support"]
+
+def _verify(repo: str, trees: dict, groups: dict, data: dict, root: str = ".") -> dict:
+    missing = _pytest_missing(data)
+    if missing:
+        return missing
     with tempfile.TemporaryDirectory(prefix="clc-verify-tdd-") as tmp:
-        candidate_dir = os.path.join(tmp, "candidate")
-        base_dir = os.path.join(tmp, "base")
-        os.makedirs(candidate_dir)
-        os.makedirs(base_dir)
-        _materialize(repo, trees["candidate"], candidate_dir)
-        if trees["base"] is not None:
-            _materialize(repo, trees["base"], base_dir)
+        candidate_dir, base_dir = _materialize_trees(repo, trees, tmp)
+        return _red_green(candidate_dir, base_dir, root, groups, data)
 
-        green = _run_pytest(candidate_dir, run_files)
-        data["green"] = green
-        if green["exit_code"] != 0:
-            reason = "timed out" if green["timed_out"] else f"pytest exit {green['exit_code']}"
-            data["message"] = f"Changed tests do not pass with the change ({reason})."
-            return _result(1, data)
 
-        _overlay(candidate_dir, base_dir, overlay_files)
-        red = _run_pytest(base_dir, run_files)
-        data["red"] = red
-        if red["exit_code"] in (1, 2):
-            data["message"] = (
-                f"TDD red->green verified: {len(run_files)} test file(s) fail without the change "
-                f"and pass with it."
-            )
-            return _result(0, data)
-        if red["exit_code"] == 0:
-            data["message"] = (
-                "Changed tests pass without the change: they do not prove the new behavior."
-            )
-            return _result(1, data)
-        reason = "timed out" if red["timed_out"] else f"pytest exit {red['exit_code']}"
-        data["message"] = f"Red run on BASE did not fail cleanly ({reason}); see red output."
+def _precheck(groups: dict, data: dict, lang_label: str = "Python") -> dict | None:
+    """Outcome decided without running tests, or None when red/green must run."""
+    if not groups["code"]:
+        if groups["tests"]:
+            data["message"] = "Only tests changed: characterization tests allowed."
+            data["warning"] = "No production code changed, so red->green was not verified."
+        else:
+            data["message"] = f"No {lang_label} production code changed: nothing to verify."
+        return _result(0, data)
+    if not groups["tests"]:
+        data["message"] = (
+            f"No test evidence: {len(groups['code'])} {lang_label} code file(s) changed "
+            "without any changed test file."
+        )
         return _result(1, data)
+    return None
+
+
+def _group_data(root: str, groups: dict) -> dict:
+    return {
+        "root": root,
+        "changed_tests": groups["tests"],
+        "changed_support": groups["support"],
+        "changed_code": groups["code"],
+    }
+
+
+def _verify_roots(repo: str, trees: dict, roots: dict, data: dict) -> dict:
+    """Several project roots: each group passes on its own, or the change fails."""
+    results = []
+    pending = []
+    for root, files in roots.items():
+        groups = _classify(files)
+        gdata = _group_data(root, groups)
+        early = _precheck(groups, gdata)
+        if early is not None and early["exit_code"] == 1:
+            gdata["message"] = (
+                f"No test evidence: {len(groups['code'])} Python code file(s) changed in {root} "
+                f"without any changed test file in {root}."
+            )
+        results.append((root, groups, gdata, early))
+        if early is None:
+            pending.append(len(results) - 1)
+
+    if pending:
+        missing = _pytest_missing({})
+        try:
+            with tempfile.TemporaryDirectory(prefix="clc-verify-tdd-") as tmp:
+                candidate_dir, base_dir = (None, None) if missing else _materialize_trees(repo, trees, tmp)
+                for idx in pending:
+                    root, groups, gdata, _ = results[idx]
+                    outcome = _pytest_missing(gdata) or _red_green(candidate_dir, base_dir, root, groups, gdata)
+                    results[idx] = (root, groups, gdata, outcome)
+        except (GitError, OSError) as exc:
+            data["message"] = f"Could not materialize the trees to verify: {exc}"
+            return _result(1, data)
+
+    data["groups"] = [dict(gdata, exit_code=outcome["exit_code"]) for _, _, gdata, outcome in results]
+    failed = [g for g in data["groups"] if g["exit_code"] != 0]
+    shown = failed or data["groups"]
+    data["message"] = " ".join(f"[{g['root']}] {g['message']}" for g in shown)
+    return _result(1 if failed else 0, data)
 
 
 def check(target_dir: str | None = None) -> dict:
@@ -250,23 +367,19 @@ def check(target_dir: str | None = None) -> dict:
         "changed_code": groups["code"],
     }
 
-    if not groups["code"]:
-        if groups["tests"]:
-            data["message"] = "Only tests changed: characterization tests allowed."
-            data["warning"] = "No production code changed, so red->green was not verified."
-        else:
-            data["message"] = "No Python production code changed: nothing to verify."
-        return _result(0, data)
+    roots = _by_root(repo, trees)
+    if len(roots) > 1:
+        return _verify_roots(repo, trees, roots, data)
+    root = next(iter(roots), ".")
+    if root != ".":
+        data["root"] = root
 
-    if not groups["tests"]:
-        data["message"] = (
-            f"No test evidence: {len(groups['code'])} Python code file(s) changed "
-            "without any changed test file."
-        )
-        return _result(1, data)
+    early = _precheck(groups, data)
+    if early is not None:
+        return early
 
     try:
-        return _verify(repo, trees, groups, data)
+        return _verify(repo, trees, groups, data, root)
     except (GitError, OSError) as exc:
         data["message"] = f"Could not materialize the trees to verify: {exc}"
         return _result(1, data)

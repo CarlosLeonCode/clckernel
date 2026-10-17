@@ -230,6 +230,89 @@ function generateHookFromManifest(adapter, targetDir, tools = adapter.getTools()
   return writeHook(targetDir, adapter.projectType === 'frontend', commands, `Running CLC Kernel ${adapter.name} Safeguards...`);
 }
 
+/** Single-quoted shell word (part dirs are already restricted to safe names). */
+function shellQuote(value) {
+  return `'${String(value).replace(/'/g, "'\\''")}'`;
+}
+
+/**
+ * Hook line for an external tool of a part (sdds/fullstack-monorepo,
+ * decision 4): it runs inside the part's dir, in a subshell so the cd does
+ * not leak. A failing tool fails the subshell, and with it the hook under
+ * `set -e`; a missing one prints a skip notice naming the dir.
+ * @param {object} tool - External tool descriptor
+ * @param {string} dir - Part dir relative to the root ('.' for the root)
+ * @param {string[]} managed - Registered harness files (root-relative)
+ * @returns {string}
+ */
+function partGuardedCommand(tool, dir, managed = []) {
+  // Exclusions are relative to where the tool runs: only harness files inside the part apply.
+  const local = dir === '.' ? managed : managed
+    .filter(f => f.startsWith(`${dir}/`))
+    .map(f => f.slice(dir.length + 1));
+  const body = `if ${availabilityCondition(tool)} >/dev/null 2>&1; then ${withManagedExcludes(tool, local)}; ` +
+    `else echo "clckernel: ${tool.name} (${dir}) not available, skipped"; fi`;
+  return dir === '.' ? body : `( cd ${shellQuote(dir)} && ${body} )`;
+}
+
+/**
+ * Tool manifest of a multi-part repo (sdds/fullstack-monorepo, decision 3):
+ * the guards of every part, once each (by file), with the technology tools
+ * before the user-defined rules (check_custom), then each part's external
+ * tools tagged with the part dir.
+ * @param {Array<{dir: string, adapter: object}>} parts - config.parts
+ * @param {Array} techTools - Tools for detected technologies
+ * @param {string} targetDir - Project root
+ * @returns {{ guards: Array, externals: Array<{tool: object, dir: string}> }}
+ */
+function buildPartsManifest(parts, techTools, targetDir) {
+  const guards = [];
+  const custom = [];
+  const externals = [];
+  const seen = new Set();
+  const add = (list, tool) => {
+    const key = tool.path || `${tool.name}:${tool.command}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    list.push(tool);
+  };
+  for (const part of parts) {
+    for (const tool of part.adapter.getTools(path.join(targetDir, part.dir))) {
+      if (tool.language === 'external') {
+        const key = `${part.dir}\0${tool.name}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          externals.push({ tool, dir: part.dir });
+        }
+      } else {
+        add(tool.name === 'check_custom' ? custom : guards, tool);
+      }
+    }
+  }
+  for (const tool of techTools) add(guards, tool);
+  return { guards: [...guards, ...custom], externals };
+}
+
+/**
+ * Writes the hook of a multi-part repo: every guard once from the root, then
+ * each part's external tools in its dir. The hook goes to .husky only when a
+ * part is frontend and Husky is active (same rule as a single stack).
+ * @param {object} config - Multi-part config
+ * @param {string} targetDir - Project root
+ * @param {{ guards: Array, externals: Array }} manifest - From buildPartsManifest
+ * @param {string[]} managed - Registered harness files
+ * @returns {{ file: string, active: boolean }}
+ */
+function generatePartsHook(config, targetDir, manifest, managed) {
+  const commands = [
+    ...manifest.guards.filter(tool => tool.command).map(tool => tool.command),
+    ...manifest.externals.map(({ tool, dir }) => partGuardedCommand(tool, dir, managed)),
+  ];
+  const isFront = config.parts.some(p => p.adapter.projectType === 'frontend');
+  const names = [...new Set(config.parts.map(p => p.adapter.name))].join(' + ');
+  return writeHook(targetDir, isFront, commands, `Running CLC Kernel ${names} Safeguards...`);
+}
+
 /** Audit orchestrator that discovers guards of each language. */
 const ORCHESTRATORS = { '.js': 'audit.js', '.py': 'audit.py' };
 
@@ -483,6 +566,79 @@ function generateConfigPathHarness(targetDir, configOrNull) {
 }
 
 /**
+ * AGENTS.md of a multi-part repo (sdds/fullstack-monorepo, decision 6): one
+ * law with a table of the parts and each part's stack rules grouped.
+ * @param {object} config - Multi-part config
+ * @returns {string}
+ */
+function partsAgentsMd(config) {
+  const testRunner = "the part's test runner (see Parts)";
+  const rows = config.parts.map(p => `| \`${p.dir}\` | ${p.adapter.name} | ${p.adapter.testRunner} |`).join('\n');
+  const sections = config.parts.map((p, i) => `### 2.${i + 1} Core AI Safeguards — \`${p.dir}\` (${p.adapter.name})
+${p.adapter.getSafeguards().map(s => `- ${s}`).join('\n')}`).join('\n\n');
+  return `# CLC Kernel ${config.projectType.toUpperCase()} (${config.parts.length} parts) — AGENTS
+
+This document is the **authoritative law** for AI agents working in this repository.
+Forged by **CLC Kernel: The AI Agent Governance Engine**.
+
+> **RULE #0: MANDATORY EXECUTION OVERRIDE RULE (NO EXCEPTIONS)**
+> Even when the user issues a direct or urgent fix request ("fix this bug", "fix this error", "quick fix"):
+> YOU ARE STRICTLY FORBIDDEN from modifying source code directly without completing the full quality harness:
+> 1. **Research & Root Cause Analysis:** Investigate tracebacks and inspect affected files before editing.
+> 2. **TDD Verification (Red Phase):** Write a failing regression test first (${testRunner}).
+> 3. **Clean Architecture Implementation (Green Phase):** Make the test pass maintaining layer isolation.
+> 4. **Mandatory Educational Audit Gate:** Execute \`node tools/audit.js\` or \`python tools/audit.py\` and output the Educational Code Summary to stdout.
+> NEVER declare success or skip verification commands for quick fixes.
+
+## Parts
+This repository has ${config.parts.length} code parts. The guards in \`tools/\` run once from the repository root; each part's external tools (linters, test runners) run inside the part's directory. A changed file's tests belong to the same part as the file.
+
+| Directory | Stack | Test runner |
+|---|---|---|
+${rows}
+
+## 1. The Loop (Every Task)
+1. **Research** — Inspect codebase / docs before writing code.
+2. **Plan** — Write an SDD under \`sdds/{change-name}/\`. SDDs live 100% locally and are gitignored.
+3. **Test** (TDD) — Write failing test first (${testRunner}).
+4. **Implement** — Make test pass.
+5. **Verify & Audit** — Run \`node tools/audit.js\` or \`python tools/audit.py\`.
+6. **DoD** — Lint, typecheck, tests, coverage, docs, memory.
+7. **Commit** — Pre-commit hook runs automated guards.
+8. **PR** — Generate PR body.
+
+## 2. Core AI Safeguards (per part)
+
+${sections}
+
+${commandTable(testRunner)}`;
+}
+
+/**
+ * The "Universal Command Interface" section shared by the generated AGENTS.md
+ * files (fallback and multi-part). `clckernel update` looks for its rows.
+ * @param {string} testRunner - Shown in the `clckernel test` row
+ * @returns {string}
+ */
+function commandTable(testRunner) {
+  return `## 3. Universal Command Interface (All LLMs & Agents)
+When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`, execute the deterministic state machine below:
+
+| Command | Lifecycle Phase | Mandatory Execution Protocol |
+|---|---|---|
+| \`clckernel feature <name>\` | New Feature | 1. Research affected layers.<br>2. Author local spec in \`sdds/{name}/spec.md\`.<br>3. Present HIT review to user and wait for approval.<br>4. Write failing test (Red Phase).<br>5. Implement clean code (Green Phase).<br>6. Run \`node tools/audit.js\` (or \`audit.py\`). |
+| \`clckernel fix <issue>\` | Bug Fix | 1. Investigate root cause (no code edits).<br>2. Reproduce with failing test (Red Phase).<br>3. Minimal surgical fix respecting Clean Arch (Green Phase).<br>4. Run audit gate without skipping. |
+| \`clckernel test\` | Verification | Run test suite (\`${testRunner}\`) and verify clean pass (exit code 0). |
+| \`clckernel audit\` | Verification | Run \`node tools/audit.js\` or \`python tools/audit.py\` and output the Educational Summary. |
+| \`clckernel doctor\` | Diagnostics | Check git pre-commit hooks, IDE symlinks, and guard script integrity. |
+| \`clckernel commit <message>\` | Version Control | Run full audit, verify tests pass, ensure no changes outside SDD scope, and commit with conventional commits (never add AI attribution). |
+| \`clckernel guard create <name>\` | Safeguards | Scaffold a new guard script in the stack's native language in \`tools/guards/\`. |
+| \`clckernel update\` | Maintenance | Non-destructive update: refresh core tools, playbooks & symlinks (preserves SDDs & custom guards). |
+| \`clckernel start\` | Setup | Scan codebase, propose governance plan, and materialize \`.clckernel.yaml\`. |
+`;
+}
+
+/**
  * Generate a harness for a target project.
  * When the optional `configOrNull` is null (or an adapter-detected config
  * without extended-schema keys) the legacy path runs UNCHANGED. A config
@@ -499,8 +655,17 @@ function generateHarness(targetDir, configOrNull) {
   // detected config — defaults only kick in for a bare null).
   const config = configOrNull || {};
 
+  const multiPart = Array.isArray(config.parts) && config.parts.length > 0;
+
   // Step 1: Provision directories + AGENTS.md
-  if (config.adapter) {
+  if (multiPart) {
+    // Directories and .gitignore as any adapter provisions them; the law file
+    // is the multi-part one, never written over a project's own AGENTS.md.
+    config.parts[0].adapter.provision(targetDir, { ...config, skipAgentsMd: true });
+    if (!fs.existsSync(path.join(targetDir, 'AGENTS.md'))) {
+      fs.writeFileSync(path.join(targetDir, 'AGENTS.md'), partsAgentsMd(config), 'utf-8');
+    }
+  } else if (config.adapter) {
     config.adapter.provision(targetDir, config);
   } else {
     // Fallback: create directory structure + AGENTS.md
@@ -568,21 +733,7 @@ ${isFront ? `- UI Component Reuse First (components/ui/ & semantic tokens)
 - Migration Reversibility protocol (agent-enforced; no migration guard installed for this stack)
 - Memory protocol (agent-enforced; Engram / Graphify optional, not checked by a guard)`}
 
-## 3. Universal Command Interface (All LLMs & Agents)
-When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`, execute the deterministic state machine below:
-
-| Command | Lifecycle Phase | Mandatory Execution Protocol |
-|---|---|---|
-| \`clckernel feature <name>\` | New Feature | 1. Research affected layers.<br>2. Author local spec in \`sdds/{name}/spec.md\`.<br>3. Present HIT review to user and wait for approval.<br>4. Write failing test (Red Phase).<br>5. Implement clean code (Green Phase).<br>6. Run \`node tools/audit.js\` (or \`audit.py\`). |
-| \`clckernel fix <issue>\` | Bug Fix | 1. Investigate root cause (no code edits).<br>2. Reproduce with failing test (Red Phase).<br>3. Minimal surgical fix respecting Clean Arch (Green Phase).<br>4. Run audit gate without skipping. |
-| \`clckernel test\` | Verification | Run test suite (\`${testRunner}\`) and verify clean pass (exit code 0). |
-| \`clckernel audit\` | Verification | Run \`node tools/audit.js\` or \`python tools/audit.py\` and output the Educational Summary. |
-| \`clckernel doctor\` | Diagnostics | Check git pre-commit hooks, IDE symlinks, and guard script integrity. |
-| \`clckernel commit <message>\` | Version Control | Run full audit, verify tests pass, ensure no changes outside SDD scope, and commit with conventional commits (never add AI attribution). |
-| \`clckernel guard create <name>\` | Safeguards | Scaffold a new guard script in the stack's native language in \`tools/guards/\`. |
-| \`clckernel update\` | Maintenance | Non-destructive update: refresh core tools, playbooks & symlinks (preserves SDDs & custom guards). |
-| \`clckernel start\` | Setup | Scan codebase, propose governance plan, and materialize \`.clckernel.yaml\`. |
-`;
+${commandTable(testRunner)}`;
     // Guard: never overwrite an existing project-customized AGENTS.md.
     // This prevents clckernel update from replacing Laila MOS invariants
     // (carousel format, one-question-onboarding, dynamic calendar, immutability).
@@ -598,7 +749,13 @@ When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`,
   // is generated, so whole-project linters can exclude those files.
   let installedGuards;
   let hook;
-  if (config.adapter) {
+  if (multiPart) {
+    const manifest = buildPartsManifest(config.parts, config.techTools || [], targetDir);
+    const { installed, written } = installToolsFromManifest(targetDir, manifest.guards, config);
+    installedGuards = installed;
+    const managed = writeManagedRegistry(targetDir, written);
+    hook = generatePartsHook(config, targetDir, manifest, managed);
+  } else if (config.adapter) {
     const manifest = buildToolManifest(config.adapter, config.techTools || [], targetDir);
     const { installed, written } = installToolsFromManifest(targetDir, manifest, config);
     installedGuards = installed;

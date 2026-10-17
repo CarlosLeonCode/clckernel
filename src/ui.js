@@ -142,6 +142,17 @@ async function promptOptions(detected, options = {}) {
 }
 
 /**
+ * One line per part of a multi-part config: `dir: framework (test runner)`.
+ * Empty for a single-stack config, whose summary stays as it was.
+ * @param {object} config - Project config
+ * @returns {string[]}
+ */
+function partLines(config) {
+  if (!config || !Array.isArray(config.parts)) return [];
+  return config.parts.map((part) => `${part.dir}: ${part.framework} (${part.testRunner})`);
+}
+
+/**
  * Prints the installation summary.
  * @param {string} targetDir - Provisioned project root
  * @param {{ file: string, active: boolean }} [hook] - Hook written (relative path)
@@ -163,7 +174,9 @@ function printSuccess(targetDir, hook, config, installedGuards = []) {
     `🔨 ${colors.bold}Proyecto Inicializado:${colors.reset} ${colors.cyan}${targetDir}${colors.reset}`,
     `🛡️  ${colors.bold}Salvaguardas:${colors.reset} ${guardsDesc}`,
     `📝 ${colors.bold}Leyes & SDD:${colors.reset} AGENTS.md, sdds/, docs/Journal/ precargados`,
-    `🔒 ${colors.bold}Git Hooks:${colors.reset} ${hookDesc}`
+    `🔒 ${colors.bold}Git Hooks:${colors.reset} ${hookDesc}`,
+    ...(partLines(config).length > 0 ? [`🧩 ${colors.bold}Partes:${colors.reset}`] : []),
+    ...partLines(config).map((line) => `   • ${line}`)
   ].join('\n');
 
   if (p.note && p.outro) {
@@ -180,5 +193,6 @@ module.exports = {
   printBanner,
   printBox,
   promptOptions,
-  printSuccess
+  printSuccess,
+  partLines
 };

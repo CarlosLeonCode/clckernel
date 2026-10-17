@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { autoDetectStack } = require('./detector');
-const { printBanner, printBox, promptOptions, printSuccess, colors } = require('./ui');
+const { printBanner, printBox, promptOptions, printSuccess, partLines, colors } = require('./ui');
 const { generateHarness } = require('./generator');
 const { runDoctor } = require('./doctor');
 
@@ -250,7 +250,9 @@ async function runCli() {
     { label: '🚀 Framework', value: detected.framework, badgeColor: colors.emerald },
     { label: '🎨 Estilos & UI', value: `${detected.styling} (${detected.uiLibrary})`, badgeColor: colors.violet },
     { label: '🧪 Test Runner', value: detected.testRunner, badgeColor: colors.cyan },
-    { label: '🔒 Git Hooks', value: detected.gitHooks, badgeColor: colors.blue }
+    { label: '🔒 Git Hooks', value: detected.gitHooks, badgeColor: colors.blue },
+    // Multi-part repos (sdds/fullstack-monorepo): one row per part.
+    ...partLines(detected).map((line) => ({ label: '🧩 Parte', value: line, badgeColor: colors.emerald }))
   ]);
 
   // 4. Prompt User for Confirmation or Override

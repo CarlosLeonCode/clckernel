@@ -14,6 +14,14 @@
  * never touched. The project's node_modules is symlinked into each tree
  * (read-only use; nothing is installed) and only the link is removed.
  *
+ * Each changed file belongs to its project root: the nearest ancestor (inside
+ * the repository) holding a package.json, else the repository root. Files are
+ * grouped by root and each group is verified on its own, with cwd = that root
+ * in the temporary tree, the runner of that root's package.json, and that
+ * root's node_modules (or the repository root's, for hoisted workspaces). A
+ * group whose code changed without a changed test in the same group fails.
+ * With a single root the result is the same as a whole-repository run.
+ *
  * Self-contained: uses only Node.js built-ins. Commands run with argument
  * arrays, never through a shell.
  */
@@ -21,7 +29,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { changedFiles } = require('./_changes');
+const { changedFiles, listFiles } = require('./_changes');
 
 const NAME = 'verify_tdd';
 const DEFAULT_TIMEOUT = 300;
@@ -68,10 +76,37 @@ function resolveTrees(repo) {
 
   if (changes.mode === 'staged') {
     if (!hasHead && changes.files.length === 0) return null; // no commits and nothing staged
-    return { mode: 'staged', base: hasHead ? 'HEAD' : null, candidate: null, changed: changes.files };
+    return { mode: 'staged', base: hasHead ? 'HEAD' : null, candidate: null, changed: changes.files, snapshot: changes.mode };
   }
   const base = revExists(repo, 'HEAD~1') ? 'HEAD~1' : null;
-  return { mode: 'manual', base, candidate: 'HEAD', changed: changes.files };
+  return { mode: 'manual', base, candidate: 'HEAD', changed: changes.files, snapshot: changes.mode };
+}
+
+/** Nearest ancestor dir of rel holding a package.json; '.' for the repository root. */
+function projectRoot(rel, files) {
+  const dirs = rel.split('/').slice(0, -1);
+  for (let depth = dirs.length; depth > 0; depth -= 1) {
+    const root = dirs.slice(0, depth).join('/');
+    if (files.has(`${root}/package.json`)) return root;
+  }
+  return '.';
+}
+
+/** Changed JS/TS files grouped by project root (Map, first seen first). */
+function byRoot(repo, trees) {
+  const files = new Set(listFiles(repo, trees.snapshot));
+  const roots = new Map();
+  for (const rel of trees.changed) {
+    if (!JS_EXTENSIONS.includes(path.posix.extname(rel))) continue;
+    const root = projectRoot(rel, files);
+    if (!roots.has(root)) roots.set(root, []);
+    roots.get(root).push(rel);
+  }
+  return roots;
+}
+
+function relative(rel, root) {
+  return root === '.' ? rel : rel.slice(root.length + 1);
 }
 
 /**
@@ -119,10 +154,15 @@ function materialize(repo, rev, dest) {
   }
 }
 
-/** Symlink the project's node_modules into a tree; returns the link path or null. */
-function linkNodeModules(repo, tree) {
-  const target = path.join(repo, 'node_modules');
-  const link = path.join(tree, 'node_modules');
+/**
+ * Symlink the project's node_modules into a tree; returns the link path or null.
+ * For a project root below the repository root, its own node_modules is used
+ * when installed, else the repository root's (hoisted workspaces).
+ */
+function linkNodeModules(repo, tree, root = '.') {
+  const own = path.join(repo, root, 'node_modules');
+  const target = root !== '.' && !fs.existsSync(own) ? path.join(repo, 'node_modules') : own;
+  const link = path.join(tree, root, 'node_modules');
   if (!fs.existsSync(target) || fs.existsSync(link)) return null;
   fs.symlinkSync(target, link, process.platform === 'win32' ? 'junction' : 'dir');
   return link;
@@ -236,64 +276,146 @@ function result(exitCode, data, skipped = false) {
   return { exitCode, skipped, name: NAME, data };
 }
 
-function verify(repo, trees, groups, data) {
-  const runFiles = groups.tests;
-  const overlayFiles = groups.tests.concat(groups.support);
+/** Materialize CANDIDATE and BASE into tmp, with the repository root's node_modules linked. */
+function materializeTrees(repo, trees, tmp, links) {
+  const candidateDir = path.join(tmp, 'candidate');
+  const baseDir = path.join(tmp, 'base');
+  fs.mkdirSync(candidateDir);
+  fs.mkdirSync(baseDir);
+  materialize(repo, trees.candidate, candidateDir);
+  if (trees.base !== null) materialize(repo, trees.base, baseDir);
+  for (const dir of [candidateDir, baseDir]) {
+    const link = linkNodeModules(repo, dir);
+    if (link) links.push(link);
+  }
+  return { candidateDir, baseDir };
+}
+
+/** Green on CANDIDATE, then red on BASE + the changed tests, inside one project root. */
+function redGreen(repo, candidateRoot, baseRoot, root, groups, data, links) {
+  const runFiles = groups.tests.map((f) => relative(f, root));
+  const overlayFiles = groups.tests.concat(groups.support).map((f) => relative(f, root));
+  const candidateDir = path.join(candidateRoot, root);
+  const baseDir = path.join(baseRoot, root);
+  if (root !== '.') {
+    fs.mkdirSync(baseDir, { recursive: true });
+    for (const dir of [candidateRoot, baseRoot]) {
+      const link = linkNodeModules(repo, dir, root);
+      if (link) links.push(link);
+    }
+  }
+
+  const runner = detectRunner(candidateDir, runFiles);
+  data.runner = runner.name;
+  if (runner.error) {
+    data.message = runner.error;
+    return result(1, data);
+  }
+
+  const green = runTests(candidateDir, runner);
+  data.green = green;
+  if (green.exit_code !== 0) {
+    data.message = `Changed tests do not pass with the change (${runLabel(runner, green)}).`;
+    return result(1, data);
+  }
+  if (runner.name === 'node:test' && !(green.tests > 0)) {
+    data.message = 'Changed tests do not pass with the change (no tests executed).';
+    return result(1, data);
+  }
+
+  overlay(candidateDir, baseDir, overlayFiles);
+  const red = runTests(baseDir, runner);
+  data.red = red;
+  if (red.exit_code !== null && red.exit_code !== 0) {
+    data.message =
+      `TDD red->green verified: ${runFiles.length} test file(s) fail without the change ` +
+      'and pass with it.';
+    return result(0, data);
+  }
+  if (red.exit_code === 0) {
+    data.message = 'Changed tests pass without the change: they do not prove the new behavior.';
+    return result(1, data);
+  }
+  data.message = `Red run on BASE did not fail cleanly (${runLabel(runner, red)}); see red output.`;
+  return result(1, data);
+}
+
+/**
+ * Runs fn(candidateDir, baseDir, links) over freshly materialized trees and
+ * cleans up: the links first (never their targets; rmSync does not follow
+ * symlinks either, this only makes the intent explicit), then the trees.
+ */
+function withTrees(repo, trees, fn) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'clc-verify-tdd-'));
   const links = [];
   try {
-    const candidateDir = path.join(tmp, 'candidate');
-    const baseDir = path.join(tmp, 'base');
-    fs.mkdirSync(candidateDir);
-    fs.mkdirSync(baseDir);
-    materialize(repo, trees.candidate, candidateDir);
-    if (trees.base !== null) materialize(repo, trees.base, baseDir);
-    for (const dir of [candidateDir, baseDir]) {
-      const link = linkNodeModules(repo, dir);
-      if (link) links.push(link);
-    }
-
-    const runner = detectRunner(candidateDir, runFiles);
-    data.runner = runner.name;
-    if (runner.error) {
-      data.message = runner.error;
-      return result(1, data);
-    }
-
-    const green = runTests(candidateDir, runner);
-    data.green = green;
-    if (green.exit_code !== 0) {
-      data.message = `Changed tests do not pass with the change (${runLabel(runner, green)}).`;
-      return result(1, data);
-    }
-    if (runner.name === 'node:test' && !(green.tests > 0)) {
-      data.message = 'Changed tests do not pass with the change (no tests executed).';
-      return result(1, data);
-    }
-
-    overlay(candidateDir, baseDir, overlayFiles);
-    const red = runTests(baseDir, runner);
-    data.red = red;
-    if (red.exit_code !== null && red.exit_code !== 0) {
-      data.message =
-        `TDD red->green verified: ${runFiles.length} test file(s) fail without the change ` +
-        'and pass with it.';
-      return result(0, data);
-    }
-    if (red.exit_code === 0) {
-      data.message = 'Changed tests pass without the change: they do not prove the new behavior.';
-      return result(1, data);
-    }
-    data.message = `Red run on BASE did not fail cleanly (${runLabel(runner, red)}); see red output.`;
-    return result(1, data);
+    const { candidateDir, baseDir } = materializeTrees(repo, trees, tmp, links);
+    return fn(candidateDir, baseDir, links);
   } finally {
-    // Remove the links first (never their targets); rmSync does not follow
-    // symlinks either, this only makes the intent explicit.
     for (const link of links) {
       try { fs.unlinkSync(link); } catch { /* already gone */ }
     }
     fs.rmSync(tmp, { recursive: true, force: true });
   }
+}
+
+function verify(repo, trees, groups, data, root = '.') {
+  return withTrees(repo, trees, (candidateDir, baseDir, links) =>
+    redGreen(repo, candidateDir, baseDir, root, groups, data, links));
+}
+
+/** Outcome decided without running tests, or null when red/green must run. */
+function precheck(groups, data) {
+  if (groups.code.length === 0) {
+    if (groups.tests.length > 0) {
+      data.message = 'Only tests changed: characterization tests allowed.';
+      data.warning = 'No production code changed, so red->green was not verified.';
+    } else {
+      data.message = 'No JS/TS production code changed: nothing to verify.';
+    }
+    return result(0, data);
+  }
+  if (groups.tests.length === 0) {
+    data.message =
+      `No test evidence: ${groups.code.length} JS/TS code file(s) changed ` +
+      'without any changed test file.';
+    return result(1, data);
+  }
+  return null;
+}
+
+/** Several project roots: each group passes on its own, or the change fails. */
+function verifyRoots(repo, trees, roots, data) {
+  const entries = [...roots].map(([root, files]) => {
+    const groups = classify(files);
+    const gdata = { root, changed_tests: groups.tests, changed_support: groups.support, changed_code: groups.code };
+    const outcome = precheck(groups, gdata);
+    if (outcome && outcome.exitCode === 1) {
+      gdata.message =
+        `No test evidence: ${groups.code.length} JS/TS code file(s) changed in ${root} ` +
+        `without any changed test file in ${root}.`;
+    }
+    return { root, groups, gdata, outcome };
+  });
+
+  const pending = entries.filter((e) => e.outcome === null);
+  if (pending.length > 0) {
+    try {
+      withTrees(repo, trees, (candidateDir, baseDir, links) => {
+        for (const entry of pending) {
+          entry.outcome = redGreen(repo, candidateDir, baseDir, entry.root, entry.groups, entry.gdata, links);
+        }
+      });
+    } catch (err) {
+      data.message = `Could not materialize the trees to verify: ${err.message}`;
+      return result(1, data);
+    }
+  }
+
+  data.groups = entries.map((e) => ({ ...e.gdata, exit_code: e.outcome.exitCode }));
+  const failed = data.groups.filter((g) => g.exit_code !== 0);
+  data.message = (failed.length > 0 ? failed : data.groups).map((g) => `[${g.root}] ${g.message}`).join(' ');
+  return result(failed.length > 0 ? 1 : 0, data);
 }
 
 /**
@@ -327,25 +449,16 @@ function check(targetDir) {
     changed_code: groups.code,
   };
 
-  if (groups.code.length === 0) {
-    if (groups.tests.length > 0) {
-      data.message = 'Only tests changed: characterization tests allowed.';
-      data.warning = 'No production code changed, so red->green was not verified.';
-    } else {
-      data.message = 'No JS/TS production code changed: nothing to verify.';
-    }
-    return result(0, data);
-  }
+  const roots = byRoot(repo, trees);
+  if (roots.size > 1) return verifyRoots(repo, trees, roots, data);
+  const root = roots.size === 1 ? [...roots.keys()][0] : '.';
+  if (root !== '.') data.root = root;
 
-  if (groups.tests.length === 0) {
-    data.message =
-      `No test evidence: ${groups.code.length} JS/TS code file(s) changed ` +
-      'without any changed test file.';
-    return result(1, data);
-  }
+  const early = precheck(groups, data);
+  if (early) return early;
 
   try {
-    return verify(repo, trees, groups, data);
+    return verify(repo, trees, groups, data, root);
   } catch (err) {
     data.message = `Could not materialize the trees to verify: ${err.message}`;
     return result(1, data);
