@@ -15,15 +15,15 @@ const terms = isEs ? [
     acronym: "AST",
     fullName: "Abstract Syntax Tree (Árbol de Sintaxis Abstracta)",
     category: "Parsing & Linters",
-    definition: "Representación en árbol de la estructura sintáctica del código fuente. Permite inspeccionar imports, llamadas a funciones y consultas a base de datos en milisegundos (<5ms) de forma determinista, superando la fragilidad de expresiones regulares.",
-    badge: "<5ms Engine"
+    definition: "Representación en árbol de la estructura sintáctica del código fuente. Los guards de Python de CLC Kernel (capas, heurística N+1, Celery/Redis/Postgres) analizan el código con el módulo `ast` de Python; el resto de los guards se basa en patrones (regex).",
+    badge: "Python guards"
   },
   {
     id: "term-dod",
     acronym: "DoD",
     fullName: "Definition of Done (Definición de Terminado)",
     category: "Calidad & Rigor",
-    definition: "Criterio de aceptación estricto e inmutable que debe cumplirse antes de autorizar un commit o PR: tests unitarios en verde, 100% de compuertas AST aprobadas, capas aisladas y cero cambios fuera del alcance del SDD.",
+    definition: "Criterio de aceptación estricto e inmutable que debe cumplirse antes de autorizar un commit o PR: tests unitarios en verde, 100% de los guards aprobados, capas aisladas y cero cambios fuera del alcance del SDD.",
     badge: "Quality Gate"
   },
   {
@@ -55,7 +55,7 @@ const terms = isEs ? [
     acronym: "AIUP",
     fullName: "AI Unified Process (Proceso Unificado de IA)",
     category: "Gobernanza",
-    definition: "Marco de trabajo disciplinado que estructura la interacción con agentes en 5 pilares deterministas: Investigación previa, SDD local, TDD Rojo a Verde, Salvaguardas AST y Bloqueo Pre-commit inmutable.",
+    definition: "Marco de trabajo disciplinado que estructura la interacción con agentes en 5 pilares deterministas: Investigación previa, SDD local, TDD Rojo a Verde, guards deterministas y bloqueo en el hook pre-commit (`--no-verify` lo omite; CI actúa como respaldo).",
     badge: "Methodology"
   },
   {
@@ -71,8 +71,8 @@ const terms = isEs ? [
     acronym: "N+1 Query",
     fullName: "Database Loop Anti-Pattern (Consulta N+1)",
     category: "Rendimiento",
-    definition: "Antipatrón crítico donde se ejecutan consultas a la base de datos dentro de un bucle iterativo (for/while). El parser AST de CLC Kernel lo intercepta en milisegundos antes del commit.",
-    badge: "AST Blocked"
+    definition: "Antipatrón crítico donde se ejecutan consultas a la base de datos dentro de un bucle iterativo (for/while). En stacks Python, la heurística N+1 de CLC Kernel (Python AST) marca llamadas tipo ORM dentro de bucles antes del commit.",
+    badge: "Heuristic"
   },
   {
     id: "term-agentos",
@@ -88,15 +88,15 @@ const terms = isEs ? [
     acronym: "AST",
     fullName: "Abstract Syntax Tree",
     category: "Parsing & Linters",
-    definition: "Structural tree representation of source code. CLC Kernel inspects AST nodes natively (<5ms) to catch architecture violations, hardcoded secrets, and performance anti-patterns deterministically without regex flakiness.",
-    badge: "<5ms Engine"
+    definition: "Structural tree representation of source code. CLC Kernel's Python guards (layers, N+1 heuristic, Celery/Redis/Postgres) parse code with Python's `ast` module; the other guards are pattern-based (regex).",
+    badge: "Python guards"
   },
   {
     id: "term-dod",
     acronym: "DoD",
     fullName: "Definition of Done",
     category: "Quality & Rigor",
-    definition: "The strict completion checklist required before marking work as finished: tests passing in green, 100% AST audit score, clean layer boundaries, and zero unverified assumptions.",
+    definition: "The strict completion checklist required before marking work as finished: tests passing in green, 100% guard audit score, clean layer boundaries, and zero unverified assumptions.",
     badge: "Quality Gate"
   },
   {
@@ -128,7 +128,7 @@ const terms = isEs ? [
     acronym: "AIUP",
     fullName: "AI Unified Process",
     category: "Governance",
-    definition: "The 5-stage deterministic engineering discipline implemented by CLC Kernel: Research → SDD Spec → TDD Red-to-Green → Native AST Safeguards → Immutable Pre-commit Lock.",
+    definition: "The 5-stage deterministic engineering discipline implemented by CLC Kernel: Research → SDD Spec → TDD Red-to-Green → Deterministic Guards → Pre-commit hook block (`--no-verify` skips it; CI is the backstop).",
     badge: "Methodology"
   },
   {
@@ -144,8 +144,8 @@ const terms = isEs ? [
     acronym: "N+1 Query",
     fullName: "Database Loop Anti-Pattern",
     category: "Performance",
-    definition: "Performance anti-pattern where a database query is executed inside a loop (for/while). CLC Kernel's AST parser flags this immediately before commit.",
-    badge: "AST Blocked"
+    definition: "Performance anti-pattern where a database query is executed inside a loop (for/while). On Python stacks, CLC Kernel's N+1 heuristic (Python AST) flags ORM-like calls inside loops before commit.",
+    badge: "Heuristic"
   },
   {
     id: "term-agentos",

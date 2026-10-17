@@ -191,7 +191,7 @@ const isEs = lang === 'es';
                 <span>3. Red TDD</span>
               </button>
               <button type="button" data-phase-idx="4" class="chat-tab flex items-center gap-1 py-1 px-2 rounded-lg text-slate-600 font-medium hover:text-slate-900 hover:bg-white/60 transition-all cursor-pointer">
-                <span>4. AST Gate</span>
+                <span>4. Guard Audit</span>
               </button>
               <button type="button" data-phase-idx="5" class="chat-tab flex items-center gap-1 py-1 px-2 rounded-lg text-slate-600 font-medium hover:text-slate-900 hover:bg-white/60 transition-all cursor-pointer">
                 <span>5. Sealed</span>
@@ -339,19 +339,19 @@ const isEs = lang === 'es';
     },
     {
       id: 'ast',
-      title: isSpanish ? 'FASE 4: AUDITORÍA AST NATIVA' : 'PHASE 4: NATIVE AST AUDIT',
-      status: 'AST GUARDS PASSED',
+      title: isSpanish ? 'FASE 4: AUDITORÍA DE GUARDS' : 'PHASE 4: GUARD AUDIT',
+      status: 'GUARDS PASSED',
       html: `
         <div class="space-y-3">
           <div class="flex items-start gap-2.5">
             <div class="w-6 h-6 rounded-full bg-cyan-600 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">🤖</div>
             <div class="bg-slate-50 border border-slate-200 p-3 rounded-2xl rounded-tl-xs w-full space-y-2 font-mono text-[11px] shadow-2xs">
-              <div class="text-slate-500 italic text-[10px] font-sans">${isSpanish ? '🧠 Ejecutando suite determinista de AST en Node.js y Python (<5ms).' : '🧠 Running deterministic native AST suite in Node.js & Python (<5ms).'}</div>
+              <div class="text-slate-500 italic text-[10px] font-sans">${isSpanish ? '🧠 Ejecutando guards deterministas (patrones + Python AST).' : '🧠 Running deterministic guards (pattern-based + Python AST).'}</div>
               <div class="text-indigo-700 font-bold bg-indigo-50/90 px-2 py-1 rounded border border-indigo-200">⚡ Tool Call: run_command("clckernel audit")</div>
               <div class="bg-emerald-50 border border-emerald-200 p-2 rounded text-emerald-900 space-y-1 text-[10px]">
                 <div class="flex items-center justify-between font-semibold"><span>✔ scan_secrets: 0 hardcoded keys in diff</span><span class="text-emerald-700 font-bold">PASS</span></div>
                 <div class="flex items-center justify-between font-semibold"><span>✔ check_architecture: Clean layer isolation</span><span class="text-emerald-700 font-bold">PASS</span></div>
-                <div class="flex items-center justify-between font-semibold"><span>✔ check_db_efficiency: Zero N+1 ORM queries</span><span class="text-emerald-700 font-bold">PASS</span></div>
+                <div class="flex items-center justify-between font-semibold"><span>✔ check_db_efficiency: 0 ORM-like calls in loops (N+1 heuristic)</span><span class="text-emerald-700 font-bold">PASS</span></div>
               </div>
               <div class="text-slate-500 text-[10px] font-medium">↳ Execution time: 2.8ms • Zero npm packages</div>
             </div>
@@ -372,7 +372,7 @@ const isEs = lang === 'es';
               <div class="text-indigo-700 font-bold bg-indigo-50/90 px-2 py-1 rounded border border-indigo-200">⚡ Tool Call: run_command("clckernel commit 'feat(auth): jwt verified'")</div>
               <div class="bg-slate-900 text-white p-2.5 rounded-xl space-y-1 text-[10px]">
                 <div class="text-emerald-400 font-bold">🚀 [clckernel] Pre-commit Hook: EXIT CODE 0</div>
-                <div class="text-slate-300">✔ Clean Architecture • Real TDD • Zero Leaks</div>
+                <div class="text-slate-300">✔ Clean Architecture • Red→Green TDD Verifier • Zero Leaks</div>
               </div>
               <div class="text-emerald-800 font-bold bg-emerald-50 px-2 py-1 rounded border border-emerald-200">📦 Quality Harness Sealed: Clean PR ready for review</div>
             </div>

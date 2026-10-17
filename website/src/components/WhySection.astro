@@ -13,10 +13,10 @@ const isEs = lang === 'es';
 const pillars = isEs ? [
   {
     num: "01",
-    tag: "Determinismo AST",
-    title: "Prompts vs. AST",
+    tag: "Guards deterministas",
+    title: "Prompts vs. Guards",
     problem: "Las reglas en markdown (.cursorrules) se ignoran en contextos largos y queman miles de tokens.",
-    solution: "Parsers AST locales (<5ms) que bloquean violaciones en el pre-commit de forma infalible.",
+    solution: "Guards locales (basados en patrones; Python AST en stacks Python) que bloquean violaciones en el hook pre-commit (`--no-verify` lo omite; CI actúa como respaldo).",
     icon: "shield"
   },
   {
@@ -38,10 +38,10 @@ const pillars = isEs ? [
 ] : [
   {
     num: "01",
-    tag: "AST Determinism",
-    title: "Prompts vs. AST",
+    tag: "Deterministic Guards",
+    title: "Prompts vs. Guards",
     problem: "Markdown rules (.cursorrules) get ignored in large contexts and burn tokens on every turn.",
-    solution: "Native local AST parsers (<5ms) that infallibly enforce architecture in pre-commit hooks.",
+    solution: "Local guards (pattern-based; Python AST on Python stacks) that block violations in the pre-commit hook (`--no-verify` skips it; CI is the backstop).",
     icon: "shield"
   },
   {

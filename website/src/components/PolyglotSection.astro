@@ -18,10 +18,10 @@ const stacks = isEs ? [
     detection: "package.json (next)",
     runner: "npm test (Vitest / Jest)",
     gate: "node tools/audit.js",
-    rules: "Clean Arch AST + Responsive Guard + SEO & CWV",
+    rules: "Clean Arch + Responsive Guard + SEO & CWV",
     snippet: `// Detected: Next.js App Router (TypeScript)
 // Initialized: .cursorrules, CLAUDE.md, AGY rules
-// Audit Engine: Node.js Native AST Parser
+// Audit Engine: Node.js pattern-based guards
 ✔ Hook installed: .husky/pre-commit -> node tools/audit.js
 ✔ Enforcing: Mobile-first CSS & Clean Layer Isolation`,
   },
@@ -33,12 +33,12 @@ const stacks = isEs ? [
     detection: "pyproject.toml / requirements.txt",
     runner: "pytest -v --cov",
     gate: "python tools/audit.py",
-    rules: "Clean Arch AST + N+1 Query Guard + Secret Leak",
+    rules: "Clean Arch (Python AST) + N+1 Heuristic + Secret Leak",
     snippet: `# Detected: FastAPI Backend (Python 3.11+)
 # Initialized: GEMINI.md, CLAUDE.md, .cursorrules
 # Audit Engine: Python Native ast Module
 ✔ Hook installed: .git/hooks/pre-commit -> python tools/audit.py
-✔ Enforcing: Red-first TDD & Zero N+1 ORM Queries`,
+✔ Enforcing: Red→Green TDD Verifier & N+1 Heuristic`,
   },
   {
     id: "django",
@@ -48,12 +48,12 @@ const stacks = isEs ? [
     detection: "manage.py / settings.py",
     runner: "python manage.py test",
     gate: "python tools/audit.py",
-    rules: "Migration Idempotency + ORM Optimization",
+    rules: "Clean Arch (Python AST) + N+1 Heuristic",
     snippet: `# Detected: Django Enterprise Stack
 # Initialized: CLAUDE.md, .antigravity/rules.md
-# Audit Engine: Python Native AST Analyzer
+# Audit Engine: Python Native ast Module
 ✔ Hook installed: pre-commit -> python tools/audit.py
-✔ Enforcing: Reversible DB Migrations & Select Related`,
+✔ Enforcing: Red→Green TDD Verifier & N+1 Heuristic`,
   },
   {
     id: "astro",
@@ -66,7 +66,7 @@ const stacks = isEs ? [
     rules: "CWV LCP Priority + OpenGraph + Touch Targets",
     snippet: `// Detected: Astro Islands Architecture
 // Initialized: .cursor/rules/*.mdc, CLAUDE.md
-// Audit Engine: Node.js AST Parser
+// Audit Engine: Node.js pattern-based guards
 ✔ Hook installed: .husky/pre-commit
 ✔ Enforcing: Zero-JS Defaults & 44x44px Touch Targets`,
   },
@@ -81,9 +81,9 @@ const stacks = isEs ? [
     rules: "Schema Integrity + Secret Leak Scanner",
     snippet: `# Detected: Ruby on Rails Application (Ruby 3.2+)
 # Initialized: .cursorrules, CLAUDE.md, .antigravity/rules.md
-# Audit Engine: Ruby Native Parser / Ripper AST
+# Audit Engine: RuboCop + Brakeman (external CLIs)
 ✔ Hook installed: .git/hooks/pre-commit -> ruby tools/audit.rb
-✔ Enforcing: RSpec Red->Green Verification & No Leaked Keys`,
+✔ Enforcing: TDD protocol (agent-enforced) & No Leaked Keys`,
   },
   {
     id: "golang",
@@ -96,7 +96,7 @@ const stacks = isEs ? [
     rules: "Architecture Boundaries + Docker Security",
     snippet: `// Detected: Go Microservices Suite (Go 1.22+)
 // Initialized: CLAUDE.md, .antigravity/rules.md
-// Audit Engine: Go Native go/parser AST Engine
+// Audit Engine: golangci-lint (external CLI)
 ✔ Hook installed: .git/hooks/pre-commit -> go run tools/audit.go
 ✔ Enforcing: Rootless Dockerfiles & Clean Layer Isolation`,
   },
@@ -108,12 +108,12 @@ const stacks = isEs ? [
     detection: "Cargo.toml",
     runner: "cargo test",
     gate: "cargo run --bin audit",
-    rules: "Strict Memory & Scope Enforcement",
+    rules: "Clippy Lints + cargo audit",
     snippet: `// Detected: Rust High-Performance Engine (Cargo)
 // Initialized: .cursorrules, CLAUDE.md
-// Audit Engine: Native Rust AST / Syn & Diff Scope Gate
+// Audit Engine: cargo clippy + cargo audit (external CLIs)
 ✔ Hook installed: .git/hooks/pre-commit -> cargo run --bin audit
-✔ Enforcing: Strict SDD Scope & Automated Test Pass`,
+✔ Enforcing: Scope protocol (agent-enforced) & Automated Test Pass`,
   },
   {
     id: "laravel",
@@ -126,9 +126,9 @@ const stacks = isEs ? [
     rules: "Migration Safety + Layer Isolation",
     snippet: `// Detected: Laravel Application (PHP 8.2+)
 // Initialized: .cursorrules, CLAUDE.md
-// Audit Engine: PHP Native AST Validator
+// Audit Engine: PHPStan (external CLI)
 ✔ Hook installed: .git/hooks/pre-commit -> php tools/audit.php
-✔ Enforcing: Idempotent Migrations & Safe Models`,
+✔ Enforcing: Static Analysis & TDD protocol (agent-enforced)`,
   },
   {
     id: "agent-os",
@@ -154,10 +154,10 @@ const stacks = isEs ? [
     detection: "package.json (next)",
     runner: "npm test (Vitest / Jest)",
     gate: "node tools/audit.js",
-    rules: "Clean Arch AST + Responsive Guard + SEO & CWV",
+    rules: "Clean Arch + Responsive Guard + SEO & CWV",
     snippet: `// Detected: Next.js App Router (TypeScript)
 // Initialized: .cursorrules, CLAUDE.md, AGY rules
-// Audit Engine: Node.js Native AST Parser
+// Audit Engine: Node.js pattern-based guards
 ✔ Hook installed: .husky/pre-commit -> node tools/audit.js
 ✔ Enforcing: Mobile-first CSS & Clean Layer Isolation`,
   },
@@ -169,12 +169,12 @@ const stacks = isEs ? [
     detection: "pyproject.toml / requirements.txt",
     runner: "pytest -v --cov",
     gate: "python tools/audit.py",
-    rules: "Clean Arch AST + N+1 Query Guard + Secret Leak",
+    rules: "Clean Arch (Python AST) + N+1 Heuristic + Secret Leak",
     snippet: `# Detected: FastAPI Backend (Python 3.11+)
 # Initialized: GEMINI.md, CLAUDE.md, .cursorrules
 # Audit Engine: Python Native ast Module
 ✔ Hook installed: .git/hooks/pre-commit -> python tools/audit.py
-✔ Enforcing: Red-first TDD & Zero N+1 ORM Queries`,
+✔ Enforcing: Red→Green TDD Verifier & N+1 Heuristic`,
   },
   {
     id: "django",
@@ -184,12 +184,12 @@ const stacks = isEs ? [
     detection: "manage.py / settings.py",
     runner: "python manage.py test",
     gate: "python tools/audit.py",
-    rules: "Migration Idempotency + ORM Optimization",
+    rules: "Clean Arch (Python AST) + N+1 Heuristic",
     snippet: `# Detected: Django Enterprise Stack
 # Initialized: CLAUDE.md, .antigravity/rules.md
-# Audit Engine: Python Native AST Analyzer
+# Audit Engine: Python Native ast Module
 ✔ Hook installed: pre-commit -> python tools/audit.py
-✔ Enforcing: Reversible DB Migrations & Select Related`,
+✔ Enforcing: Red→Green TDD Verifier & N+1 Heuristic`,
   },
   {
     id: "astro",
@@ -202,7 +202,7 @@ const stacks = isEs ? [
     rules: "CWV LCP Priority + OpenGraph + Touch Targets",
     snippet: `// Detected: Astro Islands Architecture
 // Initialized: .cursor/rules/*.mdc, CLAUDE.md
-// Audit Engine: Node.js AST Parser
+// Audit Engine: Node.js pattern-based guards
 ✔ Hook installed: .husky/pre-commit
 ✔ Enforcing: Zero-JS Defaults & 44x44px Touch Targets`,
   },
@@ -217,9 +217,9 @@ const stacks = isEs ? [
     rules: "Schema Integrity + Secret Leak Scanner",
     snippet: `# Detected: Ruby on Rails Application (Ruby 3.2+)
 # Initialized: .cursorrules, CLAUDE.md, .antigravity/rules.md
-# Audit Engine: Ruby Native Parser / Ripper AST
+# Audit Engine: RuboCop + Brakeman (external CLIs)
 ✔ Hook installed: .git/hooks/pre-commit -> ruby tools/audit.rb
-✔ Enforcing: RSpec Red->Green Verification & No Leaked Keys`,
+✔ Enforcing: TDD protocol (agent-enforced) & No Leaked Keys`,
   },
   {
     id: "golang",
@@ -232,7 +232,7 @@ const stacks = isEs ? [
     rules: "Architecture Boundaries + Docker Security",
     snippet: `// Detected: Go Microservices Suite (Go 1.22+)
 // Initialized: CLAUDE.md, .antigravity/rules.md
-// Audit Engine: Go Native go/parser AST Engine
+// Audit Engine: golangci-lint (external CLI)
 ✔ Hook installed: .git/hooks/pre-commit -> go run tools/audit.go
 ✔ Enforcing: Rootless Dockerfiles & Clean Layer Isolation`,
   },
@@ -244,12 +244,12 @@ const stacks = isEs ? [
     detection: "Cargo.toml",
     runner: "cargo test",
     gate: "cargo run --bin audit",
-    rules: "Strict Memory & Scope Enforcement",
+    rules: "Clippy Lints + cargo audit",
     snippet: `// Detected: Rust High-Performance Engine (Cargo)
 // Initialized: .cursorrules, CLAUDE.md
-// Audit Engine: Native Rust AST / Syn & Diff Scope Gate
+// Audit Engine: cargo clippy + cargo audit (external CLIs)
 ✔ Hook installed: .git/hooks/pre-commit -> cargo run --bin audit
-✔ Enforcing: Strict SDD Scope & Automated Test Pass`,
+✔ Enforcing: Scope protocol (agent-enforced) & Automated Test Pass`,
   },
   {
     id: "laravel",
@@ -262,9 +262,9 @@ const stacks = isEs ? [
     rules: "Migration Safety + Layer Isolation",
     snippet: `// Detected: Laravel Application (PHP 8.2+)
 // Initialized: .cursorrules, CLAUDE.md
-// Audit Engine: PHP Native AST Validator
+// Audit Engine: PHPStan (external CLI)
 ✔ Hook installed: .git/hooks/pre-commit -> php tools/audit.php
-✔ Enforcing: Idempotent Migrations & Safe Models`,
+✔ Enforcing: Static Analysis & TDD protocol (agent-enforced)`,
   },
   {
     id: "agent-os",
@@ -306,7 +306,7 @@ const harnesses = isEs ? [
     icon: "🤖",
     file: "CLAUDE.md",
     tag: "Enforcer TDD",
-    desc: "Exigencia estricta del flujo TDD y cumplimiento obligatorio del gate de auditoría AST.",
+    desc: "Exigencia estricta del flujo TDD y cumplimiento obligatorio del gate de auditoría de guards.",
   },
   {
     id: "copilot",
@@ -339,7 +339,7 @@ const harnesses = isEs ? [
     icon: "🤖",
     file: "CLAUDE.md",
     tag: "TDD Enforcer",
-    desc: "Strict TDD verification enforcement and mandatory AST audit gate compliance.",
+    desc: "Strict TDD verification enforcement and mandatory guard audit gate compliance.",
   },
   {
     id: "copilot",

@@ -22,13 +22,13 @@ const sections = [
       {
         id: "doctor",
         title: "Health Diagnostic (Doctor)",
-        desc: "Validates active git pre-commit hooks, test runners, and zero-dependency AST syntax parsers.",
+        desc: "Validates active git pre-commit hooks, test runners, and zero-dependency guard scripts.",
         code: `$ npx clckernel doctor
 
 # Output:
 ✔ Git pre-commit hook active (.husky/pre-commit)
 ✔ Test runner operational (npm test / pytest)
-✔ AST audit engine ready (Node.js & Python native)
+✔ Guard audit engine ready (Node.js & Python native)
 🟢 100% HEALTHY: System is fully governed.`,
       },
       {
@@ -41,7 +41,7 @@ AI agents are STRICTLY FORBIDDEN from modifying source code directly without:
 2. Local SDD Scope Lock (sdds/{feature}/spec.md)
 3. Deterministic Red TDD Phase (Exit code != 0)
 4. Clean Architecture Implementation (Green Phase)
-5. Mandatory AST Audit Gate (node tools/audit.js)`,
+5. Mandatory Guard Audit Gate (node tools/audit.js)`,
       },
       {
         id: "universal-commands",
@@ -52,9 +52,9 @@ $ clckernel feature <name>   -> Full AIUP cycle (Spec -> HIT -> TDD -> Implement
 $ clckernel fix <issue>      -> Root cause investigation -> Failing regression test -> Fix -> Audit
 $ clckernel test             -> Runs stack test runner and verifies clean pass
 $ clckernel audit            -> Runs node tools/audit.js or audit.py and outputs summary
-$ clckernel doctor           -> Checks git pre-commit hooks, IDE symlinks & AST engine
+$ clckernel doctor           -> Checks git pre-commit hooks, IDE symlinks & guard scripts
 $ clckernel commit <message> -> Pre-flight audit, SDD scope check & Conventional Commit
-$ clckernel guard create <n> -> Scaffolds custom AST guard in stack native language
+$ clckernel guard create <n> -> Scaffolds custom guard script in stack native language
 $ clckernel update           -> Non-destructive update of tools, playbooks & symlinks
 $ clckernel start            -> Auto-detects stack & generates .clckernel.yaml`,
       },
@@ -69,7 +69,7 @@ $ npx clckernel update
 > clckernel update
 
 # Non-Destructive Guarantee:
-✔ Refreshes: tools/audit.js, standard AST guards, .agents/skills/, IDE symlinks
+✔ Refreshes: tools/audit.js, standard guards, .agents/skills/, IDE symlinks
 🔒 100% Preserved: sdds/ (specs), tools/guards/ (custom guards), .clckernel.yaml (config)`,
       }
     ]
@@ -86,20 +86,20 @@ $ npx clckernel update
         code: `// Built-in Safeguards Catalog:
 1. scan_secrets         -> Blocks AWS/Stripe keys & JWT tokens (0 false positives)
 2. check_architecture   -> Enforces Clean Arch layer isolation (Domain -> Use Case -> Infra)
-3. check_db_efficiency  -> Detects ORM queries inside loops (Zero N+1)
+3. check_db_efficiency  -> N+1 heuristic: flags ORM-like calls inside loops (Python AST)
 4. check_responsive     -> Audits mobile-first CSS & 44x44px touch targets
 5. check_seo            -> Validates Core Web Vitals & OpenGraph tags
-6. check_migrations     -> Verifies database migration idempotency & reversibility
+6. check_migrations     -> Migration reversibility: upgrade/downgrade & destructive ops (Alembic)
 7. docker_guard         -> Enforces rootless containers & blocks ENV secrets
-8. check_scope          -> Blocks diffs modifying files outside local SDD scope
+8. Scope protocol       -> Agent-enforced; not checked by a guard (check_scope is not installed)
 9. check_symlinks       -> Validates IDE rule symlinks (CLAUDE.md, GEMINI.md, etc.)
 10. check_hitl          -> Enforces Human-in-the-Loop review gates in autonomous playbooks
 11. check_domain_data   -> Validates JSON schemas & guarantees null defaults over hallucinated metrics`,
       },
       {
         id: "ast-examples",
-        title: "Micro AST Diff Checks",
-        desc: "Syntactic analysis eliminates false positives by checking AST node types in the repo's native language instead of fragile regex.",
+        title: "Micro Diff Checks",
+        desc: "Guards inspect the staged diff in the repo's native language: most are pattern-based (regex); on Python stacks the layer and N+1 guards parse code with Python AST.",
         code: `// Secret Anti-Leak:
 - const STRIPE_KEY = "sk_live_59182379123"; // ❌ BLOCKED
 + const STRIPE_KEY = process.env.STRIPE_KEY; // ✔ VALIDATED
@@ -131,15 +131,15 @@ safeguards:
   check_responsive: false # disable if backend-only
   check_seo: false
 
-# Custom AST Guard scripts (written in your stack's native language):
+# Custom guard scripts (written in your stack's native language):
 custom_guards:
   - name: "check_naming_conventions"
     command: "ruby tools/guards/naming_guard.rb"`,
       },
       {
         id: "authoring-guards",
-        title: "Authoring a Custom AST Guard",
-        desc: "Create simple AST scripts directly in your project's native language (Ruby, Python, Go, Node, PHP) with zero foreign runtime bloat.",
+        title: "Authoring a Custom Guard",
+        desc: "Create simple guard scripts directly in your project's native language (Ruby, Python, Go, Node, PHP) with zero foreign runtime bloat.",
         code: `// tools/guards/my_custom_guard.js
 import { execSync } from 'node:child_process';
 
@@ -178,7 +178,7 @@ process.exit(0);`,
   └── {change-name}/
       ├── spec.md        # API contracts & layer scope boundaries
       ├── plan.md        # Step-by-step Red->Green TDD implementation
-      └── verification.md # Test receipts and AST audit pass proofs`,
+      └── verification.md # Test receipts and guard audit pass proofs`,
       },
       {
         id: "llm-command-dispatch",
@@ -187,7 +187,7 @@ process.exit(0);`,
         code: `# Claude Code (Terminal CLI):
 $ claude
 > clckernel feature user-auth
-# Automatically triggers Rule #0, local SDD authoring, Red TDD, and AST audit gate.
+# Automatically triggers Rule #0, local SDD authoring, Red TDD, and guard audit gate.
 
 # Cursor (Composer / Chat Cmd+L):
 > /clckernel fix "memory leak in session store"
@@ -199,7 +199,7 @@ $ claude
 
 # GitHub Copilot (Agent Mode):
 > @workspace clckernel audit
-# Runs native AST guards and provides the Educational Code Summary.
+# Runs native guards and provides the Educational Code Summary.
 
 # Google Antigravity & Gemini CLI:
 > clckernel doctor
@@ -220,7 +220,7 @@ $ claude
 
 # LAYER 1: REPOSITORY DEVELOPMENT HARNESS (Meta-Rules)
 # Governs engineers and coding agents modifying the repo codebase
-- Rule #0: Research -> SDD -> TDD Red-to-Green -> AST Audit
+- Rule #0: Research -> SDD -> TDD Red-to-Green -> Guard Audit
 - Verification receipt required before every commit
 
 # LAYER 2: DOMAIN AGENT WORKFLOWS (Runtime Operating Laws)
@@ -251,7 +251,7 @@ $ node tools/check_domain_data.js
 
 function generateMarkdown(secList: typeof sections) {
   let md = `# CLC Kernel Documentation — Deterministic AI Agent Governance Engine\n\n`;
-  md += `> Instant governance harnesses, native AST safeguards (<5ms), and Dual-Layer architecture for codebases and Agent-OS workflows.\n\n`;
+  md += `> Instant governance harnesses, native pre-commit guards, and Dual-Layer architecture for codebases and Agent-OS workflows.\n\n`;
 
   secList.forEach((sec) => {
     md += `## ${sec.title}\n\n`;
@@ -286,7 +286,7 @@ const fullLlmContext = generateLlmContext(sections);
         CLC Kernel Documentation
       </h1>
       <p class="text-base sm:text-lg text-slate-600 mt-2 max-w-3xl">
-        Complete guide to instant harness setup, built-in AST safeguards, and modular custom layer extensibility.
+        Complete guide to instant harness setup, built-in guards, and modular custom layer extensibility.
       </p>
 
       <!-- Quick Search Bar & Action Buttons -->

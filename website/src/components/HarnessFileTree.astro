@@ -20,13 +20,13 @@ const fileData = {
     codeLang: 'markdown',
     code: `# CLC Kernel — AI AGENTS LAW (SSOT)
 > RULE #0: MANDATORY EXECUTION OVERRIDE
-> Prohibits blind edits without Research, SDD, Red TDD, and AST Audit.
+> Prohibits blind edits without Research, SDD, Red TDD, and Guard Audit.
 
 ## Universal Command Interface (All LLMs):
 - clckernel feature <name>   -> Full AIUP cycle
 - clckernel fix <issue>      -> Root cause -> Red TDD -> Clean fix
 - clckernel test             -> Run test runner cleanly
-- clckernel audit            -> Run AST safeguards gate
+- clckernel audit            -> Run guard audit gate
 - clckernel doctor           -> Health diagnostic
 - clckernel commit <message> -> Pre-flight audit & commit`
   },
@@ -36,8 +36,8 @@ const fileData = {
     badgeColor: 'bg-indigo-50 border-indigo-200 text-indigo-900',
     type: 'YAML • Config',
     desc: isEs
-      ? 'Declara qué capas de salvaguardas están activas en el repositorio. Permite agregar tus propios scripts AST en Node.js/Python o desactivar capas por defecto según la arquitectura de tu equipo.'
-      : 'Declares active safeguard layers. Allows adding custom Node.js/Python AST scripts or toggling default layers according to team architecture.',
+      ? 'Declara qué capas de salvaguardas están activas en el repositorio. Permite agregar tus propios scripts de guards en Node.js/Python o desactivar capas por defecto según la arquitectura de tu equipo.'
+      : 'Declares active safeguard layers. Allows adding custom Node.js/Python guard scripts or toggling default layers according to team architecture.',
     codeTitle: '.clckernel.yaml',
     codeLang: 'yaml',
     code: `version: "1.2"
@@ -85,34 +85,34 @@ sdds/*
   },
   'tools_dir': {
     path: 'tools/',
-    badge: 'AST GUARDS',
+    badge: 'GUARDS',
     badgeColor: 'bg-amber-50 border-amber-200 text-amber-900',
-    type: 'Directory • AST Linters',
+    type: 'Directory • Guard Scripts',
     desc: isEs
-      ? 'Suite de parsers AST nativos locales (<5ms) en Node.js y Python. Validan arquitectura, dependencias y seguridad sin inflar el proyecto con dependencias npm pesadas.'
-      : 'Suite of native local AST parsers (<5ms) in pure Node.js and Python. Validates architecture, boundaries, and security with zero npm bloat.',
+      ? 'Suite de guards locales en Node.js y Python: verificaciones basadas en patrones (regex) y, en stacks Python, análisis con Python AST. Validan arquitectura, dependencias y seguridad sin dependencias npm pesadas.'
+      : 'Suite of local guards in pure Node.js and Python: pattern-based (regex) checks plus Python AST analysis on Python stacks. Validates architecture, boundaries, and security with zero npm bloat.',
     codeTitle: 'tools/ directory',
     codeLang: 'text',
     code: `tools/
 ├── audit.js                # Master orchestrator
-├── check_architecture.js   # Clean Architecture AST
+├── check_architecture.js   # Layer boundaries (regex)
 ├── scan_secrets.js         # Diff credential scanner
-├── check_db_efficiency.py  # ORM N+1 query detector
+├── check_db_efficiency.py  # N+1 heuristic (Python AST)
 └── docker_guard.py         # Container security audit`
   },
   'tool_check_arch': {
     path: 'tools/check_architecture.js',
-    badge: 'CLEAN ARCH AST',
+    badge: 'CLEAN ARCH',
     badgeColor: 'bg-amber-50 border-amber-200 text-amber-900',
-    type: 'JavaScript • AST Guard',
+    type: 'JavaScript • Pattern-based Guard',
     desc: isEs
-      ? 'Linter AST que valida el aislamiento de capas en el diff: bloquea commits si la capa de Dominio importa frameworks externos o Infraestructura.'
-      : 'AST linter enforcing layer isolation on staged diffs: blocks commits if Domain imports frameworks or Infrastructure.',
+      ? 'Guard basado en patrones (regex) que valida el aislamiento de capas en el diff: bloquea commits si la capa de Dominio importa frameworks externos o Infraestructura.'
+      : 'Pattern-based (regex) guard enforcing layer isolation on staged diffs: blocks commits if Domain imports frameworks or Infrastructure.',
     codeTitle: 'tools/check_architecture.js',
     codeLang: 'javascript',
-    code: `// Native AST Parsing (<3ms execution)
-const ast = acorn.parse(sourceCode, { ecmaVersion: 'latest' });
-if (isDomainFile(filePath) && importsInfra(ast)) {
+    code: `// Pattern-based check (regex over staged files)
+const importsInfra = /from\\s+['"].*infrastructure/.test(sourceCode);
+if (isDomainFile(filePath) && importsInfra) {
   console.error("❌ Clean Architecture Violation:");
   console.error("   Domain layer cannot import Infrastructure!");
   process.exit(1);
@@ -141,14 +141,14 @@ if (leaks.length > 0) {
     badgeColor: 'bg-amber-50 border-amber-200 text-amber-900',
     type: 'Python • Performance Guard',
     desc: isEs
-      ? 'Analiza el AST de Python para detectar queries ORM dentro de bucles for/while (problema N+1), evitando cuellos de botella en producción.'
-      : 'Parses Python AST to catch ORM queries inside loops (N+1 query problem), preventing production performance bottlenecks.',
+      ? 'Heurística N+1: analiza el AST de Python y marca llamadas tipo ORM dentro de bucles for/while.'
+      : 'N+1 heuristic: parses Python AST and flags ORM-like calls inside for/while loops.',
     codeTitle: 'tools/check_db_efficiency.py',
     codeLang: 'python',
     code: `class QueryInLoopVisitor(ast.NodeVisitor):
     def visit_For(self, node):
         if has_orm_query_call(node):
-            print("❌ Anti-pattern: N+1 DB query inside loop detected")
+            print("❌ N+1 heuristic: ORM-like call inside loop")
             sys.exit(1)
         self.generic_visit(node)`
   },
@@ -174,8 +174,8 @@ if (leaks.length > 0) {
     badgeColor: 'bg-slate-900 border-slate-700 text-white',
     type: 'Shell • Git Hook',
     desc: isEs
-      ? 'Hook de git determinista que ejecuta la auditoría antes de cada commit. Si hay violaciones o tests fallidos, cancela la operación con Exit Code 1.'
-      : 'Deterministic git hook running AST audits before commit. If violations or failing tests exist, aborts with Exit Code 1.',
+      ? 'Hook de git determinista que ejecuta la auditoría antes de cada commit. Si hay violaciones o tests fallidos, cancela la operación con Exit Code 1 (`--no-verify` lo omite; CI actúa como respaldo).'
+      : 'Deterministic git hook running the guard audit before commit. If violations or failing tests exist, aborts with Exit Code 1 (`--no-verify` skips it; CI is the backstop).',
     codeTitle: '.husky/pre-commit',
     codeLang: 'bash',
     code: `#!/bin/sh
@@ -190,8 +190,8 @@ echo "✔ Quality Harness Sealed: Pre-commit approved."`
     badgeColor: 'bg-purple-50 border-purple-200 text-purple-900',
     type: 'TypeScript • Business Domain',
     desc: isEs
-      ? 'Entidades y lógica de negocio puras, vigiladas por las compuertas AST para garantizar que el agente nunca acople lógica de dominio con librerías externas.'
-      : 'Pure business domain entities, monitored by AST guards to ensure AI agents never couple domain models with external libraries.',
+      ? 'Entidades y lógica de negocio puras, vigiladas por los guards de capas para detectar si el agente acopla lógica de dominio con librerías externas.'
+      : 'Pure business domain entities, monitored by layer guards that flag when AI agents couple domain models with external libraries.',
     codeTitle: 'src/domain/auth.ts',
     codeLang: 'typescript',
     code: `// Pure Business Domain (Zero Framework Dependencies)
@@ -307,7 +307,7 @@ export function isSessionExpired(session: UserSession, now: number): boolean {
           </div>
         </div>
 
-        <!-- Folder: tools/ (AST Safeguards) -->
+        <!-- Folder: tools/ (Guard Scripts) -->
         <div class="folder-item space-y-0.5" data-folder="tools">
           <button 
             type="button" 
@@ -320,7 +320,7 @@ export function isSessionExpired(session: UserSession, now: number): boolean {
               <span class="text-amber-600 text-sm">📁</span>
               <span class="font-bold text-slate-800">tools/</span>
             </div>
-            <span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-bold border border-amber-200 shrink-0">AST GUARDS</span>
+            <span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-bold border border-amber-200 shrink-0">GUARDS</span>
           </button>
           
           <div class="folder-content pl-4 space-y-1">
@@ -348,7 +348,7 @@ export function isSessionExpired(session: UserSession, now: number): boolean {
                   <span class="text-amber-600">🛡️</span>
                   <span class="truncate">check_architecture.js</span>
                 </div>
-                <span class="text-[9px] text-slate-500 font-mono">AST</span>
+                <span class="text-[9px] text-slate-500 font-mono">REGEX</span>
               </button>
 
               <!-- File: scan_secrets.js -->
@@ -361,7 +361,7 @@ export function isSessionExpired(session: UserSession, now: number): boolean {
                   <span class="text-rose-600">🔒</span>
                   <span class="truncate">scan_secrets.js</span>
                 </div>
-                <span class="text-[9px] text-slate-500 font-mono">AST</span>
+                <span class="text-[9px] text-slate-500 font-mono">REGEX</span>
               </button>
 
               <!-- File: check_db_efficiency.py -->
@@ -374,7 +374,7 @@ export function isSessionExpired(session: UserSession, now: number): boolean {
                   <span class="text-indigo-600">🐍</span>
                   <span class="truncate">check_db_efficiency.py</span>
                 </div>
-                <span class="text-[9px] text-slate-500 font-mono">AST</span>
+                <span class="text-[9px] text-slate-500 font-mono">PY AST</span>
               </button>
             </div>
           </div>

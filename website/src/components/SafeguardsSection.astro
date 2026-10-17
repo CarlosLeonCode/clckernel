@@ -15,7 +15,7 @@ const items = isEs ? [
     icon: "🛡️",
     title: "Anti-Fuga de Secretos",
     keyPoint: "Bloquea llaves de AWS/Stripe, JWTs y passwords en el diff con 0 falsos positivos.",
-    tag: "scan_secrets (AST/Regex)",
+    tag: "scan_secrets (Regex)",
     accent: "rose",
   },
   {
@@ -23,15 +23,15 @@ const items = isEs ? [
     icon: "🏛️",
     title: "Límites de Arquitectura",
     keyPoint: "Garantiza aislamiento estricto: Dominio → Casos de Uso → Infraestructura.",
-    tag: "check_architecture (AST)",
+    tag: "check_architecture (Python AST / regex)",
     accent: "indigo",
   },
   {
     id: "perf",
     icon: "⚡",
-    title: "Consultas N+1 en BD",
-    keyPoint: "Detecta queries ORM dentro de bucles for/while en tiempo de análisis sintáctico.",
-    tag: "check_db_efficiency (AST)",
+    title: "Heurística N+1 en BD",
+    keyPoint: "Heurística: marca llamadas tipo ORM dentro de bucles for/while (Python AST).",
+    tag: "check_db_efficiency (Python AST)",
     accent: "amber",
   },
   {
@@ -56,7 +56,7 @@ const items = isEs ? [
     icon: "🛡️",
     title: "Anti-Secret Leaks",
     keyPoint: "Blocks AWS/Stripe keys, JWT tokens, and DB passwords in diffs with 0 false positives.",
-    tag: "scan_secrets (AST/Regex)",
+    tag: "scan_secrets (Regex)",
     accent: "rose",
   },
   {
@@ -64,15 +64,15 @@ const items = isEs ? [
     icon: "🏛️",
     title: "Architecture Boundaries",
     keyPoint: "Enforces strict layer isolation: Domain → Use Cases → Infrastructure.",
-    tag: "check_architecture (AST)",
+    tag: "check_architecture (Python AST / regex)",
     accent: "indigo",
   },
   {
     id: "perf",
     icon: "⚡",
-    title: "N+1 Database Queries",
-    keyPoint: "Flags ORM queries inside for/while loops at AST parse time.",
-    tag: "check_db_efficiency (AST)",
+    title: "N+1 Heuristic",
+    keyPoint: "Heuristic: flags ORM-like calls inside for/while loops (Python AST).",
+    tag: "check_db_efficiency (Python AST)",
     accent: "amber",
   },
   {
@@ -110,7 +110,7 @@ const items = isEs ? [
       </h2>
       
       <p class="text-base text-slate-600 font-normal">
-        {isEs ? "Análisis sintáctico ejecutado en el lenguaje nativo de tu repositorio (Ruby, Python, Go, Node, PHP). Cero dependencias foráneas, en < 5ms." : "Syntactic AST parsing executed in your repository's native runtime (Ruby, Python, Go, Node, PHP). Zero foreign dependencies, in < 5ms."}
+        {isEs ? "Verificaciones basadas en patrones en el lenguaje nativo de tu repositorio, más guards con Python AST en stacks Python. Cero dependencias foráneas." : "Pattern-based checks in your repository's native runtime, plus Python AST guards on Python stacks. Zero foreign dependencies."}
       </p>
     </div>
 
@@ -131,11 +131,11 @@ const items = isEs ? [
         ──────►
       </div>
 
-      <!-- Step 2: Native AST Engine (Center Highlight) -->
+      <!-- Step 2: Native Guard Engine (Center Highlight) -->
       <div class="flex items-center gap-3 bg-white border border-cyan-300/80 px-4 py-2.5 rounded-xl w-full md:w-auto shadow-2xs ring-2 ring-cyan-500/10">
         <span class="w-2 h-2 rounded-full bg-cyan-600 animate-ping"></span>
         <div>
-          <div class="text-[10px] font-mono uppercase text-cyan-800 font-bold">{isEs ? "Motor AST Nativo" : "Native AST Engine"}</div>
+          <div class="text-[10px] font-mono uppercase text-cyan-800 font-bold">{isEs ? "Guards Nativos" : "Native Guards"}</div>
           <div class="text-xs font-bold text-slate-900">{isEs ? "0 Dependencias (< 5ms)" : "0 Dependencies (< 5ms)"}</div>
         </div>
       </div>

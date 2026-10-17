@@ -14,12 +14,12 @@ const steps = isEs ? [
     phase: "01",
     name: "Investigación y Contexto",
     shortName: "Investigación",
-    badge: "AST DISCOVERY",
+    badge: "CODE DISCOVERY",
     concept: "Cero ediciones a ciegas",
-    summary: "Inspecciona dependencias AST y trazas antes de tocar código. Evita alucinaciones y comprende las invariantes del dominio.",
+    summary: "Inspecciona dependencias y trazas antes de tocar código. Evita alucinaciones y comprende las invariantes del dominio.",
     tag: "Contexto",
     accent: "cyan",
-    pills: ["AST Discovery", "Traceback Proof", "No Hallucination"],
+    pills: ["Code Discovery", "Traceback Proof", "No Hallucination"],
     microType: "radar",
   },
   {
@@ -60,14 +60,14 @@ const steps = isEs ? [
   },
   {
     phase: "05",
-    name: "Compuerta de Auditoría AST",
-    shortName: "Auditoría AST",
+    name: "Compuerta de Auditoría",
+    shortName: "Auditoría",
     badge: "GUARDRAILS",
     concept: "Linters nativos sin dependencias",
-    summary: "Auditorías AST deterministas en el lenguaje nativo (<5ms): detecta fuga de secretos, queries ORM N+1 y reglas responsive.",
+    summary: "Guards deterministas en el lenguaje nativo (basados en patrones; Python AST en stacks Python): fuga de secretos, heurística N+1 y reglas responsive.",
     tag: "Salvaguardas",
     accent: "amber",
-    pills: ["Zero-Dep Scripts", "Anti-Secret Leak", "N+1 Detection"],
+    pills: ["Zero-Dep Scripts", "Anti-Secret Leak", "N+1 Heuristic"],
     microType: "astAudit",
   },
   {
@@ -87,12 +87,12 @@ const steps = isEs ? [
     phase: "01",
     name: "Research & Root Cause",
     shortName: "Research",
-    badge: "AST DISCOVERY",
+    badge: "CODE DISCOVERY",
     concept: "Zero blind edits",
-    summary: "Inspects AST dependencies and tracebacks before touching code to eliminate hallucinations and understand invariants.",
+    summary: "Inspects dependencies and tracebacks before touching code to eliminate hallucinations and understand invariants.",
     tag: "Context",
     accent: "cyan",
-    pills: ["AST Discovery", "Traceback Proof", "No Hallucination"],
+    pills: ["Code Discovery", "Traceback Proof", "No Hallucination"],
     microType: "radar",
   },
   {
@@ -134,13 +134,13 @@ const steps = isEs ? [
   {
     phase: "05",
     name: "Automated Audit Gate",
-    shortName: "AST Audit",
+    shortName: "Guard Audit",
     badge: "GUARDRAILS",
     concept: "Zero-dependency native linters",
-    summary: "Deterministic AST audits in your native stack (<5ms): secrets scanner, ORM N+1 query detector, and responsive checks.",
+    summary: "Deterministic guards in your native stack (pattern-based; Python AST on Python stacks): secrets scanner, N+1 heuristic, and responsive checks.",
     tag: "Guardrails",
     accent: "amber",
-    pills: ["Zero-Dep Scripts", "Anti-Secret Leak", "N+1 Detection"],
+    pills: ["Zero-Dep Scripts", "Anti-Secret Leak", "N+1 Heuristic"],
     microType: "astAudit",
   },
   {
@@ -233,7 +233,7 @@ const steps = isEs ? [
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <span class="font-mono text-xs font-extrabold px-3 py-1 rounded-lg bg-cyan-50 text-cyan-900 border border-cyan-200 shadow-2xs" id="stage-badge">
-                  PHASE 01 • AST DISCOVERY
+                  PHASE 01 • CODE DISCOVERY
                 </span>
               </div>
               <span class="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider" id="stage-counter">
@@ -321,10 +321,10 @@ const steps = isEs ? [
               <div class="space-y-2">
                 <div class="text-slate-400 flex items-center gap-2">
                   <span class="text-cyan-400 font-bold">$</span>
-                  <span>clckernel inspect --ast-symbols --trace</span>
+                  <span>grep -rn "jwt" src/ &amp;&amp; pytest -x</span>
                 </div>
                 <div class="text-slate-300 pl-4 space-y-1 text-[11px] border-l-2 border-cyan-500/40 my-2">
-                  <div>→ Parsing AST syntax tree across 14 modules (<span class="text-emerald-400">3.2ms</span>)</div>
+                  <div>→ Read 14 modules and the failing traceback</div>
                   <div>→ Resolved Invariants: <span class="text-cyan-300">AuthService</span>, <span class="text-cyan-300">SessionTokenManager</span></div>
                   <div>→ Identified Root Cause: Missing token expiration handler in JWT encoder</div>
                 </div>
@@ -381,15 +381,15 @@ const steps = isEs ? [
         case 0:
           return {
             title: 'clckernel — investigation',
-            badge: 'AST DISCOVERY',
+            badge: 'CODE DISCOVERY',
             html: `
               <div class="space-y-2">
                 <div class="text-slate-400 flex items-center gap-2">
                   <span class="text-cyan-400 font-bold">$</span>
-                  <span>clckernel inspect --ast-symbols --trace</span>
+                  <span>grep -rn "jwt" src/ &amp;&amp; pytest -x</span>
                 </div>
                 <div class="text-slate-300 pl-4 space-y-1 text-[11px] border-l-2 border-cyan-500/40 my-2">
-                  <div>→ Parsing AST syntax tree across 14 modules (<span class="text-emerald-400">3.2ms</span>)</div>
+                  <div>→ Read 14 modules and the failing traceback</div>
                   <div>→ Resolved Invariants: <span class="text-cyan-300">AuthService</span>, <span class="text-cyan-300">SessionTokenManager</span></div>
                   <div>→ Identified Root Cause: Missing token expiration handler in JWT encoder</div>
                 </div>
@@ -477,9 +477,9 @@ const steps = isEs ? [
                 <div class="text-slate-300 pl-4 space-y-1 text-[11px] border-l-2 border-amber-500/40 my-2">
                   <div>✔ scan_secrets: <span class="text-emerald-400">PASSED (0 hardcoded keys detected)</span></div>
                   <div>✔ check_architecture: <span class="text-emerald-400">PASSED (No forbidden layer imports)</span></div>
-                  <div>✔ check_db_efficiency: <span class="text-emerald-400">PASSED (0 N+1 loop queries)</span></div>
+                  <div>✔ check_db_efficiency: <span class="text-emerald-400">PASSED (0 ORM-like calls in loops)</span></div>
                   <div>✔ check_responsive: <span class="text-emerald-400">PASSED (Touch targets >= 44x44px)</span></div>
-                  <div class="text-slate-400">Execution latency: <span class="text-amber-300 font-bold">3.8ms</span> (Native AST Parsers)</div>
+                  <div class="text-slate-400">Execution latency: <span class="text-amber-300 font-bold">3.8ms</span> (zero-dependency guards)</div>
                 </div>
                 <div class="text-amber-300 font-bold bg-amber-950/40 border border-amber-800/60 p-2.5 rounded-lg text-[11px]">
                   ✔ Educational Code Summary: All architectural safeguards fully cleared
@@ -489,7 +489,7 @@ const steps = isEs ? [
           };
         case 5:
           return {
-            title: '.husky/pre-commit — immutable git lock',
+            title: '.husky/pre-commit — git hook',
             badge: 'GIT SEALED',
             html: `
               <div class="space-y-2">
@@ -500,11 +500,11 @@ const steps = isEs ? [
                 <div class="text-slate-300 pl-4 space-y-1 text-[11px] border-l-2 border-violet-500/40 my-2">
                   <div>[pre-commit] Validating git index against CLC Kernel law...</div>
                   <div>[pre-commit] Running TDD test suite... <span class="text-emerald-400">OK</span></div>
-                  <div>[pre-commit] Running native AST audit gate... <span class="text-emerald-400">OK (Exit: 0)</span></div>
+                  <div>[pre-commit] Running guard audit gate... <span class="text-emerald-400">OK (Exit: 0)</span></div>
                   <div>[pre-commit] Authorization token generated: <span class="text-violet-300 font-mono">auth_7f99b2</span></div>
                 </div>
                 <div class="text-violet-300 font-bold bg-violet-950/40 border border-violet-800/60 p-2.5 rounded-lg text-[11px]">
-                  ✔ Commit Authorized: Quality harness sealed. Zero AI bypass.
+                  ✔ Commit Authorized: pre-commit hook passed (--no-verify skips it; CI is the backstop).
                 </div>
               </div>
             `

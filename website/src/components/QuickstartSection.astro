@@ -39,7 +39,7 @@ const steps = isEs ? [
 [clckernel] 👤 Phase 3: Waiting for Architect HITL review... Approved!
 [clckernel] 🔴 Phase 4: Writing failing test in test/auth.test.ts (Exit 1)
 [clckernel] 🟢 Phase 5: Implementing clean code in src/domain/auth.ts
-[clckernel] 🛡️  Phase 6: Running AST audit gate... 0 violations!`,
+[clckernel] 🛡️  Phase 6: Running guard audit gate... 0 violations!`,
   },
   {
     id: "step3",
@@ -62,7 +62,7 @@ const steps = isEs ? [
     name: "Auditoría & Update",
     cmd: "clckernel update",
     title: "Auditoría de Calidad y Actualización No Destructiva",
-    desc: "Corre auditorías AST en <5ms ('clckernel audit') y actualiza herramientas y playbooks a la última versión ('clckernel update') preservando 100% tus specs (sdds/), guards propios y .clckernel.yaml.",
+    desc: "Ejecuta la auditoría de guards ('clckernel audit') y actualiza herramientas y playbooks a la última versión ('clckernel update') preservando 100% tus specs (sdds/), guards propios y .clckernel.yaml.",
     output: `$ clckernel update
 [clckernel] 🔄 Actualizando CLC Kernel en el repositorio...
 ✔ Salvaguardas estándar actualizadas en tools/
@@ -105,7 +105,7 @@ const steps = isEs ? [
 [clckernel] 👤 Phase 3: Waiting for Architect HITL review... Approved!
 [clckernel] 🔴 Phase 4: Writing failing test in test/auth.test.ts (Exit 1)
 [clckernel] 🟢 Phase 5: Implementing clean code in src/domain/auth.ts
-[clckernel] 🛡️  Phase 6: Running AST audit gate... 0 violations!`,
+[clckernel] 🛡️  Phase 6: Running guard audit gate... 0 violations!`,
   },
   {
     id: "step3",
@@ -128,16 +128,16 @@ const steps = isEs ? [
     name: "Audit & Update",
     cmd: "clckernel update",
     title: "Quality Gate & Non-Destructive Update",
-    desc: "Runs instant AST audits (<5ms via 'clckernel audit') and safely upgrades tools and playbooks ('clckernel update') while 100% preserving your specs (sdds/), custom guards, and .clckernel.yaml.",
+    desc: "Runs the guard audit ('clckernel audit') and safely upgrades tools and playbooks ('clckernel update') while 100% preserving your specs (sdds/), custom guards, and .clckernel.yaml.",
     output: `$ clckernel update
 [clckernel] 🔄 Upgrading CLC Kernel in repository...
-✔ Core AST safeguards refreshed in tools/
+✔ Core guard scripts refreshed in tools/
 ✔ Agent skills & playbooks updated in .agents/skills/
 ✔ Cross-IDE symlinks verified (Cursor, Claude, Copilot, Antigravity)
 ✔ Git pre-commit hooks synchronized
 🔒 100% PRESERVED INTACT:
    • sdds/ (All local specifications preserved)
-   • tools/guards/ (All custom team AST guards preserved)
+   • tools/guards/ (All custom team guards preserved)
    • .clckernel.yaml (All configuration & thresholds preserved)
 ✨ Repository updated successfully to latest CLC Kernel!`,
   },
