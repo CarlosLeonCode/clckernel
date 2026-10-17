@@ -7,10 +7,11 @@
  * @param {string} targetDir - Directory to scan (defaults to cwd)
  * @returns {{ exitCode: number, skipped: boolean, name: string, data: object }}
  */
+const { changedFiles, exists } = require('./_changes');
+
 const check = async function checkStorybook(targetDir) {
   const fs = require('fs');
   const path = require('path');
-  const { execSync } = require('child_process');
 
   const dir = targetDir || process.cwd();
 
@@ -23,28 +24,10 @@ const check = async function checkStorybook(targetDir) {
     return { exitCode: 0, skipped: true, name: 'check_storybook', data: { violations: {}, message: 'Storybook not configured — skipping' } };
   }
 
-  // Collect changed component files
-  let files;
-  try {
-    // Staged changes first (what is being committed); HEAD~1 only when nothing is staged.
-    let out = execSync('git diff --cached --name-only --diff-filter=ACMR', {
-      cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe']
-    });
-    if (!out.trim()) {
-      out = execSync('git diff --name-only --diff-filter=ACMR HEAD~1', {
-        cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe']
-      });
-    }
-    files = out.split('\n').filter(f => /\.(tsx|jsx)$/.test(f.trim()));
-  } catch {
-    try {
-      const out = execSync('git diff --cached --name-only --diff-filter=ACMR', {
-        cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe']
-      });
-      files = out.split('\n').filter(f => /\.(tsx|jsx)$/.test(f.trim()));
-    } catch {
-      return { exitCode: 0, skipped: true, name: 'check_storybook', data: { violations: {}, message: 'No git diff available' } };
-    }
+  // The snapshot being verified: the index, or HEAD when nothing is staged.
+  const { mode, files } = changedFiles(dir, { extensions: ['.tsx', '.jsx'] });
+  if (mode === null) {
+    return { exitCode: 0, skipped: true, name: 'check_storybook', data: { violations: {}, message: 'No git diff available' } };
   }
 
   if (!files || files.length === 0) {
@@ -69,9 +52,6 @@ const check = async function checkStorybook(targetDir) {
   const violations = {};
 
   for (const file of componentFiles) {
-    const filePath = path.join(dir, file);
-    if (!fs.existsSync(filePath)) continue;
-
     // Check if a corresponding .stories.tsx file exists
     const basename = path.basename(file, path.extname(file));
     const ext = path.extname(file);
@@ -80,7 +60,8 @@ const check = async function checkStorybook(targetDir) {
     // Also check co-located stories directory pattern
     const storiesDir = path.join(path.dirname(file), '__stories__', `${basename}.stories${ext}`);
 
-    const hasStory = fs.existsSync(path.join(dir, storyFile)) || fs.existsSync(path.join(dir, storiesDir));
+    // The story must be part of the snapshot too: one only in the working copy does not count.
+    const hasStory = exists(dir, storyFile, mode) || exists(dir, storiesDir, mode);
 
     if (!hasStory) {
       violations[file] = [{

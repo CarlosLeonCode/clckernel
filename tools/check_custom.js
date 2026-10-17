@@ -8,6 +8,7 @@
  * @returns {{ exitCode: number, skipped: boolean, name: string, data: object }}
  */
 const { parseYaml, globToRegex } = require('./yaml.js');
+const { changedFiles, readFile } = require('./_changes');
 
 // Lookup order: the canonical name first, then older names kept for compatibility.
 const CONFIG_NAMES = ['.clckernel.yaml', '.clckernel.yml', '.clc-forge.yaml', '.clc-forge.yml'];
@@ -44,8 +45,6 @@ module.exports = check;
  */
 function runRules(dir, configPath, configName) {
   const fs = require('fs');
-  const path = require('path');
-  const { execSync } = require('child_process');
 
   const configError = (message) => ({
     exitCode: 1, skipped: false, name: 'check_custom',
@@ -106,31 +105,14 @@ function runRules(dir, configPath, configName) {
 
   if (errors.length > 0) return configError(errors.join('; '));
 
-  // ── 3. Get changed files via git diff ───────────────────────────────
-  let files;
-  try {
-    // Staged changes first (what is being committed); HEAD~1 only when nothing is staged.
-    let out = execSync('git diff --cached --name-only --diff-filter=ACMR', {
-      cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    if (!out.trim()) {
-      out = execSync('git diff --name-only --diff-filter=ACMR HEAD~1', {
-        cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'],
-      });
-    }
-    files = out.split('\n').filter(f => f.trim());
-  } catch {
-    try {
-      const out = execSync('git diff --cached --name-only --diff-filter=ACMR', {
-        cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'],
-      });
-      files = out.split('\n').filter(f => f.trim());
-    } catch {
-      return {
-        exitCode: 0, skipped: true, name: 'check_custom',
-        data: { violations: {}, message: 'No git diff available' },
-      };
-    }
+  // ── 3. Changed files of the snapshot being verified ──────────────
+  // The index, or HEAD when nothing is staged; never the working copy.
+  const { mode, files } = changedFiles(dir);
+  if (mode === null) {
+    return {
+      exitCode: 0, skipped: true, name: 'check_custom',
+      data: { violations: {}, message: 'No git diff available' },
+    };
   }
 
   if (!files || files.length === 0) {
@@ -145,13 +127,8 @@ function runRules(dir, configPath, configName) {
   let hasError = false;
 
   for (const file of files) {
-    const filePath = path.join(dir, file);
-    let content;
-    try {
-      content = fs.readFileSync(filePath, 'utf-8');
-    } catch {
-      continue; // permission denied or unreadable — skip
-    }
+    const content = readFile(dir, file, mode);
+    if (content === null) continue; // missing or binary in the snapshot — skip
 
     for (const rule of validated) {
       if (!rule.scopeRe.test(file)) continue;

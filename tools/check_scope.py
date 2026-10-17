@@ -11,26 +11,14 @@ import json
 import os
 import pathlib
 import re
-import subprocess
 import sys
 
-
-def _get_changed_files(target_dir: str) -> list[str] | None:
-    """Return list of changed files from git diff, or None on failure."""
-    # Staged changes first (what is being committed); HEAD~1 only when nothing is staged.
-    for ref in ("--cached", "HEAD~1"):
-        try:
-            args = ["git", "diff", "--name-only", "--diff-filter=ACMR", ref]
-            out = subprocess.check_output(
-                args, cwd=target_dir,
-                stderr=subprocess.DEVNULL, text=True,
-            )
-            files = [f.strip() for f in out.splitlines() if f.strip()]
-            if files or (ref == "--cached" and out.strip()):
-                return files
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            continue
-    return None
+# Sibling helper shipped next to the guards; works both as a script and when
+# loaded by audit.py through importlib.
+_TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+import _changes  # noqa: E402
 
 
 def _find_sdd_declared_files(target_dir: str) -> list[str] | None:
@@ -96,8 +84,10 @@ def check(target_dir: str | None = None) -> dict:
     """
     dir_path = target_dir or os.getcwd()
 
-    changed = _get_changed_files(dir_path)
-    if changed is None:
+    # The snapshot being verified: the index, or HEAD when nothing is staged.
+    changes = _changes.changed_files(dir_path)
+    changed = changes["files"]
+    if changes["mode"] is None:
         return {
             "exit_code": 0, "skipped": True, "name": "check_scope",
             "data": {

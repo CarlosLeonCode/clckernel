@@ -15,26 +15,31 @@ import json
 import os
 import pathlib
 import re
-import subprocess
 import sys
 
+# Sibling helper shipped next to the guards; works both as a script and when
+# loaded by audit.py through importlib.
+_TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+import _changes  # noqa: E402
 
-def _get_changed_files(target_dir: str) -> list[str] | None:
-    """Return changed files from git diff, or None on failure."""
-    # Staged changes first (what is being committed); HEAD~1 only when nothing is staged.
-    for ref in ("--cached", "HEAD~1"):
-        try:
-            args = ["git", "diff", "--name-only", "--diff-filter=ACMR", ref]
-            out = subprocess.check_output(
-                args, cwd=target_dir,
-                stderr=subprocess.DEVNULL, text=True,
-            )
-            files = [f.strip() for f in out.splitlines() if f.strip()]
-            if files or (ref == "--cached" and out.strip()):
-                return files
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            continue
-    return None
+
+def _is_migration_path(rel: str) -> bool:
+    """
+    True for the paths _find_migration_files would report: alembic/versions/*.py
+    and *.py (except __init__.py) directly inside a migrations/ directory that
+    is not hidden and not under __pycache__.
+    """
+    parts = pathlib.PurePosixPath(rel).parts
+    if not rel.endswith(".py") or len(parts) < 2:
+        return False
+    if parts[:2] == ("alembic", "versions") and len(parts) == 3:
+        return True
+    if parts[-2] != "migrations" or parts[-1] == "__init__.py":
+        return False
+    migrations_dir = "/".join(parts[:-1])
+    return not migrations_dir.startswith(".") and "__pycache__" not in migrations_dir
 
 
 def _find_migration_files(target_dir: str) -> list[str]:
@@ -155,35 +160,33 @@ def check(target_dir: str | None = None) -> dict:
     """
     dir_path = target_dir or os.getcwd()
 
-    changed_files = _get_changed_files(dir_path)
-    if changed_files is None:
+    # The snapshot being verified: the index, or HEAD when nothing is staged.
+    changes = _changes.changed_files(dir_path)
+    mode = changes["mode"]
+    if mode is None:
         return {
             "exit_code": 0, "skipped": True, "name": "check_migrations",
             "data": {"violations": {}, "message": "No git diff available"},
         }
 
-    migration_files = _find_migration_files(dir_path)
-    if not migration_files:
-        return {
-            "exit_code": 0, "skipped": False, "name": "check_migrations",
-            "data": {"violations": {}, "message": "No migration files found"},
-        }
-
-    # Only check migrations that were changed
-    changed_migrations = [f for f in migration_files if f in changed_files]
+    # Changed migrations come from the snapshot's path list: a migration
+    # deleted or edited in the working copy must not hide the staged one.
+    changed_migrations = [f for f in changes["files"] if _is_migration_path(f)]
     if not changed_migrations:
+        message = (
+            "No migration files were changed" if _find_migration_files(dir_path)
+            else "No migration files found"
+        )
         return {
             "exit_code": 0, "skipped": False, "name": "check_migrations",
-            "data": {"violations": {}, "message": "No migration files were changed"},
+            "data": {"violations": {}, "message": message},
         }
 
     violations: dict[str, list[dict]] = {}
 
     for filepath in changed_migrations:
-        full_path = pathlib.Path(dir_path) / filepath
-        try:
-            content = full_path.read_text(encoding="utf-8", errors="replace")
-        except (OSError, PermissionError):
+        content = _changes.read_file(dir_path, filepath, mode)
+        if content is None:
             continue
 
         # Determine migration framework

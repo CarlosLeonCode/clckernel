@@ -9,40 +9,23 @@ from __future__ import annotations
 import json
 import os
 import re
-import subprocess
 import sys
-from pathlib import Path
+
+# Sibling helper shipped next to the guards; works both as a script and when
+# loaded by audit.py through importlib.
+_TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+import _changes  # noqa: E402
 
 
-def _get_changed_dockerfiles(target_dir: str) -> list[str] | None:
-    """Return list of changed Docker-related files from git diff, or None on failure."""
-    # Staged changes first (what is being committed); HEAD~1 only when nothing is staged.
-    for ref in ("--cached", "HEAD~1"):
-        try:
-            args = ["git", "diff", "--name-only", "--diff-filter=ACMR", ref]
-            out = subprocess.check_output(
-                args, cwd=target_dir,
-                stderr=subprocess.DEVNULL, text=True,
-            )
-            files = [
-                f.strip() for f in out.splitlines()
-                if f.strip().endswith(('Dockerfile', 'docker-compose.yml', 'docker-compose.yaml'))
-                or 'Dockerfile' in f
-                or 'docker-compose' in f
-            ]
-            if files or (ref == "--cached" and out.strip()):
-                return files
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            continue
-    return None
-
-
-def _read_file_content(full_path: Path) -> str | None:
-    """Read file content safely, return None on failure."""
-    try:
-        return full_path.read_text(encoding="utf-8", errors="replace")
-    except (OSError, PermissionError):
-        return None
+def _is_docker_file(path: str) -> bool:
+    """True for Dockerfile and docker-compose paths."""
+    return (
+        path.endswith(('Dockerfile', 'docker-compose.yml', 'docker-compose.yaml'))
+        or 'Dockerfile' in path
+        or 'docker-compose' in path
+    )
 
 
 def _check_dockerfile(content: str, filepath: str) -> list[dict]:
@@ -158,8 +141,10 @@ def check(target_dir: str | None = None) -> dict:
     """
     dir_path = target_dir or os.getcwd()
 
-    files = _get_changed_dockerfiles(dir_path)
-    if files is None:
+    # The snapshot being verified: the index, or HEAD when nothing is staged.
+    changes = _changes.changed_files(dir_path)
+    mode, files = changes["mode"], [f for f in changes["files"] if _is_docker_file(f)]
+    if mode is None:
         return {
             "exit_code": 0, "skipped": True, "name": "docker_guard",
             "data": {"findings": [], "message": "No git diff available"},
@@ -174,11 +159,7 @@ def check(target_dir: str | None = None) -> dict:
     all_violations: list[dict] = []
 
     for filepath in files:
-        full_path = Path(dir_path) / filepath
-        if not full_path.exists():
-            continue
-
-        content = _read_file_content(full_path)
+        content = _changes.read_file(dir_path, filepath, mode)
         if content is None:
             continue
 

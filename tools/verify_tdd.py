@@ -26,6 +26,13 @@ import sys
 import tarfile
 import tempfile
 
+# Sibling helper shipped next to the guards; works both as a script and when
+# loaded by audit.py through importlib.
+_TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+import _changes  # noqa: E402
+
 NAME = "verify_tdd"
 DEFAULT_TIMEOUT = 300
 OUTPUT_TAIL_LINES = 40
@@ -56,30 +63,21 @@ def _rev_exists(repo: str, rev: str) -> bool:
         return False
 
 
-def _empty_tree(repo: str) -> str:
-    return _git(repo, "hash-object", "-t", "tree", os.devnull).strip()
-
-
-def _lines(out: str) -> list[str]:
-    return [line.strip() for line in out.splitlines() if line.strip()]
-
-
 def _resolve_trees(repo: str) -> dict | None:
     """Pick BASE/CANDIDATE and list the changed files (deletions ignored)."""
+    changes = _changes.changed_files(repo)
+    if changes["mode"] is None:
+        raise GitError("could not list the changed files")
     has_head = _rev_exists(repo, "HEAD")
-    head_or_empty = "HEAD" if has_head else _empty_tree(repo)
 
-    if _lines(_git(repo, "diff", "--cached", "--name-only", head_or_empty)):
-        changed = _git(repo, "diff", "--cached", "--name-only", "--diff-filter=ACMR", head_or_empty)
-        return {"mode": "staged", "base": head_or_empty if has_head else None,
-                "candidate": None, "changed": _lines(changed)}
+    if changes["mode"] == "staged":
+        if not has_head and not changes["files"]:
+            return None  # no commits and nothing staged
+        return {"mode": "staged", "base": "HEAD" if has_head else None,
+                "candidate": None, "changed": changes["files"]}
 
-    if not has_head:
-        return None
     base = "HEAD~1" if _rev_exists(repo, "HEAD~1") else None
-    changed = _git(repo, "diff", "--name-only", "--diff-filter=ACMR",
-                   base or _empty_tree(repo), "HEAD")
-    return {"mode": "manual", "base": base, "candidate": "HEAD", "changed": _lines(changed)}
+    return {"mode": "manual", "base": base, "candidate": "HEAD", "changed": changes["files"]}
 
 
 def _is_test_path(rel: str) -> bool:

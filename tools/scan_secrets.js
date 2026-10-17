@@ -7,36 +7,18 @@
  * @param {string} targetDir - Directory to scan (defaults to cwd)
  * @returns {{ exitCode: number, skipped: boolean, name: string, data: object }}
  */
+const { changedFiles, readFile } = require('./_changes');
+
 const check = async function scanSecrets(targetDir) {
-  const fs = require('fs');
   const path = require('path');
-  const { execSync } = require('child_process');
 
   const dir = targetDir || process.cwd();
 
   // Collect changed files via git, fall back to package.json check
-  let files;
-  try {
-    // Staged changes first (what is being committed); HEAD~1 only when nothing is staged.
-    let out = execSync('git diff --cached --name-only --diff-filter=ACMR', {
-      cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe']
-    });
-    if (!out.trim()) {
-      out = execSync('git diff --name-only --diff-filter=ACMR HEAD~1', {
-        cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe']
-      });
-    }
-    files = out.split('\n').filter(f => f.trim());
-  } catch {
-    try {
-      const out = execSync('git diff --cached --name-only --diff-filter=ACMR', {
-        cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe']
-      });
-      files = out.split('\n').filter(f => f.trim());
-    } catch {
-      // No git history — skip gracefully
-      return { exitCode: 0, skipped: true, name: 'scan_secrets', data: { findings: {}, message: 'No git diff available' } };
-    }
+  // The snapshot being verified: the index, or HEAD when nothing is staged.
+  const { mode, files } = changedFiles(dir);
+  if (mode === null) {
+    return { exitCode: 0, skipped: true, name: 'scan_secrets', data: { findings: {}, message: 'No git diff available' } };
   }
 
   if (files.length === 0) {
@@ -63,26 +45,9 @@ const check = async function scanSecrets(targetDir) {
     const ext = path.extname(file);
     if (skipExtensions.includes(ext)) continue;
 
-    const filePath = path.join(dir, file);
-    if (!fs.existsSync(filePath)) continue;
-
-    let content;
-    try {
-      const buffer = fs.readFileSync(filePath);
-      // Skip binary files (check for null byte in first 512 bytes)
-      let isBinary = false;
-      const checkLen = Math.min(buffer.length, 512);
-      for (let b = 0; b < checkLen; b++) {
-        if (buffer[b] === 0) {
-          isBinary = true;
-          break;
-        }
-      }
-      if (isBinary) continue;
-      content = buffer.toString('utf-8');
-    } catch {
-      continue;
-    }
+    // Binary or missing in the snapshot reads as null.
+    const content = readFile(dir, file, mode);
+    if (content === null) continue;
 
     const lines = content.split('\n');
     const fileFindings = [];

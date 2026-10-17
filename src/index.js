@@ -39,6 +39,7 @@ READ-ONLY COMMANDS (do not modify your project's code or config)
   doctor [targetDir]      Run diagnostics on a project
   audit [targetDir]       Run the installed audit orchestrator (tools/audit.js
                           or tools/audit.py); it only writes its report to sdds/
+                          Checks staged changes, or the last commit if none
 
 WRITES TO THE TARGET PROJECT
   update [targetDir]            Refresh tools, hooks, playbooks, IDE symlinks,

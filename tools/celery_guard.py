@@ -9,30 +9,14 @@ from __future__ import annotations
 import ast
 import json
 import os
-import subprocess
 import sys
-from pathlib import Path
 
-
-def _get_changed_files(target_dir: str) -> list[str] | None:
-    """Return list of changed Python files from git diff, or None on failure."""
-    # Staged changes first (what is being committed); HEAD~1 only when nothing is staged.
-    for ref in ("--cached", "HEAD~1"):
-        try:
-            args = ["git", "diff", "--name-only", "--diff-filter=ACMR", ref]
-            out = subprocess.check_output(
-                args, cwd=target_dir,
-                stderr=subprocess.DEVNULL, text=True,
-            )
-            files = [
-                f.strip() for f in out.splitlines()
-                if f.strip().endswith('.py')
-            ]
-            if files or (ref == "--cached" and out.strip()):
-                return files
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            continue
-    return None
+# Sibling helper shipped next to the guards; works both as a script and when
+# loaded by audit.py through importlib.
+_TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+import _changes  # noqa: E402
 
 
 class CeleryVisitor(ast.NodeVisitor):
@@ -152,8 +136,10 @@ def check(target_dir: str | None = None) -> dict:
     """
     dir_path = target_dir or os.getcwd()
 
-    files = _get_changed_files(dir_path)
-    if files is None:
+    # The snapshot being verified: the index, or HEAD when nothing is staged.
+    changes = _changes.changed_files(dir_path, extensions=[".py"])
+    mode, files = changes["mode"], changes["files"]
+    if mode is None:
         return {
             "exit_code": 0, "skipped": True, "name": "celery_guard",
             "data": {"findings": [], "message": "No git diff available"},
@@ -168,17 +154,12 @@ def check(target_dir: str | None = None) -> dict:
     all_violations: list[dict] = []
 
     for filepath in files:
-        full_path = Path(dir_path) / filepath
-        if not full_path.exists():
+        content = _changes.read_file(dir_path, filepath, mode)
+        if content is None:
             continue
 
         try:
-            content = full_path.read_text(encoding="utf-8", errors="replace")
-        except (OSError, PermissionError):
-            continue
-
-        try:
-            tree = ast.parse(content, filename=str(full_path))
+            tree = ast.parse(content, filename=filepath)
         except SyntaxError:
             continue
 

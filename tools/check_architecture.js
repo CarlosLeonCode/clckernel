@@ -7,22 +7,23 @@
  * @param {string} targetDir - Directory to scan (defaults to cwd)
  * @returns {{ exitCode: number, skipped: boolean, name: string, data: object }}
  */
-const check = async function checkArchitecture(targetDir) {
-  const fs = require('fs');
-  const path = require('path');
-  const { execSync } = require('child_process');
+const { changedFiles, readFile } = require('./_changes');
 
+const check = async function checkArchitecture(targetDir) {
   const dir = targetDir || process.cwd();
 
-  // Verify this is a Next.js project
-  const pkgPath = path.join(dir, 'package.json');
-  if (!fs.existsSync(pkgPath)) {
+  // The snapshot being verified: the index, or HEAD when nothing is staged.
+  const { mode, files } = changedFiles(dir, { extensions: ['.tsx', '.jsx', '.ts', '.js'] });
+
+  // Verify this is a Next.js project (package.json as of the same snapshot)
+  const pkgRaw = readFile(dir, 'package.json', mode);
+  if (pkgRaw === null) {
     return { exitCode: 0, skipped: true, name: 'check_architecture', data: { violations: {}, message: 'No package.json found — skipping architecture check' } };
   }
 
   let isNext;
   try {
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+    const pkg = JSON.parse(pkgRaw);
     const deps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
     isNext = Boolean(deps['next']);
   } catch {
@@ -33,28 +34,8 @@ const check = async function checkArchitecture(targetDir) {
     return { exitCode: 0, skipped: true, name: 'check_architecture', data: { violations: {}, message: 'Not a Next.js project — skipping' } };
   }
 
-  // Collect changed files
-  let files;
-  try {
-    // Staged changes first (what is being committed); HEAD~1 only when nothing is staged.
-    let out = execSync('git diff --cached --name-only --diff-filter=ACMR', {
-      cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe']
-    });
-    if (!out.trim()) {
-      out = execSync('git diff --name-only --diff-filter=ACMR HEAD~1', {
-        cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe']
-      });
-    }
-    files = out.split('\n').filter(f => /\.(tsx|jsx|ts|js)$/.test(f.trim()));
-  } catch {
-    try {
-      const out = execSync('git diff --cached --name-only --diff-filter=ACMR', {
-        cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe']
-      });
-      files = out.split('\n').filter(f => /\.(tsx|jsx|ts|js)$/.test(f.trim()));
-    } catch {
-      return { exitCode: 0, skipped: true, name: 'check_architecture', data: { violations: {}, message: 'No git diff available' } };
-    }
+  if (mode === null) {
+    return { exitCode: 0, skipped: true, name: 'check_architecture', data: { violations: {}, message: 'No git diff available' } };
   }
 
   if (!files || files.length === 0) {
@@ -64,15 +45,8 @@ const check = async function checkArchitecture(targetDir) {
   const violations = {};
 
   for (const file of files) {
-    const filePath = path.join(dir, file);
-    if (!fs.existsSync(filePath)) continue;
-
-    let content;
-    try {
-      content = fs.readFileSync(filePath, 'utf-8');
-    } catch {
-      continue;
-    }
+    const content = readFile(dir, file, mode);
+    if (content === null) continue;
 
     const fileViolations = [];
     const isLayout = /layout\.(tsx|jsx|ts|js)$/.test(file);

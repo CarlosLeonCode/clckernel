@@ -1,0 +1,108 @@
+/**
+ * Snapshot helpers shared by the diff-based guards (twin of _changes.py).
+ *
+ * A guard evaluates exactly the snapshot being verified:
+ *   - 'staged':      something is staged (a pre-commit) -> the index
+ *   - 'last-commit': nothing staged (a manual run)      -> HEAD, diffed against HEAD~1
+ *                    (a root commit lists every file of HEAD)
+ *   - null:          no git repository / git unavailable
+ * File content always comes from that snapshot, never from the working copy.
+ *
+ * Self-contained: uses only Node.js built-ins. Git runs with argument arrays,
+ * never through a shell; paths are read NUL-separated (-z), so spaces and
+ * non-ASCII names survive.
+ */
+const fs = require('fs');
+const path = require('path');
+const { spawnSync } = require('child_process');
+
+const BINARY_PROBE_BYTES = 8000;
+const MAX_BUFFER = 512 * 1024 * 1024;
+
+/** Runs git in dir; stdout Buffer on success, null on any failure. */
+function git(dir, args) {
+  const res = spawnSync('git', args, { cwd: dir, maxBuffer: MAX_BUFFER, stdio: ['ignore', 'pipe', 'pipe'] });
+  if (res.error || res.status !== 0) return null;
+  return res.stdout;
+}
+
+function splitNul(buffer) {
+  return buffer.toString('utf-8').split('\0').filter(Boolean);
+}
+
+function hasCommit(dir, rev) {
+  return git(dir, ['rev-parse', '--verify', '--quiet', `${rev}^{commit}`]) !== null;
+}
+
+/**
+ * Lists the files added, copied, modified or renamed in the snapshot.
+ * @param {string} dir - Directory inside the repository
+ * @param {{ extensions?: string[] }} [options] - Keep only paths ending in one of these
+ * @returns {{ mode: 'staged'|'last-commit'|null, files: string[] }}
+ */
+function changedFiles(dir, { extensions } = {}) {
+  const cwd = dir || process.cwd();
+  const anyStaged = git(cwd, ['diff', '--cached', '--name-only', '-z']);
+  if (anyStaged === null) return { mode: null, files: [] };
+
+  let mode;
+  let out;
+  if (anyStaged.length > 0) {
+    mode = 'staged';
+    out = git(cwd, ['diff', '--cached', '--name-only', '-z', '--diff-filter=ACMR']);
+  } else if (!hasCommit(cwd, 'HEAD')) {
+    // No commits and nothing staged: the index holds nothing to evaluate.
+    return { mode: 'staged', files: [] };
+  } else {
+    mode = 'last-commit';
+    out = hasCommit(cwd, 'HEAD~1')
+      ? git(cwd, ['diff', '--name-only', '-z', '--diff-filter=ACMR', 'HEAD~1', 'HEAD'])
+      : git(cwd, ['ls-tree', '-r', '-z', '--name-only', '--full-tree', 'HEAD']);
+  }
+  if (out === null) return { mode: null, files: [] };
+
+  let files = splitNul(out);
+  if (Array.isArray(extensions) && extensions.length > 0) {
+    files = files.filter(f => extensions.some(ext => f.endsWith(ext)));
+  }
+  return { mode, files };
+}
+
+/** Object name of a path in the snapshot (paths are relative to the repo root). */
+function objectName(file, mode) {
+  return mode === 'staged' ? `:0:${file}` : `HEAD:${file}`;
+}
+
+/**
+ * Reads a file from the snapshot.
+ * With mode null (no git) the working copy is the only source there is.
+ * @returns {string|null} UTF-8 content; null when missing or binary
+ */
+function readFile(dir, file, mode) {
+  const cwd = dir || process.cwd();
+  let buffer;
+  if (mode === null || mode === undefined) {
+    try {
+      buffer = fs.readFileSync(path.join(cwd, file));
+    } catch {
+      return null;
+    }
+  } else {
+    buffer = git(cwd, ['cat-file', 'blob', objectName(file, mode)]);
+    if (buffer === null) return null;
+  }
+  if (buffer.subarray(0, BINARY_PROBE_BYTES).includes(0)) return null;
+  return buffer.toString('utf-8');
+}
+
+/**
+ * True when the path exists in the snapshot (the working copy when mode is null).
+ * @returns {boolean}
+ */
+function exists(dir, file, mode) {
+  const cwd = dir || process.cwd();
+  if (mode === null || mode === undefined) return fs.existsSync(path.join(cwd, file));
+  return git(cwd, ['cat-file', '-e', objectName(file, mode)]) !== null;
+}
+
+module.exports = { changedFiles, readFile, exists };

@@ -166,6 +166,9 @@ function generateHookFromManifest(adapter, targetDir, tools = adapter.getTools()
   }
 }
 
+/** Shared modules the diff-based guards import from their own directory, by guard language. */
+const SNAPSHOT_HELPERS = { '.js': '_changes.js', '.py': '_changes.py' };
+
 /**
  * Installs tools from an adapter's manifest into the target tools/ directory.
  * Only copies tools with valid descriptors. External CLIs are skipped (no file to copy).
@@ -204,6 +207,7 @@ function installToolsFromManifest(targetDir, manifest, config) {
 
   // Copy only custom tools with valid paths (skip external CLIs and empty paths)
   const installed = [];
+  const copiedPaths = [];
   validTools.forEach(tool => {
     if (tool.language === 'external' || !tool.path) return;
     const srcFile = path.join(sourceToolsDir, tool.path);
@@ -212,6 +216,7 @@ function installToolsFromManifest(targetDir, manifest, config) {
       fs.copyFileSync(srcFile, destFile);
       try { fs.chmodSync(destFile, '755'); } catch (e) {}
       installed.push(tool.name);
+      copiedPaths.push(tool.path);
     } else {
       console.warn(`Warning: tool "${tool.path}" declared by adapter but not found in bundled tools/. Skipping.`);
     }
@@ -222,6 +227,7 @@ function installToolsFromManifest(targetDir, manifest, config) {
   if (validTools.some(tool => tool.path === 'check_custom.js')) {
     installYamlModule(targetDir);
   }
+  installSnapshotHelpers(targetDir, copiedPaths);
   return installed;
 }
 
@@ -241,6 +247,27 @@ function installYamlModule(targetDir) {
   const toolsDest = path.join(targetDir, 'tools');
   fs.mkdirSync(toolsDest, { recursive: true });
   fs.copyFileSync(yamlSrc, path.join(toolsDest, 'yaml.js'));
+}
+
+/**
+ * Copies the snapshot helper each installed guard imports as a sibling:
+ * _changes.js when any JS file was copied into tools/, _changes.py when any
+ * Python file was (technology guards can bring Python guards to a Node
+ * stack). A stack without Python tools stays free of Python files. The `_`
+ * prefix keeps the helpers out of the audit orchestrators' guard discovery.
+ *
+ * @param {string} targetDir - Target project root
+ * @param {string[]} copiedFiles - tools/ file names copied for this project
+ */
+function installSnapshotHelpers(targetDir, copiedFiles) {
+  const toolsDest = path.join(targetDir, 'tools');
+  const helpers = new Set(copiedFiles.map(f => SNAPSHOT_HELPERS[path.extname(f)]).filter(Boolean));
+  for (const file of helpers) {
+    const src = path.join(__dirname, '..', 'tools', file);
+    if (!fs.existsSync(src)) continue;
+    fs.mkdirSync(toolsDest, { recursive: true });
+    fs.copyFileSync(src, path.join(toolsDest, file));
+  }
 }
 
 /** Generic harness for an unknown stack: Node is guaranteed (the user ran npx). */
@@ -282,6 +309,7 @@ function installFallbackTools(targetDir, projectType) {
   if (fallbackFiles.includes('check_custom.js')) {
     installYamlModule(targetDir);
   }
+  installSnapshotHelpers(targetDir, fallbackFiles);
   return [...installed];
 }
 

@@ -10,8 +10,14 @@ import json
 import os
 import pathlib
 import re
-import subprocess
 import sys
+
+# Sibling helper shipped next to the guards; works both as a script and when
+# loaded by audit.py through importlib.
+_TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+import _changes  # noqa: E402
 
 # One finding per matching line: (line_no, label, matched_snippet)
 PATTERNS: list[tuple[str, str]] = [
@@ -49,24 +55,6 @@ SKIP_EXTENSIONS = frozenset(
 )
 
 
-def _get_changed_files(target_dir: str) -> list[str] | None:
-    """Return list of changed files from git diff, or None on failure."""
-    # Staged changes first (what is being committed); HEAD~1 only when nothing is staged.
-    for ref in ("--cached", "HEAD~1"):
-        try:
-            args = ["git", "diff", "--name-only", "--diff-filter=ACMR", ref]
-            out = subprocess.check_output(
-                args, cwd=target_dir,
-                stderr=subprocess.DEVNULL, text=True,
-            )
-            files = [f.strip() for f in out.splitlines() if f.strip()]
-            if files or (ref == "--cached" and out.strip()):
-                return files
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            continue
-    return None
-
-
 def _compile_patterns() -> list[tuple[re.Pattern, str]]:
     """Compile all secret-detection patterns once."""
     return [(re.compile(p), label) for p, label in PATTERNS]
@@ -82,8 +70,10 @@ def check(target_dir: str | None = None) -> dict:
     """
     dir_path = target_dir or os.getcwd()
 
-    files = _get_changed_files(dir_path)
-    if files is None:
+    # The snapshot being verified: the index, or HEAD when nothing is staged.
+    changes = _changes.changed_files(dir_path)
+    mode, files = changes["mode"], changes["files"]
+    if mode is None:
         return {
             "exit_code": 0, "skipped": True, "name": "scan_secrets",
             "data": {"findings": {}, "message": "No git diff available"},
@@ -103,13 +93,8 @@ def check(target_dir: str | None = None) -> dict:
         if ext in SKIP_EXTENSIONS:
             continue
 
-        full_path = pathlib.Path(dir_path) / filepath
-        if not full_path.exists():
-            continue
-
-        try:
-            content = full_path.read_text(encoding="utf-8", errors="replace")
-        except (OSError, PermissionError):
+        content = _changes.read_file(dir_path, filepath, mode)
+        if content is None:
             continue
 
         file_hits: list[dict] = []

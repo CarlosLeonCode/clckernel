@@ -11,9 +11,15 @@ import json
 import os
 import pathlib
 import re
-import subprocess
 import sys
 from typing import Any, Optional
+
+# Sibling helper shipped next to the guards; works both as a script and when
+# loaded by audit.py through importlib.
+_TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+import _changes  # noqa: E402
 
 # ═══════════════════════════════════════════════════════════════════════
 # YAML Parser — PyYAML when available, otherwise the strict subset parser.
@@ -590,9 +596,11 @@ def _run_rules(dir_path: pathlib.Path, config_path: pathlib.Path, config_name: s
     if errors:
         return config_error('; '.join(errors))
 
-    # ── 3. Get changed files via git diff ───────────────────────────
-    files = _get_changed_files(dir_path)
-    if files is None:
+    # ── 3. Changed files of the snapshot being verified ─────────────
+    # The index, or HEAD when nothing is staged; never the working copy.
+    changes = _changes.changed_files(str(dir_path))
+    mode, files = changes["mode"], changes["files"]
+    if mode is None:
         return {
             "exit_code": 0,
             "skipped": True,
@@ -612,11 +620,9 @@ def _run_rules(dir_path: pathlib.Path, config_path: pathlib.Path, config_name: s
     has_error = False
 
     for file in files:
-        file_path = pathlib.Path(dir_path) / file
-        try:
-            content = file_path.read_text(encoding='utf-8')
-        except (PermissionError, OSError):
-            continue  # permission denied or unreadable — skip
+        content = _changes.read_file(str(dir_path), file, mode)
+        if content is None:
+            continue  # missing or binary in the snapshot — skip
 
         for rule in validated:
             if not rule['scope_re'].match(file):
@@ -669,31 +675,6 @@ def _validate_rule(rule: Any) -> list:
     if exclude is not None and not (isinstance(exclude, list) and all(isinstance(e, str) for e in exclude)):
         problems.append('"exclude" must be a list of strings')
     return problems
-
-
-def _get_changed_files(dir_path: str) -> Optional[list[str]]:
-    """Get list of changed files via git diff. Returns None if no diff available."""
-    # Staged changes first (what is being committed); HEAD~1 only when nothing is staged.
-    try:
-        result = subprocess.run(
-            ['git', 'diff', '--cached', '--name-only', '--diff-filter=ACMR'],
-            cwd=dir_path, capture_output=True, text=True, timeout=10,
-        )
-        files = [f for f in result.stdout.split('\n') if f.strip()]
-        if files:
-            return files
-    except Exception:
-        pass
-
-    try:
-        result = subprocess.run(
-            ['git', 'diff', '--name-only', '--diff-filter=ACMR', 'HEAD~1'],
-            cwd=dir_path, capture_output=True, text=True, timeout=10,
-        )
-        files = [f for f in result.stdout.split('\n') if f.strip()]
-        return files if files else []
-    except Exception:
-        return None
 
 
 # ═══════════════════════════════════════════════════════════════════════

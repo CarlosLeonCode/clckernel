@@ -12,8 +12,14 @@ from __future__ import annotations
 import ast
 import os
 import pathlib
-import subprocess
 import sys
+
+# Sibling helper shipped next to the guards; works both as a script and when
+# loaded by audit.py through importlib.
+_TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+import _changes  # noqa: E402
 
 
 QUERY_METHODS = {
@@ -113,40 +119,16 @@ class LoopQueryVisitor(ast.NodeVisitor):
 def check(target_dir: str | None = None) -> dict:
     dir_path = pathlib.Path(target_dir or os.getcwd()).resolve()
 
-    # Get changed python files
-    files: list[str] = []
-    try:
-        # Staged changes first (what is being committed); HEAD~1 only when nothing is staged.
-        out = subprocess.check_output(
-            ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
-            cwd=dir_path,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        if not out.strip():
-            out = subprocess.check_output(
-                ["git", "diff", "--name-only", "--diff-filter=ACMR", "HEAD~1"],
-                cwd=dir_path,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-        files = [f.strip() for f in out.splitlines() if f.strip().endswith(".py")]
-    except Exception:
-        try:
-            out = subprocess.check_output(
-                ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
-                cwd=dir_path,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-            files = [f.strip() for f in out.splitlines() if f.strip().endswith(".py")]
-        except Exception:
-            return {
-                "exit_code": 0,
-                "skipped": True,
-                "name": "check_db_efficiency",
-                "data": {"message": "No git diff available"}
-            }
+    # The snapshot being verified: the index, or HEAD when nothing is staged.
+    changes = _changes.changed_files(str(dir_path), extensions=[".py"])
+    mode, files = changes["mode"], changes["files"]
+    if mode is None:
+        return {
+            "exit_code": 0,
+            "skipped": True,
+            "name": "check_db_efficiency",
+            "data": {"message": "No git diff available"}
+        }
 
     if not files:
         return {
@@ -159,13 +141,11 @@ def check(target_dir: str | None = None) -> dict:
     violations: dict[str, list[dict]] = {}
 
     for file_rel in files:
-        file_path = dir_path / file_rel
-        if not file_path.is_file():
+        source = _changes.read_file(str(dir_path), file_rel, mode)
+        if source is None:
             continue
-
         try:
-            source = file_path.read_text(encoding="utf-8")
-            tree = ast.parse(source, filename=str(file_path))
+            tree = ast.parse(source, filename=file_rel)
         except Exception:
             continue
 

@@ -7,46 +7,27 @@
  * @param {string} targetDir - Directory to scan (defaults to cwd)
  * @returns {{ exitCode: number, skipped: boolean, name: string, data: object }}
  */
-const check = async function checkApiContracts(targetDir) {
-  const fs = require('fs');
-  const path = require('path');
-  const { execSync } = require('child_process');
+const { changedFiles, readFile } = require('./_changes');
 
+const check = async function checkApiContracts(targetDir) {
   const dir = targetDir || process.cwd();
 
-  // Check if Zod is available
+  // The snapshot being verified: the index, or HEAD when nothing is staged.
+  const { mode, files } = changedFiles(dir, { extensions: ['.ts', '.js', '.tsx', '.jsx'] });
+
+  // Check if Zod is available (package.json as of the same snapshot)
   let hasZod = false;
-  const pkgPath = path.join(dir, 'package.json');
-  if (fs.existsSync(pkgPath)) {
+  const pkgRaw = readFile(dir, 'package.json', mode);
+  if (pkgRaw !== null) {
     try {
-      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+      const pkg = JSON.parse(pkgRaw);
       const deps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
       hasZod = Boolean(deps['zod']);
     } catch { /* skip */ }
   }
 
-  // Collect API route files
-  let files;
-  try {
-    // Staged changes first (what is being committed); HEAD~1 only when nothing is staged.
-    let out = execSync('git diff --cached --name-only --diff-filter=ACMR', {
-      cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe']
-    });
-    if (!out.trim()) {
-      out = execSync('git diff --name-only --diff-filter=ACMR HEAD~1', {
-        cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe']
-      });
-    }
-    files = out.split('\n').filter(f => /\.(ts|js|tsx|jsx)$/.test(f.trim()));
-  } catch {
-    try {
-      const out = execSync('git diff --cached --name-only --diff-filter=ACMR', {
-        cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe']
-      });
-      files = out.split('\n').filter(f => /\.(ts|js|tsx|jsx)$/.test(f.trim()));
-    } catch {
-      return { exitCode: 0, skipped: true, name: 'check_api_contracts', data: { violations: {}, message: 'No git diff available' } };
-    }
+  if (mode === null) {
+    return { exitCode: 0, skipped: true, name: 'check_api_contracts', data: { violations: {}, message: 'No git diff available' } };
   }
 
   if (!files || files.length === 0) {
@@ -65,15 +46,8 @@ const check = async function checkApiContracts(targetDir) {
   const violations = {};
 
   for (const file of apiFiles) {
-    const filePath = path.join(dir, file);
-    if (!fs.existsSync(filePath)) continue;
-
-    let content;
-    try {
-      content = fs.readFileSync(filePath, 'utf-8');
-    } catch {
-      continue;
-    }
+    const content = readFile(dir, file, mode);
+    if (content === null) continue;
 
     const fileViolations = [];
 

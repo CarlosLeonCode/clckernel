@@ -13,51 +13,31 @@ from __future__ import annotations
 import ast
 import json
 import os
-import pathlib
 import re
-import subprocess
 import sys
 
-
-def _get_changed_py_files(target_dir: str) -> list[str] | None:
-    """Return changed .py files from git diff, or None on failure."""
-    # Staged changes first (what is being committed); HEAD~1 only when nothing is staged.
-    for ref in ("--cached", "HEAD~1"):
-        try:
-            args = ["git", "diff", "--name-only", "--diff-filter=ACMR", ref]
-            out = subprocess.check_output(
-                args, cwd=target_dir,
-                stderr=subprocess.DEVNULL, text=True,
-            )
-            files = [
-                f.strip() for f in out.splitlines()
-                if f.strip().endswith(".py")
-            ]
-            if files or (ref == "--cached" and out.strip()):
-                return files
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            continue
-    return None
+# Sibling helper shipped next to the guards; works both as a script and when
+# loaded by audit.py through importlib.
+_TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+import _changes  # noqa: E402
 
 
-def _detect_framework(target_dir: str) -> str:
-    """Detect whether this is a Django, FastAPI, or generic Python project."""
-    root = pathlib.Path(target_dir)
-
-    if (root / "manage.py").exists():
+def _detect_framework(target_dir: str, mode: str | None) -> str:
+    """Detect whether this is a Django, FastAPI, or generic Python project (from the snapshot)."""
+    if _changes.exists(target_dir, "manage.py", mode):
         return "django"
 
     for name in ("pyproject.toml", "requirements.txt"):
-        fpath = root / name
-        if fpath.exists():
-            try:
-                text = fpath.read_text(encoding="utf-8", errors="replace").lower()
-            except OSError:
-                continue
-            if "django" in text:
-                return "django"
-            if "fastapi" in text:
-                return "fastapi"
+        text = _changes.read_file(target_dir, name, mode)
+        if text is None:
+            continue
+        text = text.lower()
+        if "django" in text:
+            return "django"
+        if "fastapi" in text:
+            return "fastapi"
 
     return "generic"
 
@@ -199,8 +179,10 @@ def check(target_dir: str | None = None) -> dict:
     """
     dir_path = target_dir or os.getcwd()
 
-    files = _get_changed_py_files(dir_path)
-    if files is None:
+    # The snapshot being verified: the index, or HEAD when nothing is staged.
+    changes = _changes.changed_files(dir_path, extensions=[".py"])
+    mode, files = changes["mode"], changes["files"]
+    if mode is None:
         return {
             "exit_code": 0, "skipped": True, "name": "check_architecture",
             "data": {"violations": {}, "message": "No git diff available"},
@@ -212,17 +194,12 @@ def check(target_dir: str | None = None) -> dict:
             "data": {"violations": {}, "message": "No Python files changed"},
         }
 
-    framework = _detect_framework(dir_path)
+    framework = _detect_framework(dir_path, mode)
     violations: dict[str, list[dict]] = {}
 
     for filepath in files:
-        full_path = pathlib.Path(dir_path) / filepath
-        if not full_path.exists():
-            continue
-
-        try:
-            content = full_path.read_text(encoding="utf-8", errors="replace")
-        except (OSError, PermissionError):
+        content = _changes.read_file(dir_path, filepath, mode)
+        if content is None:
             continue
 
         try:
