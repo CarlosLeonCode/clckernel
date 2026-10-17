@@ -76,6 +76,36 @@ function changedFiles(dir, { extensions } = {}) {
 }
 
 /**
+ * New paths of the PURE renames in the snapshot: files whose content is
+ * identical to a file removed in the same change (same blob, git R100). The
+ * pair compared is the one changedFiles uses: HEAD -> index when staged,
+ * HEAD~1 -> HEAD in last-commit mode; a root commit (or an index with no HEAD)
+ * has no renames. A rename with any content change is not listed.
+ * @param {string} dir - Directory inside the repository
+ * @param {'staged'|'last-commit'|null} mode - Snapshot (from changedFiles)
+ * @returns {Set<string>}
+ */
+function pureRenames(dir, mode) {
+  const cwd = dir || process.cwd();
+  const raw = ['--raw', '-z', '--no-abbrev', '-M', '--diff-filter=R'];
+  let out = null;
+  if (mode === 'staged' && hasCommit(cwd, 'HEAD')) {
+    out = git(cwd, ['diff', '--cached', ...raw, 'HEAD']);
+  } else if (mode === 'last-commit' && hasCommit(cwd, 'HEAD~1')) {
+    out = git(cwd, ['diff', ...raw, 'HEAD~1', 'HEAD']);
+  }
+  const renamed = new Set();
+  if (out === null) return renamed;
+  // Each record: ":<src mode> <dst mode> <src blob> <dst blob> R<score>" NUL old NUL new NUL.
+  const parts = splitNul(out);
+  for (let i = 0; i + 2 < parts.length; i += 3) {
+    const fields = parts[i].replace(/^:/, '').split(' ');
+    if (fields.length === 5 && fields[2] === fields[3]) renamed.add(parts[i + 2]);
+  }
+  return renamed;
+}
+
+/**
  * Paths listed in the harness registry: read from the snapshot being evaluated,
  * falling back to the working copy at the repository root. A missing or
  * malformed registry excludes nothing.
@@ -192,4 +222,4 @@ function nearestPackageDeps(dir, file, mode, cache = new Map()) {
   return deps;
 }
 
-module.exports = { changedFiles, readFile, exists, listFiles, nearestPackageDeps };
+module.exports = { changedFiles, pureRenames, readFile, exists, listFiles, nearestPackageDeps };

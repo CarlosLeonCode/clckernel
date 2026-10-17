@@ -73,21 +73,29 @@ def _rev_exists(repo: str, rev: str) -> bool:
 
 
 def _resolve_trees(repo: str) -> dict | None:
-    """Pick BASE/CANDIDATE and list the changed files (deletions ignored)."""
-    changes = _changes.changed_files(repo)
-    if changes["mode"] is None:
+    """
+    Pick BASE/CANDIDATE and list the changed files (deletions ignored). Pure
+    renames (identical content moved to a new path) are not changes to verify:
+    they are listed apart in "renamed" and count neither as code nor as tests.
+    """
+    all_changes = _changes.changed_files(repo)
+    if all_changes["mode"] is None:
         raise GitError("could not list the changed files")
+    pure = _changes.pure_renames(repo, all_changes["mode"])
+    changes = {"mode": all_changes["mode"], "files": [f for f in all_changes["files"] if f not in pure]}
+    renamed = [f for f in all_changes["files"] if f in pure and f.endswith(".py")]
     has_head = _rev_exists(repo, "HEAD")
 
     if changes["mode"] == "staged":
         if not has_head and not changes["files"]:
             return None  # no commits and nothing staged
         return {"mode": "staged", "base": "HEAD" if has_head else None,
-                "candidate": None, "changed": changes["files"], "snapshot": changes["mode"]}
+                "candidate": None, "changed": changes["files"], "renamed": renamed,
+                "snapshot": changes["mode"]}
 
     base = "HEAD~1" if _rev_exists(repo, "HEAD~1") else None
     return {"mode": "manual", "base": base, "candidate": "HEAD", "changed": changes["files"],
-            "snapshot": changes["mode"]}
+            "renamed": renamed, "snapshot": changes["mode"]}
 
 
 def _project_root(rel: str, files: set) -> str:
@@ -281,6 +289,8 @@ def _precheck(groups: dict, data: dict, lang_label: str = "Python") -> dict | No
         if groups["tests"]:
             data["message"] = "Only tests changed: characterization tests allowed."
             data["warning"] = "No production code changed, so red->green was not verified."
+        elif data.get("pure_renames"):
+            data["message"] = "Only pure renames: nothing to verify."
         else:
             data["message"] = f"No {lang_label} production code changed: nothing to verify."
         return _result(0, data)
@@ -366,6 +376,8 @@ def check(target_dir: str | None = None) -> dict:
         "changed_support": groups["support"],
         "changed_code": groups["code"],
     }
+    if trees["renamed"]:
+        data["pure_renames"] = trees["renamed"]
 
     roots = _by_root(repo, trees)
     if len(roots) > 1:

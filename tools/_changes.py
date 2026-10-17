@@ -82,6 +82,33 @@ def changed_files(target_dir: Optional[str] = None, extensions=None) -> dict:
     return {"mode": mode, "files": files}
 
 
+def pure_renames(target_dir: Optional[str], mode: Optional[str]) -> set:
+    """
+    New paths of the PURE renames in the snapshot: files whose content is
+    identical to a file removed in the same change (same blob, git R100). The
+    pair compared is the one changed_files uses: HEAD -> index when staged,
+    HEAD~1 -> HEAD in last-commit mode; a root commit (or an index with no HEAD)
+    has no renames. A rename with any content change is not listed.
+    """
+    cwd = str(target_dir or os.getcwd())
+    raw = ("--raw", "-z", "--no-abbrev", "-M", "--diff-filter=R")
+    out = None
+    if mode == "staged" and _has_commit(cwd, "HEAD"):
+        out = _git(cwd, "diff", "--cached", *raw, "HEAD")
+    elif mode == "last-commit" and _has_commit(cwd, "HEAD~1"):
+        out = _git(cwd, "diff", *raw, "HEAD~1", "HEAD")
+    renamed: set = set()
+    if out is None:
+        return renamed
+    # Each record: ":<src mode> <dst mode> <src blob> <dst blob> R<score>" NUL old NUL new NUL.
+    parts = _split_nul(out)
+    for i in range(0, len(parts) - 2, 3):
+        fields = parts[i].lstrip(":").split(" ")
+        if len(fields) == 5 and fields[2] == fields[3]:
+            renamed.add(parts[i + 2])
+    return renamed
+
+
 def _managed_files(cwd: str, mode: Optional[str]) -> set:
     """
     Paths listed in the harness registry: read from the snapshot being evaluated,

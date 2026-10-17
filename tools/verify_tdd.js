@@ -29,7 +29,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { changedFiles, listFiles } = require('./_changes');
+const { changedFiles, listFiles, pureRenames } = require('./_changes');
 
 const NAME = 'verify_tdd';
 const DEFAULT_TIMEOUT = 300;
@@ -68,18 +68,25 @@ function revExists(repo, rev) {
   }
 }
 
-/** Pick BASE/CANDIDATE and list the changed files (deletions ignored). */
+/**
+ * Pick BASE/CANDIDATE and list the changed files (deletions ignored). Pure
+ * renames (identical content moved to a new path) are not changes to verify:
+ * they are listed apart in `renamed` and count neither as code nor as tests.
+ */
 function resolveTrees(repo) {
-  const changes = changedFiles(repo);
-  if (changes.mode === null) throw new GitError('could not list the changed files');
+  const all = changedFiles(repo);
+  if (all.mode === null) throw new GitError('could not list the changed files');
+  const pure = pureRenames(repo, all.mode);
+  const changes = { mode: all.mode, files: all.files.filter((f) => !pure.has(f)) };
+  const renamed = all.files.filter((f) => pure.has(f) && JS_EXTENSIONS.includes(path.posix.extname(f)));
   const hasHead = revExists(repo, 'HEAD');
 
   if (changes.mode === 'staged') {
     if (!hasHead && changes.files.length === 0) return null; // no commits and nothing staged
-    return { mode: 'staged', base: hasHead ? 'HEAD' : null, candidate: null, changed: changes.files, snapshot: changes.mode };
+    return { mode: 'staged', base: hasHead ? 'HEAD' : null, candidate: null, changed: changes.files, renamed, snapshot: changes.mode };
   }
   const base = revExists(repo, 'HEAD~1') ? 'HEAD~1' : null;
-  return { mode: 'manual', base, candidate: 'HEAD', changed: changes.files, snapshot: changes.mode };
+  return { mode: 'manual', base, candidate: 'HEAD', changed: changes.files, renamed, snapshot: changes.mode };
 }
 
 /** Nearest ancestor dir of rel holding a package.json; '.' for the repository root. */
@@ -370,6 +377,8 @@ function precheck(groups, data) {
     if (groups.tests.length > 0) {
       data.message = 'Only tests changed: characterization tests allowed.';
       data.warning = 'No production code changed, so red->green was not verified.';
+    } else if (data.pure_renames && data.pure_renames.length > 0) {
+      data.message = 'Only pure renames: nothing to verify.';
     } else {
       data.message = 'No JS/TS production code changed: nothing to verify.';
     }
@@ -448,6 +457,7 @@ function check(targetDir) {
     changed_support: groups.support,
     changed_code: groups.code,
   };
+  if (trees.renamed.length > 0) data.pure_renames = trees.renamed;
 
   const roots = byRoot(repo, trees);
   if (roots.size > 1) return verifyRoots(repo, trees, roots, data);
