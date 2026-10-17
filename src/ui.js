@@ -4,6 +4,7 @@
  */
 
 const p = require('@clack/prompts');
+const { version: PACKAGE_VERSION } = require('../package.json');
 
 // ANSI Color Palette
 const colors = {
@@ -33,7 +34,7 @@ function printBanner() {
   ╚██████╗███████╗╚██████╗     ██║ ╚██╗███████╗██║  ██║██║ ╚████║███████╗███████╗
    ╚═════╝╚══════╝ ╚═════╝     ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝
 ${colors.reset}`);
-  console.log(`  ${colors.bgCyan} CLC KERNEL ${colors.reset} ${colors.bold}The AI Agent Governance & Quality Engineering Engine${colors.reset} ${colors.gray}v1.2.6${colors.reset}\n`);
+  console.log(`  ${colors.bgCyan} CLC KERNEL ${colors.reset} ${colors.bold}The AI Agent Governance & Quality Engineering Engine${colors.reset} ${colors.gray}v${PACKAGE_VERSION}${colors.reset}\n`);
 }
 
 function printBox(title, items) {
@@ -112,19 +113,23 @@ async function promptOptions(detected) {
   return detected;
 }
 
-function printSuccess(targetDir, isFront, config) {
-  const isAgentOS = config.projectType === 'agent-os';
-  const guardsDesc = isAgentOS
-    ? `${colors.cyan}6 Guardias Agent-OS (HITL, Symlinks, Schemas, Memoria, Secrets)${colors.reset}`
-    : isFront
-    ? `${colors.emerald}10 Guardias Frontend (A11y, Zod, Image, UI Reuse, Storybook)${colors.reset}`
-    : `${colors.violet}7 Guardias Backend (TDD, Architecture, Scope, Secret Scan)${colors.reset}`;
+/**
+ * Prints the installation summary.
+ * @param {string} targetDir - Provisioned project root
+ * @param {boolean} isFront - Whether the hook lives in .husky
+ * @param {object} config - Final project config
+ * @param {string[]} [installedGuards] - Guards actually copied into tools/
+ */
+function printSuccess(targetDir, isFront, config, installedGuards = []) {
+  const guardsDesc = installedGuards.length > 0
+    ? `${colors.emerald}${installedGuards.length} guard(s): ${installedGuards.join(', ')}${colors.reset}`
+    : `${colors.amber}no guards installed${colors.reset}`;
 
   const summary = [
     `🔨 ${colors.bold}Proyecto Inicializado:${colors.reset} ${colors.cyan}${targetDir}${colors.reset}`,
     `🛡️  ${colors.bold}Salvaguardas:${colors.reset} ${guardsDesc}`,
     `📝 ${colors.bold}Leyes & SDD:${colors.reset} AGENTS.md, sdds/, docs/Journal/ precargados`,
-    `🔒 ${colors.bold}Git Hooks:${colors.reset} Configurados en ${colors.amber}${config.gitHooks === 'husky' ? '.husky/pre-commit' : '.githooks/pre-commit'}${colors.reset}`
+    `🔒 ${colors.bold}Git Hooks:${colors.reset} Configurados en ${colors.amber}${isFront ? '.husky/pre-commit' : '.githooks/pre-commit'}${colors.reset}`
   ].join('\n');
 
   if (p.note && p.outro) {

@@ -117,7 +117,7 @@ describe('honest claims — adapters', () => {
 });
 
 describe('honest claims — fallback AGENTS.md (no adapter)', () => {
-  for (const projectType of ['backend', 'frontend']) {
+  for (const projectType of ['backend', 'frontend', 'unknown']) {
     it(`${projectType}: no overstated phrases, no vague AST, no verifier claim`, () => {
       const dir = createTmpProject({});
       try {

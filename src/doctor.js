@@ -6,9 +6,17 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { spawnSync } = require('child_process');
+
+/** Parses the file given as argv[1]; the path never touches a shell. */
+const PY_PARSE_SCRIPT = 'import ast, sys\nast.parse(open(sys.argv[1]).read())';
 const { colors } = require('./ui');
 
+/**
+ * Runs every health check against targetDir and prints the results.
+ * @param {string} targetDir - Project to inspect
+ * @returns {number} Number of failed checks (0 means healthy)
+ */
 function runDoctor(targetDir) {
   console.log(`\n${colors.bold}${colors.cyan}CLC KERNEL DOCTOR — HEALTH CHECK${colors.reset}\n`);
   console.log(`  Target Repository: ${colors.cyan}${targetDir}${colors.reset}\n`);
@@ -52,14 +60,14 @@ function runDoctor(targetDir) {
 
       // Parse-test Python guard scripts via ast.parse()
       if (file.endsWith('.py') && file.startsWith('check_')) {
-        try {
-          execSync(
-            `python3 -c "import ast; ast.parse(open('${toolPath}').read())"`,
-            { stdio: 'pipe' }
-          );
+        const res = spawnSync('python3', ['-c', PY_PARSE_SCRIPT, toolPath], { encoding: 'utf-8' });
+        if (!res.error && res.status === 0) {
           checks.push({ name: `tool/${file} parses`, status: true });
-        } catch (e) {
-          checks.push({ name: `tool/${file} parses`, status: false, detail: e.message });
+        } else {
+          const detail = res.error
+            ? res.error.message
+            : (res.stderr || '').trim().split('\n').pop() || `python3 exited ${res.status}`;
+          checks.push({ name: `tool/${file} parses`, status: false, detail });
         }
       }
     });
@@ -120,6 +128,7 @@ function runDoctor(targetDir) {
   } else {
     console.log(` ${colors.amber}  ${checks.length - passedCount} issue(s) detected. Run \`npx clckernel\` to repair.${colors.reset}\n`);
   }
+  return checks.length - passedCount;
 }
 
 module.exports = { runDoctor };

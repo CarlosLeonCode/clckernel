@@ -3,7 +3,9 @@
  * Coordinates auto-discovery, UI rendering, generator engine, and doctor checks.
  */
 
+const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 const { autoDetectStack } = require('./detector');
 const { printBanner, printBox, promptOptions, printSuccess, colors } = require('./ui');
 const { generateHarness } = require('./generator');
@@ -18,27 +20,43 @@ const READ_ONLY_COMMANDS = new Set(['help', '--help', '-h', 'version', '--versio
  */
 const INSTALL_FLAGS = new Set(['--yes', '-y']);
 
+/**
+ * Words AGENTS.md documents as agent commands (`clckernel test`, ...). They are
+ * executed by the AI agent, not by this CLI; without this list they would be
+ * taken as an install target directory.
+ */
+const AGENT_COMMANDS = new Set(['test', 'start', 'feature', 'fix', 'commit', 'guard']);
+
 const HELP_TEXT = `
 ${'clckernel'} — CLC Kernel: The AI Agent Governance Engine
 
 USAGE
   clckernel <command> [targetDir]
 
-READ-ONLY COMMANDS (never modify your project)
+READ-ONLY COMMANDS (do not modify your project's code or config)
   help, --help, -h        Show this help
   version, --version, -v  Print the installed version
   doctor [targetDir]      Run diagnostics on a project
-  update [targetDir]      Refresh tools, playbooks and IDE symlinks
+  audit [targetDir]       Run the installed audit orchestrator (tools/audit.js
+                          or tools/audit.py); it only writes its report to sdds/
 
-INSTALLATION (writes to the target project)
+WRITES TO THE TARGET PROJECT
+  update [targetDir]            Refresh tools, hooks, playbooks, IDE symlinks,
+                                .gitignore and AGENTS.md
   clckernel [targetDir] --yes   Provision the governance harness
 
-  Requires an explicit opt-in. Bare \`clckernel\` runs the interactive
-  confirmation flow; with no TTY it refuses to install.
+  Installation requires an explicit opt-in and an existing target directory.
+  Bare \`clckernel\` runs the interactive confirmation flow; with no TTY it
+  refuses to install.
+
+AGENT COMMANDS
+  test, start, feature, fix, commit, guard are defined in AGENTS.md and are
+  run by your AI agent, not by this CLI.
 
 EXAMPLES
   clckernel --help
   clckernel doctor .
+  clckernel audit .
   clckernel update .
   clckernel . --yes
 `;
@@ -57,6 +75,75 @@ function rejectUnknownInput(args) {
       '   Run `clckernel --help` to see available commands.\n\n'
   );
   return 1;
+}
+
+/**
+ * Explains that an AGENTS.md agent command is not a CLI command.
+ * @param {string} word - The reserved word the user typed
+ * @returns {number} Process exit code
+ */
+function rejectAgentCommand(word) {
+  process.stderr.write(
+    `\n❌ \`${word}\` is an agent command defined in AGENTS.md, not a CLI command.\n` +
+      '   Ask your AI agent to run it, or run `clckernel --help` to see CLI commands.\n\n'
+  );
+  return 1;
+}
+
+/**
+ * Resolves a user-supplied directory and checks it exists and is a directory.
+ * Prints the error itself so callers only decide the exit code.
+ * @param {string|undefined} input - Raw path argument (cwd when absent)
+ * @returns {string|null} Absolute path, or null when unusable
+ */
+function resolveExistingDir(input) {
+  const dir = input ? path.resolve(input) : process.cwd();
+  let stat;
+  try {
+    stat = fs.statSync(dir);
+  } catch (e) {
+    process.stderr.write(`\n❌ Target directory does not exist: ${dir}\n   Nothing was written.\n\n`);
+    return null;
+  }
+  if (!stat.isDirectory()) {
+    process.stderr.write(`\n❌ Target is not a directory: ${dir}\n   Nothing was written.\n\n`);
+    return null;
+  }
+  return dir;
+}
+
+/**
+ * `clckernel audit [dir]`: runs the orchestrator installed in dir/tools
+ * (audit.js preferred, else audit.py) with cwd = dir.
+ * @param {string|undefined} input - Target directory argument
+ * @returns {number} Exit code (the orchestrator's own status when it ran)
+ */
+function runAudit(input) {
+  const dir = resolveExistingDir(input);
+  if (!dir) return 1;
+
+  const candidates = [
+    { file: 'audit.js', cmd: process.execPath },
+    { file: 'audit.py', cmd: 'python3' },
+  ];
+  const orchestrator = candidates.find((c) => fs.existsSync(path.join(dir, 'tools', c.file)));
+  if (!orchestrator) {
+    process.stderr.write(
+      `\n❌ No audit orchestrator found in ${path.join(dir, 'tools')} (audit.js or audit.py).\n` +
+        `   Install the harness first: clckernel ${input || '.'} --yes\n\n`
+    );
+    return 1;
+  }
+
+  const res = spawnSync(orchestrator.cmd, [path.join('tools', orchestrator.file)], {
+    cwd: dir,
+    stdio: 'inherit',
+  });
+  if (res.error) {
+    process.stderr.write(`\n❌ Could not run tools/${orchestrator.file}: ${res.error.message}\n\n`);
+    return 1;
+  }
+  return res.status === null ? 1 : res.status;
 }
 
 async function runCli() {
@@ -78,9 +165,24 @@ async function runCli() {
     return;
   }
 
+  if (AGENT_COMMANDS.has(command)) {
+    process.exitCode = rejectAgentCommand(command);
+    return;
+  }
+
+  if (command === 'audit') {
+    if (args.length > 2 || args.slice(1).some((a) => a.startsWith('-'))) {
+      process.exitCode = rejectUnknownInput(args);
+      return;
+    }
+    process.exitCode = runAudit(args[1]);
+    return;
+  }
+
   if (command === 'doctor' || args.includes('--doctor')) {
     const target = args[1] && args[1] !== '--doctor' ? args[1] : (args[0] === 'doctor' ? null : args[0]);
-    runDoctor(target ? path.resolve(target) : process.cwd());
+    const failures = runDoctor(target ? path.resolve(target) : process.cwd());
+    if (failures > 0) process.exitCode = 1;
     return;
   }
 
@@ -102,7 +204,17 @@ async function runCli() {
     return;
   }
 
-  const targetDir = positionals.length === 1 ? path.resolve(positionals[0]) : process.cwd();
+  if (positionals.length === 1 && AGENT_COMMANDS.has(positionals[0])) {
+    process.exitCode = rejectAgentCommand(positionals[0]);
+    return;
+  }
+
+  // A mistyped path must never become a freshly created directory.
+  const targetDir = resolveExistingDir(positionals[0]);
+  if (!targetDir) {
+    process.exitCode = 1;
+    return;
+  }
   const explicitInstall = INSTALL_FLAGS.has(command) || flags.length > 0;
   const isInteractive = Boolean(process.stdin.isTTY) && !process.env.CI;
 
@@ -124,6 +236,7 @@ async function runCli() {
 
   // 3. Render Formatted Configuration Box
   printBox('🔍 CONFIGURACIÓN DETECTADA AUTOMÁTICAMENTE', [
+    { label: '📁 Target', value: targetDir, badgeColor: colors.cyan },
     { label: '📦 Tipo de Proyecto', value: detected.projectType.toUpperCase(), badgeColor: colors.amber },
     { label: '🚀 Framework', value: detected.framework, badgeColor: colors.emerald },
     { label: '🎨 Estilos & UI', value: `${detected.styling} (${detected.uiLibrary})`, badgeColor: colors.violet },
@@ -142,14 +255,14 @@ async function runCli() {
     s.start('Configurando salvaguardas y motor de gobernanza...');
   }
 
-  generateHarness(targetDir, finalConfig);
+  const { installedGuards } = generateHarness(targetDir, finalConfig) || {};
 
   if (s) {
     s.stop('Salvaguardas y motor de gobernanza configurados.');
   }
 
   // 6. Render Pro Success Card
-  printSuccess(targetDir, finalConfig.projectType === 'frontend', finalConfig);
+  printSuccess(targetDir, finalConfig.projectType === 'frontend', finalConfig, installedGuards);
 }
 
 module.exports = { runCli };

@@ -5,7 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const { resolveConfig } = require('./config.js');
 
 /**
@@ -45,6 +45,55 @@ function buildToolManifest(adapter, techTools = []) {
     ...techTools,
     ...frameworkTools.slice(checkCustomIdx),
   ];
+}
+
+/** Value core.hooksPath takes when the harness owns the repo's hooks. */
+const GITHOOKS_DIR = '.githooks';
+
+function runGit(cwd, args) {
+  const res = spawnSync('git', args, { cwd, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+  return { ok: !res.error && res.status === 0, out: (res.stdout || '').trim() };
+}
+
+/**
+ * Points core.hooksPath at .githooks only when it is safe to do so:
+ * (a) targetDir is the root of its git repository, and (b) the current value
+ * is empty or already .githooks. Anything else (another hook manager such as
+ * Husky, a monorepo subdirectory, no repository at all) is left untouched and
+ * the manual command is printed instead.
+ * @param {string} targetDir - Target project root
+ * @returns {boolean} true when core.hooksPath is (now) .githooks
+ */
+function configureHooksPath(targetDir) {
+  const toplevel = runGit(targetDir, ['rev-parse', '--show-toplevel']);
+  if (!toplevel.ok || !toplevel.out) {
+    console.warn(
+      `Warning: ${targetDir} is not inside a git repository; core.hooksPath was not set.\n` +
+        `  After \`git init\`, enable the hooks with: git config core.hooksPath ${GITHOOKS_DIR}`
+    );
+    return false;
+  }
+
+  const root = fs.realpathSync(toplevel.out);
+  if (root !== fs.realpathSync(targetDir)) {
+    const rel = path.join(path.relative(root, fs.realpathSync(targetDir)), GITHOOKS_DIR);
+    console.warn(
+      `Warning: ${targetDir} is not the root of its git repository (${root}); core.hooksPath was not set.\n` +
+        `  To use these hooks for the whole repository run: git -C "${root}" config core.hooksPath ${rel}`
+    );
+    return false;
+  }
+
+  const current = runGit(targetDir, ['config', '--get', 'core.hooksPath']).out;
+  if (current && current !== GITHOOKS_DIR) {
+    console.warn(
+      `Warning: core.hooksPath is already set to "${current}" (another hook manager?); it was left unchanged.\n` +
+        `  To run the CLC Kernel hooks instead run: git config core.hooksPath ${GITHOOKS_DIR}`
+    );
+    return false;
+  }
+
+  return runGit(targetDir, ['config', 'core.hooksPath', GITHOOKS_DIR]).ok;
 }
 
 /**
@@ -113,9 +162,7 @@ function generateHookFromManifest(adapter, targetDir, tools = adapter.getTools()
   try { fs.chmodSync(hookFile, '755'); } catch (e) {}
 
   if (!isFront) {
-    try {
-      execSync('git config core.hooksPath .githooks', { cwd: targetDir, stdio: 'ignore' });
-    } catch (e) {}
+    configureHooksPath(targetDir);
   }
 }
 
@@ -126,6 +173,7 @@ function generateHookFromManifest(adapter, targetDir, tools = adapter.getTools()
  * @param {string} targetDir - Target project root
  * @param {Array} manifest - Tool manifest from adapter.getTools()
  * @param {object} config - Project config (projectType, framework, testRunner)
+ * @returns {string[]} Names of the guards copied into tools/
  */
 function installToolsFromManifest(targetDir, manifest, config) {
   const sourceToolsDir = path.join(__dirname, '..', 'tools');
@@ -155,6 +203,7 @@ function installToolsFromManifest(targetDir, manifest, config) {
   }
 
   // Copy only custom tools with valid paths (skip external CLIs and empty paths)
+  const installed = [];
   validTools.forEach(tool => {
     if (tool.language === 'external' || !tool.path) return;
     const srcFile = path.join(sourceToolsDir, tool.path);
@@ -162,6 +211,7 @@ function installToolsFromManifest(targetDir, manifest, config) {
     if (fs.existsSync(srcFile)) {
       fs.copyFileSync(srcFile, destFile);
       try { fs.chmodSync(destFile, '755'); } catch (e) {}
+      installed.push(tool.name);
     } else {
       console.warn(`Warning: tool "${tool.path}" declared by adapter but not found in bundled tools/. Skipping.`);
     }
@@ -172,6 +222,7 @@ function installToolsFromManifest(targetDir, manifest, config) {
   if (validTools.some(tool => tool.path === 'check_custom.js')) {
     installYamlModule(targetDir);
   }
+  return installed;
 }
 
 /**
@@ -192,42 +243,57 @@ function installYamlModule(targetDir) {
   fs.copyFileSync(yamlSrc, path.join(toolsDest, 'yaml.js'));
 }
 
+/** Generic harness for an unknown stack: Node is guaranteed (the user ran npx). */
+const GENERIC_FALLBACK_FILES = ['audit.js', 'scan_secrets.js'];
+
+/** Legacy fallback set, used when a stack was forced (frontend/backend) without an adapter. */
+const LEGACY_FALLBACK_FILES = [
+  'audit.js', 'audit.py',
+  'scan_secrets.js', 'scan_secrets.py',
+  'check_custom.js', 'check_custom.py',
+  'check_responsive.js', 'check_seo.js',
+  'check_db_efficiency.py'
+];
+
 /**
  * Installs a minimal fallback tool set when no adapter is provided.
- * Copies audit.js, audit.py, scan_secrets.js, scan_secrets.py.
+ * An unknown stack gets only the JS audit orchestrator and secret scan; a
+ * forced frontend/backend type keeps the legacy set.
  * @param {string} targetDir - Target project root
+ * @param {string} [projectType] - Detected or forced project type
+ * @returns {string[]} Names of the guards copied into tools/ (orchestrators excluded)
  */
-function installFallbackTools(targetDir) {
+function installFallbackTools(targetDir, projectType) {
   const sourceToolsDir = path.join(__dirname, '..', 'tools');
-  const fallbackFiles = [
-    'audit.js', 'audit.py',
-    'scan_secrets.js', 'scan_secrets.py',
-    'check_custom.js', 'check_custom.py',
-    'check_responsive.js', 'check_seo.js',
-    'check_db_efficiency.py'
-  ];
+  const fallbackFiles = projectType === 'unknown' ? GENERIC_FALLBACK_FILES : LEGACY_FALLBACK_FILES;
 
+  const installed = new Set();
   fallbackFiles.forEach(file => {
     const srcFile = path.join(sourceToolsDir, file);
     const destFile = path.join(targetDir, 'tools', file);
     if (fs.existsSync(srcFile)) {
       fs.copyFileSync(srcFile, destFile);
       try { fs.chmodSync(destFile, '755'); } catch (e) {}
+      const name = path.basename(file, path.extname(file));
+      if (name !== 'audit') installed.add(name);
     }
   });
 
   if (fallbackFiles.includes('check_custom.js')) {
     installYamlModule(targetDir);
   }
+  return [...installed];
 }
 
 /**
  * Generates a minimal generic pre-commit hook when no adapter is available.
  * @param {string} targetDir - Target project root
- * @param {string} projectType - 'frontend' or 'backend'
+ * @param {string} projectType - 'frontend', 'backend' or 'unknown'
  */
 function generateFallbackHook(targetDir, projectType) {
   const isFront = projectType === 'frontend';
+  // An unknown stack must not depend on Python: Node is the one runtime we know exists.
+  const secretScan = projectType === 'unknown' ? 'node tools/scan_secrets.js' : 'python3 tools/scan_secrets.py';
 
   if (isFront) {
     const hookDir = path.join(targetDir, '.husky');
@@ -249,12 +315,10 @@ node tools/scan_secrets.js
     fs.writeFileSync(hookFile, `#!/usr/bin/env bash
 set -e
 echo "Running CLC Kernel Safeguards..."
-python3 tools/scan_secrets.py
+${secretScan}
 `, 'utf-8');
     try { fs.chmodSync(hookFile, '755'); } catch (e) {}
-    try {
-      execSync('git config core.hooksPath .githooks', { cwd: targetDir, stdio: 'ignore' });
-    } catch (e) {}
+    configureHooksPath(targetDir);
   }
 }
 
@@ -349,6 +413,10 @@ function generateHarness(targetDir, configOrNull) {
   } else {
     // Fallback: create directory structure + AGENTS.md
     const isFront = config.projectType === 'frontend';
+    // Unknown stack: a Generic AGENTS.md with no stack-specific rules.
+    const isGeneric = config.projectType === 'unknown';
+    const frameworkLabel = isGeneric ? 'Generic' : (config.framework || 'Generic');
+    const testRunner = isGeneric ? "the project's test runner" : (config.testRunner || 'npm test');
 
     fs.mkdirSync(path.join(targetDir, 'docs', 'Journal'), { recursive: true });
     fs.mkdirSync(path.join(targetDir, 'docs', 'Architecture'), { recursive: true });
@@ -360,7 +428,7 @@ function generateHarness(targetDir, configOrNull) {
     ensureGitignoreEntries(targetDir);
     fs.writeFileSync(path.join(targetDir, 'sdds', '.gitkeep'), '', 'utf-8');
 
-    const agentsContent = `# CLC Kernel ${config.framework || 'Generic'} (${(config.projectType || 'unknown').toUpperCase()}) — AGENTS
+    const agentsContent = `# CLC Kernel ${frameworkLabel} (${(config.projectType || 'unknown').toUpperCase()}) — AGENTS
 
 This document is the **authoritative law** for AI agents working in this repository.
 Forged by **CLC Kernel: The AI Agent Governance Engine**.
@@ -369,7 +437,7 @@ Forged by **CLC Kernel: The AI Agent Governance Engine**.
 > Even when the user issues a direct or urgent fix request ("fix this bug", "fix this error", "quick fix"):
 > YOU ARE STRICTLY FORBIDDEN from modifying source code directly without completing the full quality harness:
 > 1. **Research & Root Cause Analysis:** Investigate tracebacks and inspect affected files before editing.
-> 2. **TDD Verification (Red Phase):** Write a failing regression test first (${config.testRunner || 'npm test'}).
+> 2. **TDD Verification (Red Phase):** Write a failing regression test first (${testRunner}).
 > 3. **Clean Architecture Implementation (Green Phase):** Make the test pass maintaining layer isolation.
 > 4. **Mandatory Educational Audit Gate:** Execute \`node tools/audit.js\` or \`python tools/audit.py\` and output the Educational Code Summary to stdout.
 > NEVER declare success or skip verification commands for quick fixes.
@@ -377,7 +445,7 @@ Forged by **CLC Kernel: The AI Agent Governance Engine**.
 ## 1. The Loop (Every Task)
 1. **Research** — Inspect codebase / docs before writing code.
 2. **Plan** — Write an SDD under \`sdds/{change-name}/\`. SDDs live 100% locally and are gitignored.
-3. **Test** (TDD) — Write failing test first (${config.testRunner || 'npm test'}).
+3. **Test** (TDD) — Write failing test first (${testRunner}).
 4. **Implement** — Make test pass.
 5. **Verify & Audit** — Run \`node tools/audit.js\` or \`python tools/audit.py\`.
 6. **DoD** — Lint, typecheck, tests, coverage, docs, memory.
@@ -395,6 +463,10 @@ ${isFront ? `- UI Component Reuse First (components/ui/ & semantic tokens)
 - Next/Image & Tree-Shaking Guard
 - Storybook Coverage Guard
 - Educational Audit Gate
+- Memory Guard (Engram / Graphify)` : isGeneric ? `- Wait for Audit Gate
+- Secret Leak Guard (tools/scan_secrets.js, run by the pre-commit hook)
+- Scope protocol (agent-enforced; not checked by a guard)
+- TDD protocol (agent-enforced; no verifier installed for this stack)
 - Memory Guard (Engram / Graphify)` : `- Wait for Audit Gate
 - Scope protocol (agent-enforced; not checked by a guard)
 - TDD protocol (agent-enforced; no verifier installed for this stack)
@@ -411,7 +483,7 @@ When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`,
 |---|---|---|
 | \`clckernel feature <name>\` | New Feature | 1. Research affected layers.<br>2. Author local spec in \`sdds/{name}/spec.md\`.<br>3. Present HIT review to user and wait for approval.<br>4. Write failing test (Red Phase).<br>5. Implement clean code (Green Phase).<br>6. Run \`node tools/audit.js\` (or \`audit.py\`). |
 | \`clckernel fix <issue>\` | Bug Fix | 1. Investigate root cause (no code edits).<br>2. Reproduce with failing test (Red Phase).<br>3. Minimal surgical fix respecting Clean Arch (Green Phase).<br>4. Run audit gate without skipping. |
-| \`clckernel test\` | Verification | Run test suite (\`${config.testRunner || 'npm test'}\`) and verify clean pass (exit code 0). |
+| \`clckernel test\` | Verification | Run test suite (\`${testRunner}\`) and verify clean pass (exit code 0). |
 | \`clckernel audit\` | Verification | Run \`node tools/audit.js\` or \`python tools/audit.py\` and output the Educational Summary. |
 | \`clckernel doctor\` | Diagnostics | Check git pre-commit hooks, IDE symlinks, and guard script integrity. |
 | \`clckernel commit <message>\` | Version Control | Run full audit, verify tests pass, ensure no changes outside SDD scope, and commit with conventional commits (never add AI attribution). |
@@ -430,17 +502,20 @@ When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`,
 
   // Steps 2-3: Install tools and generate the pre-commit hook from the same
   // manifest, so every guard copied into tools/ is also run by the hook.
+  let installedGuards;
   if (config.adapter) {
     const manifest = buildToolManifest(config.adapter, config.techTools || []);
-    installToolsFromManifest(targetDir, manifest, config);
+    installedGuards = installToolsFromManifest(targetDir, manifest, config);
     generateHookFromManifest(config.adapter, targetDir, manifest);
   } else {
-    installFallbackTools(targetDir);
+    installedGuards = installFallbackTools(targetDir, config.projectType);
     generateFallbackHook(targetDir, config.projectType);
   }
 
   // Step 4: Install LLM Conversational CLI & Agent Context
   installAgenticCLI(targetDir);
+
+  return { installedGuards };
 }
 
 /**
@@ -520,4 +595,4 @@ function installAgenticCLI(targetDir) {
   });
 }
 
-module.exports = { generateHarness, generateHookFromManifest, buildToolManifest };
+module.exports = { generateHarness, generateHookFromManifest, buildToolManifest, configureHooksPath };

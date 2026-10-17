@@ -53,12 +53,13 @@ function autoDetectStack(targetDir) {
     }
   }
 
-  // 2. Fallback detection
+  // 2. Fallback: no adapter matched. Report the stack as unknown instead of
+  // guessing one; the generator installs a generic, stack-agnostic harness.
   const techDetector = new TechnologyDetector();
   const detectedTechs = techDetector.detect(targetDir);
   const techTools = techDetector.getToolsForTech(detectedTechs);
 
-  const config = {
+  return {
     projectType: 'unknown',
     framework: 'unknown',
     styling: 'none',
@@ -69,19 +70,6 @@ function autoDetectStack(targetDir) {
     adapter: null,
     techTools
   };
-
-  if (fs.existsSync(path.join(targetDir, 'src', 'app')) || fs.existsSync(path.join(targetDir, 'src', 'pages'))) {
-    config.projectType = 'frontend';
-    config.framework = 'Next.js';
-    config.testRunner = 'Vitest';
-    config.styling = 'Tailwind CSS v4';
-  } else {
-    config.projectType = 'backend';
-    config.framework = 'FastAPI';
-    config.testRunner = 'Pytest';
-  }
-
-  return config;
 }
 
 module.exports = { autoDetectStack };

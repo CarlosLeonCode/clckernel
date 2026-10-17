@@ -169,61 +169,28 @@ describe('autoDetectStack', () => {
   });
 
   describe('Fallback detection', () => {
-    it('returns frontend/Next.js fallback when src/app exists but no adapter matches', () => {
-      const dir = createTmpProject({
-        'src/app/page.tsx': '',
+    // No adapter matched: the detector must not guess a stack (a Java repo used
+    // to receive FastAPI rules, a src/app dir used to be declared Next.js).
+    for (const [label, files] of [
+      ['src/app exists', { 'src/app/page.tsx': '' }],
+      ['src/pages exists', { 'src/pages/index.tsx': '' }],
+      ['empty directory', {}],
+      ['package.json with unknown dependencies', { 'package.json': JSON.stringify({ dependencies: { lodash: '4.17.21' } }) }],
+      ['only pom.xml', { 'pom.xml': '<project/>\n' }],
+    ]) {
+      it(`returns unknown/unknown when no adapter matches (${label})`, () => {
+        const dir = createTmpProject(files);
+        try {
+          const config = autoDetectStack(dir);
+          assert.strictEqual(config.projectType, 'unknown');
+          assert.strictEqual(config.framework, 'unknown');
+          assert.strictEqual(config.testRunner, 'unknown');
+          assert.strictEqual(config.adapter, null);
+        } finally {
+          teardown(dir);
+        }
       });
-      try {
-        const config = autoDetectStack(dir);
-        assert.strictEqual(config.projectType, 'frontend');
-        assert.strictEqual(config.framework, 'Next.js');
-        assert.strictEqual(config.testRunner, 'Vitest');
-        assert.strictEqual(config.adapter, null);
-      } finally {
-        teardown(dir);
-      }
-    });
-
-    it('returns frontend/Next.js fallback when src/pages exists but no adapter matches', () => {
-      const dir = createTmpProject({
-        'src/pages/index.tsx': '',
-      });
-      try {
-        const config = autoDetectStack(dir);
-        assert.strictEqual(config.projectType, 'frontend');
-        assert.strictEqual(config.framework, 'Next.js');
-        assert.strictEqual(config.adapter, null);
-      } finally {
-        teardown(dir);
-      }
-    });
-
-    it('returns backend/FastAPI fallback for empty directory', () => {
-      const dir = createTmpProject({});
-      try {
-        const config = autoDetectStack(dir);
-        assert.strictEqual(config.projectType, 'backend');
-        assert.strictEqual(config.framework, 'FastAPI');
-        assert.strictEqual(config.testRunner, 'Pytest');
-        assert.strictEqual(config.adapter, null);
-      } finally {
-        teardown(dir);
-      }
-    });
-
-    it('returns fallback backend config when package.json has unknown dependencies', () => {
-      const dir = createTmpProject({
-        'package.json': JSON.stringify({ dependencies: { lodash: '4.17.21' } }),
-      });
-      try {
-        const config = autoDetectStack(dir);
-        assert.strictEqual(config.adapter, null);
-        assert.strictEqual(config.projectType, 'backend');
-        assert.strictEqual(config.framework, 'FastAPI');
-      } finally {
-        teardown(dir);
-      }
-    });
+    }
   });
 
   describe('Husky detection', () => {

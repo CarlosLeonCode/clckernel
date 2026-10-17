@@ -2,7 +2,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const path = require('path');
 const fs = require('fs');
-const { execSync } = require('child_process');
+const { execSync, spawnSync } = require('child_process');
 const { createTmpProject, teardown } = require('../helpers');
 
 const CLI_PATH = path.join(__dirname, '..', '..', 'bin', 'cli.js');
@@ -31,15 +31,17 @@ describe('Integration: Full CLI Flow', () => {
       }
     });
 
-    it('runs doctor and reports issues on unhealthy project', () => {
+    it('runs doctor, reports issues and exits 1 on unhealthy project', () => {
       const dir = createTmpProject({
         'package.json': '{}',
       });
       try {
-        const result = execSync(`node "${CLI_PATH}" doctor "${dir}"`, {
+        const res = spawnSync('node', [CLI_PATH, 'doctor', dir], {
           encoding: 'utf-8',
           timeout: 15000,
         });
+        assert.strictEqual(res.status, 1, 'doctor must exit 1 when checks fail');
+        const result = res.stdout;
         assert.ok(result.includes('[FAIL]'), 'doctor should report FAIL checks');
         assert.ok(!result.includes('HEALTHY'), 'should not be HEALTHY');
         assert.ok(result.includes('issue(s) detected'), 'should report issue count');
