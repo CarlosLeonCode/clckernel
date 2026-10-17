@@ -111,24 +111,39 @@ const SAFEGUARD_CATALOG = [
     phase: 'audit', file: 'docker_guard.py', manifest: true, planned: false, lens: 'security' },
 
   { name: 'check_symlinks', labels: ['check_symlinks', 'check_symlinks.js'],
-    checks: 'AI IDE symlinks and rule mirror verification', verify: ['verify_symlinks', 'verify_rule_mirrors'],
+    checks: 'AI IDE rule mirrors (CLAUDE.md, GEMINI.md, .cursorrules, .windsurfrules) point to AGENTS.md: symlink or identical copy', verify: ['verify_symlinks', 'verify_rule_mirrors'],
     applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
     phase: 'audit', file: 'check_symlinks.js', manifest: true, planned: false, lens: 'architecture' },
 
   { name: 'check_hitl', labels: ['check_hitl', 'check_hitl.js'],
-    checks: 'Human-in-the-Loop review checkpoint validator in subagent skills', verify: ['verify_hitl', 'verify_human_review_checkpoints'],
+    checks: 'Explicit Human-in-the-Loop marker (`HITL:` line or `## Human checkpoint` section) in changed skills and playbooks', verify: ['verify_hitl', 'verify_human_review_checkpoints'],
     applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
     phase: 'audit', file: 'check_hitl.js', manifest: true, planned: false, lens: 'architecture' },
 
   { name: 'check_domain_data', labels: ['check_domain_data', 'check_domain_data.js'],
-    checks: 'Domain deliverables schema and clean state integrity', verify: ['verify_domain_data', 'verify_clean_state_metrics'],
-    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
+    checks: 'Content-calendar JSON: pending posts keep null metrics (no invented numbers); installed only with a content calendar', verify: ['verify_domain_data', 'verify_clean_state_metrics'],
+    applies_when: 'content-calendar', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
     phase: 'audit', file: 'check_domain_data.js', manifest: true, planned: false, lens: 'architecture' },
 
   { name: 'check_test_calendar_sync', labels: ['check_test_calendar_sync', 'check_test_calendar_sync.js'],
-    checks: 'Test calendar harness parity check (read-only; run standalone with `--fix` to sync)', verify: ['verify_calendar_sync', 'verify_test_calendar_sync'],
-    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
+    checks: 'Test calendar harness parity check (read-only; run standalone with `--fix` to sync); installed only with a content calendar', verify: ['verify_calendar_sync', 'verify_test_calendar_sync'],
+    applies_when: 'content-calendar', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
     phase: 'audit', file: 'check_test_calendar_sync.js', manifest: true, planned: false, lens: 'performance' },
+
+  { name: 'check_skills', labels: ['check_skills', 'check_skills.js'],
+    checks: 'SKILL.md frontmatter: non-empty lowercase `name` unique in the repository, non-empty `description` of at most 1024 characters', verify: ['verify_skill_frontmatter'],
+    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
+    phase: 'audit', file: 'check_skills.js', manifest: true, planned: false, lens: 'correctness' },
+
+  { name: 'check_links', labels: ['check_links', 'check_links.js'],
+    checks: 'Relative links in changed Markdown point to files present in the commit', verify: ['verify_relative_links'],
+    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
+    phase: 'audit', file: 'check_links.js', manifest: true, planned: false, lens: 'correctness' },
+
+  { name: 'check_placeholders', labels: ['check_placeholders', 'check_placeholders.js'],
+    checks: 'Forgotten draft placeholders in changed Markdown, YAML and JSON (double-brace slots allowed in templates/)', verify: ['verify_no_placeholders'],
+    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
+    phase: 'audit', file: 'check_placeholders.js', manifest: true, planned: false, lens: 'correctness' },
 
   { name: 'ruff', labels: ['ruff'],
     checks: 'Python linter (external CLI)', verify: ['verify_python_lint'],
@@ -192,7 +207,7 @@ const VALID_PHASES = ['audit', 'test', 'review', 'handover'];
 const VALID_APPLIES_WHEN = [
   'always', 'frontend', 'backend', 'fastapi', 'django', 'django|sqlalchemy',
   'celery', 'redis', 'postgresql', 'docker', 'frontend,backend', 'backend,fastapi,django',
-  'agent-os', 'frontend,backend,agent-os',
+  'agent-os', 'frontend,backend,agent-os', 'content-calendar',
 ];
 
 /** The 4 RDD lenses guard results are grouped into */

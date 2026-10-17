@@ -75,8 +75,17 @@ function buildStackConfig(targetDir, adapter) {
   };
 }
 
+/**
+ * Picks the adapter for targetDir. Adapters are tried in list order, except
+ * that a code stack beats Agent-OS: a repository with agent folders (skills/,
+ * playbooks/, rules/) that also has, say, a Next.js package.json is governed
+ * as the code stack (sdds/agent-os-generic, decision 1).
+ * @param {string} targetDir - Project root
+ * @returns {object} Project config
+ */
 function autoDetectStack(targetDir) {
-  const adapter = adapters.find((a) => a.detect(targetDir)) || null;
+  const matched = adapters.filter((a) => a.detect(targetDir));
+  const adapter = matched.find((a) => a.projectType !== 'agent-os') || matched[0] || null;
   return buildStackConfig(targetDir, adapter);
 }
 

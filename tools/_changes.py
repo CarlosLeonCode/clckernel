@@ -136,3 +136,22 @@ def exists(target_dir: Optional[str], file: str, mode: Optional[str]) -> bool:
     if mode is None:
         return os.path.exists(os.path.join(cwd, file))
     return _git(cwd, "cat-file", "-e", _object_name(file, mode)) is not None
+
+
+def list_files(target_dir: Optional[str], mode: Optional[str]) -> list:
+    """
+    List every file of the snapshot, for whole-repository facts (e.g. a name
+    that must be unique, a link target that must exist): the index in staged
+    mode, HEAD in last-commit mode. Paths are relative to the repository root
+    and sorted; nothing is excluded. With mode None (no git) nothing is listed.
+    """
+    cwd = str(target_dir or os.getcwd())
+    if mode == "staged":
+        out = _git(cwd, "ls-files", "-z", "--cached", "--full-name", "--", ":/")
+    elif mode == "last-commit":
+        out = _git(cwd, "ls-tree", "-r", "-z", "--name-only", "--full-tree", "HEAD")
+    else:
+        return []
+    if out is None:
+        return []
+    return sorted(set(_split_nul(out)))

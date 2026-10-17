@@ -30,6 +30,9 @@ LENS_MAP = {
     "tsc": "correctness",
     "lint": "correctness",
     "ruff": "correctness",
+    "check_skills": "correctness",
+    "check_links": "correctness",
+    "check_placeholders": "correctness",
     # Security
     "scan_secrets": "security",
     "docker_guard": "security",

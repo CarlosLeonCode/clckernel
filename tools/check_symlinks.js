@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 /**
  * Symlink & AI IDE Interoperability Guard
- * Verifies that AI agent rule mirrors (CLAUDE.md, GEMINI.md, .cursorrules, .windsurfrules)
- * exist and resolve to valid files without broken symlinks.
+ * Every AI agent rule mirror that exists (CLAUDE.md, GEMINI.md, .cursorrules,
+ * .windsurfrules) must point to AGENTS.md: a symlink that resolves to
+ * AGENTS.md, or a regular file whose content is identical to it. Broken
+ * symlinks, symlinks to another file and diverging copies fail. A missing
+ * mirror is not an error. Mirrors are gitignored, so the working copy is read.
  * Self-contained: uses only Node.js built-ins.
  *
  * @param {string} targetDir - Directory to scan (defaults to cwd)
@@ -17,9 +20,7 @@ const check = async function checkSymlinks(targetDir) {
   const violations = [];
 
   const agentsPath = path.join(dir, 'AGENTS.md');
-  const hasAgents = fs.existsSync(agentsPath);
-
-  if (!hasAgents) {
+  if (!fs.existsSync(agentsPath)) {
     return {
       exitCode: 0,
       skipped: true,
@@ -27,28 +28,33 @@ const check = async function checkSymlinks(targetDir) {
       data: { violations: [], message: 'No AGENTS.md present in project' }
     };
   }
+  const agentsReal = fs.realpathSync(agentsPath);
 
   for (const rule of rules) {
     const filePath = path.join(dir, rule);
+    let lstat;
     try {
-      const lstat = fs.lstatSync(filePath);
-      if (lstat.isSymbolicLink()) {
-        const target = fs.readlinkSync(filePath);
-        const resolved = path.isAbsolute(target) ? target : path.resolve(dir, target);
-        if (!fs.existsSync(resolved)) {
-          violations.push({
-            file: rule,
-            message: `Broken symlink: points to non-existent target "${target}"`
-          });
-        }
-      }
+      lstat = fs.lstatSync(filePath);
     } catch (err) {
       if (err.code !== 'ENOENT') {
-        violations.push({
-          file: rule,
-          message: `Error reading symlink: ${err.message}`
-        });
+        violations.push({ file: rule, message: `Error reading mirror: ${err.message}` });
       }
+      continue;
+    }
+
+    try {
+      if (lstat.isSymbolicLink()) {
+        const target = fs.readlinkSync(filePath);
+        if (!fs.existsSync(filePath)) {
+          violations.push({ file: rule, message: `Broken symlink: points to non-existent target "${target}"` });
+        } else if (fs.realpathSync(filePath) !== agentsReal) {
+          violations.push({ file: rule, message: `Symlink points to "${target}" instead of AGENTS.md` });
+        }
+      } else if (!fs.readFileSync(filePath).equals(fs.readFileSync(agentsPath))) {
+        violations.push({ file: rule, message: 'Regular file differs from AGENTS.md: make it a symlink to AGENTS.md or an identical copy' });
+      }
+    } catch (err) {
+      violations.push({ file: rule, message: `Error reading mirror: ${err.message}` });
     }
   }
 
@@ -60,8 +66,8 @@ const check = async function checkSymlinks(targetDir) {
     data: {
       violations,
       message: violations.length > 0
-        ? `${violations.length} broken or invalid symlink(s) detected`
-        : 'All AI IDE rule mirrors & symlinks verified'
+        ? `${violations.length} AI IDE rule mirror(s) do not point to AGENTS.md`
+        : 'All existing AI IDE rule mirrors point to AGENTS.md'
     }
   };
 };

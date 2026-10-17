@@ -88,12 +88,15 @@ function writeManagedRegistry(targetDir, toolFiles) {
  * Technology tools (Celery, Redis, PostgreSQL, Docker) are inserted right
  * before check_custom, keeping the user-defined rules last; when the adapter
  * has no check_custom they are appended.
- * @param {object} adapter - Adapter with getTools()
+ * The adapter receives the project root, so an adapter may add guards whose
+ * structure is present (e.g. Agent-OS content-calendar guards).
+ * @param {object} adapter - Adapter with getTools(targetDir?)
  * @param {Array} [techTools] - Tools for detected technologies
+ * @param {string} [targetDir] - Project root
  * @returns {Array} Merged tool manifest
  */
-function buildToolManifest(adapter, techTools = []) {
-  const frameworkTools = adapter.getTools();
+function buildToolManifest(adapter, techTools = [], targetDir) {
+  const frameworkTools = adapter.getTools(targetDir);
   const checkCustomIdx = frameworkTools.findIndex(t => t.name === 'check_custom');
   if (checkCustomIdx < 0) return [...frameworkTools, ...techTools];
   return [
@@ -596,7 +599,7 @@ When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`,
   let installedGuards;
   let hook;
   if (config.adapter) {
-    const manifest = buildToolManifest(config.adapter, config.techTools || []);
+    const manifest = buildToolManifest(config.adapter, config.techTools || [], targetDir);
     const { installed, written } = installToolsFromManifest(targetDir, manifest, config);
     installedGuards = installed;
     const managed = writeManagedRegistry(targetDir, written);

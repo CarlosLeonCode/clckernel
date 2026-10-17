@@ -31,15 +31,15 @@ function guardFileExists(file) {
 }
 
 describe('SAFEGUARD_CATALOG', () => {
-  it('exposes exactly 30 entries, one per safeguard the framework knows about', () => {
-    assert.strictEqual(SAFEGUARD_CATALOG.length, 30, `expected 30, got ${SAFEGUARD_CATALOG.length}`);
+  it('exposes exactly 33 entries, one per safeguard the framework knows about', () => {
+    assert.strictEqual(SAFEGUARD_CATALOG.length, 33, `expected 33, got ${SAFEGUARD_CATALOG.length}`);
     const names = SAFEGUARD_CATALOG.map(e => e.name);
     assert.deepStrictEqual(names, [
       'scan_secrets', 'check_architecture', 'check_custom', 'check_a11y',
       'check_ui_reuse', 'check_performance', 'check_responsive', 'check_seo', 'check_storybook', 'check_api_contracts',
       'check_migrations', 'verify_tdd', 'check_scope', 'celery_guard', 'redis_guard',
       'postgres_guard', 'docker_guard', 'check_symlinks', 'check_hitl', 'check_domain_data',
-      'check_test_calendar_sync',
+      'check_test_calendar_sync', 'check_skills', 'check_links', 'check_placeholders',
       'ruff', 'pytest', 'tsc', 'lint', 'graphify',
       'gentle_ai_review', 'check_openapi_drift', 'check_db_efficiency', 'check_observability',
     ]);
@@ -124,6 +124,12 @@ describe('SAFEGUARD_CATALOG', () => {
     assert.strictEqual(applyTo('check_openapi_drift').applies_when, 'fastapi');
     assert.strictEqual(applyTo('check_db_efficiency').applies_when, 'django|sqlalchemy');
     assert.strictEqual(applyTo('check_migrations').applies_when, 'backend,fastapi,django');
+    // sdds/agent-os-generic: generic Agent-OS guards vs. content-calendar domain guards.
+    for (const name of ['check_skills', 'check_links', 'check_placeholders', 'check_hitl', 'check_symlinks']) {
+      assert.strictEqual(applyTo(name).applies_when, 'agent-os', name);
+    }
+    assert.strictEqual(applyTo('check_domain_data').applies_when, 'content-calendar');
+    assert.strictEqual(applyTo('check_test_calendar_sync').applies_when, 'content-calendar');
   });
 
   it('external CLI entries have file null and contribute no tool files', () => {

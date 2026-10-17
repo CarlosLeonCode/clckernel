@@ -1,27 +1,119 @@
 /**
  * CLC Kernel — Agent-OS & Domain Workflows Stack Adapter
- * Supports AI Agent Operating Systems (Marketing OS, Content Ops, Research OS)
- * featuring Dual-Layer Governance and Domain Integrity Safeguards.
+ * Supports agent operating systems: repositories of skills, playbooks, rules,
+ * prompts, templates and data that AI agents run to carry out tasks.
+ * Generic guards apply to any Agent-OS; domain guards (content calendar) are
+ * added only when their structure is present.
  */
 
 const fs = require('fs');
 const path = require('path');
 const BaseAdapter = require('./base');
 
+/** Skills the harness installs itself: never a detection signal. */
+const HARNESS_SKILLS = new Set(['clckernel_cli', 'clc_forge_cli']);
+const SKILL_ROOTS = ['skills', '.agents/skills', '.claude/skills'];
+const MANAGED_REGISTRY = 'tools/.clckernel-managed.json';
+const MARKDOWN_SEARCH_DEPTH = 3;
+
+/** Folders that make up an Agent-OS, described in AGENTS.md when present. */
+const LAYER_FOLDERS = [
+  { folder: 'skills', skills: true, text: 'one folder per skill with a `SKILL.md` whose frontmatter holds a unique lowercase `name` and a `description`; the agent loads a skill when its description matches the task.' },
+  { folder: '.agents/skills', skills: true, text: 'skills in the shared agent layout (same `SKILL.md` contract as above).' },
+  { folder: '.claude/skills', skills: true, text: 'skills in the Claude Code layout (same `SKILL.md` contract as above).' },
+  { folder: 'playbooks', text: 'step-by-step procedures the agent runs for an operator; each declares its human checkpoint.' },
+  { folder: 'rules', text: 'standing constraints (style, tone, policy) every run must respect.' },
+  { folder: 'prompts', text: 'reusable prompt texts the skills and playbooks reference.' },
+  { folder: 'templates', text: 'output skeletons; double-brace slots are allowed only here.' },
+];
+
+/** Paths listed in the harness registry (working copy); empty when absent or malformed. */
+function managedPaths(targetDir) {
+  try {
+    const list = JSON.parse(fs.readFileSync(path.join(targetDir, MANAGED_REGISTRY), 'utf-8'));
+    return new Set(Array.isArray(list) ? list.filter(f => typeof f === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+
+/** True when root/<name>/SKILL.md exists for a skill the harness did not install. */
+function hasUserSkill(targetDir, root, managed = managedPaths(targetDir)) {
+  let entries;
+  try {
+    entries = fs.readdirSync(path.join(targetDir, root), { withFileTypes: true });
+  } catch {
+    return false;
+  }
+  return entries.some(entry => {
+    if (!entry.isDirectory() || HARNESS_SKILLS.has(entry.name)) return false;
+    const rel = `${root}/${entry.name}/SKILL.md`;
+    return !managed.has(rel) && fs.existsSync(path.join(targetDir, rel));
+  });
+}
+
+/** True when dir holds a Markdown file within `depth` levels. */
+function hasMarkdown(dir, depth = MARKDOWN_SEARCH_DEPTH) {
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return false;
+  }
+  return entries.some(entry => (entry.isFile() && entry.name.endsWith('.md'))
+    || (entry.isDirectory() && depth > 1 && hasMarkdown(path.join(dir, entry.name), depth - 1)));
+}
+
+/** True when the repository has a content calendar (the Marketing OS domain). */
+function hasContentCalendar(targetDir) {
+  return ['templates/content-calendar', 'content-calendar']
+    .some(rel => fs.existsSync(path.join(targetDir, rel)));
+}
+
+/** Layer folders present in targetDir, in LAYER_FOLDERS order. */
+function presentLayers(targetDir) {
+  const managed = managedPaths(targetDir);
+  return LAYER_FOLDERS.filter(layer => (layer.skills
+    ? hasUserSkill(targetDir, layer.folder, managed)
+    : fs.existsSync(path.join(targetDir, layer.folder))));
+}
+
+const DOMAIN_TOOLS = [
+  {
+    name: 'check_domain_data',
+    language: 'js',
+    path: 'check_domain_data.js',
+    command: 'node tools/check_domain_data.js',
+    description: 'Content-calendar data: pending posts keep null metrics (no invented numbers)'
+  },
+  {
+    name: 'check_test_calendar_sync',
+    language: 'js',
+    path: 'check_test_calendar_sync.js',
+    command: 'node tools/check_test_calendar_sync.js',
+    description: 'Test calendar harness parity check (read-only; run standalone with --fix to sync)'
+  }
+];
+
 class AgentOSAdapter extends BaseAdapter {
   constructor() {
     super('Agent-OS (Domain & AI Workflows)', 'agent-os', 'Playbook / Contract Test');
   }
 
+  /**
+   * An agent operating system: a SKILL.md in skills/<name>/, .agents/skills/<name>/
+   * or .claude/skills/<name>/ (skills the harness installs excluded), a
+   * playbooks/ or rules/ folder with Markdown, or the package.json keywords
+   * kept for compatibility. A code stack that also matches wins (see detector).
+   */
   detect(targetDir) {
-    // 1. package.json check
     const pkgPath = path.join(targetDir, 'package.json');
     if (fs.existsSync(pkgPath)) {
       try {
         const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
         const name = (pkg.name || '').toLowerCase();
         const desc = (pkg.description || '').toLowerCase();
-        const keywords = Array.isArray(pkg.keywords) ? pkg.keywords.map(k => k.toLowerCase()) : [];
+        const keywords = Array.isArray(pkg.keywords) ? pkg.keywords.map(k => String(k).toLowerCase()) : [];
         if (
           name.includes('agent-os') || name.includes('marketing-os') || name.includes('laila-mos') ||
           desc.includes('agent-os') || desc.includes('marketing operating system') ||
@@ -32,77 +124,79 @@ class AgentOSAdapter extends BaseAdapter {
       } catch {}
     }
 
-    // 2. skills/ or .agents/skills/ directory check
-    const skillsDir = path.join(targetDir, 'skills');
-    const agentSkillsDir = path.join(targetDir, '.agents', 'skills');
-    if (fs.existsSync(skillsDir) || fs.existsSync(agentSkillsDir)) {
-      const dirToCheck = fs.existsSync(skillsDir) ? skillsDir : agentSkillsDir;
-      try {
-        const files = fs.readdirSync(dirToCheck);
-        if (files.some(f => f.endsWith('.md'))) {
-          return true;
-        }
-      } catch {}
-    }
-
-    // 3. brand/ or templates/ check alongside README referencing agents/workflows
-    const brandPath = path.join(targetDir, 'brand');
-    const templatesPath = path.join(targetDir, 'templates');
-    const readmePath = path.join(targetDir, 'README.md');
-    if ((fs.existsSync(brandPath) || fs.existsSync(templatesPath)) && fs.existsSync(readmePath)) {
-      try {
-        const readme = fs.readFileSync(readmePath, 'utf-8').toLowerCase();
-        if (readme.includes('subagent') || readme.includes('operating system') || readme.includes('agent')) {
-          return true;
-        }
-      } catch {}
-    }
-
-    return false;
+    const managed = managedPaths(targetDir);
+    if (SKILL_ROOTS.some(root => hasUserSkill(targetDir, root, managed))) return true;
+    return ['playbooks', 'rules'].some(folder => hasMarkdown(path.join(targetDir, folder)));
   }
 
-  getSafeguards() {
-    return [
+  /**
+   * @param {string} [targetDir] - Project root; adds the content-calendar
+   *   safeguard when that structure is present
+   */
+  getSafeguards(targetDir) {
+    const safeguards = [
       'Dual-Layer Architecture: Layer 1 (Engineering) & Layer 2 (Domain Runtime)',
-      'Mandatory Human-in-the-Loop (HITL) Checkpoints',
-      'Symlink Interoperability (.cursorrules, CLAUDE.md, GEMINI.md, .windsurfrules)',
-      'Domain Data Integrity & Clean Creation State (No Hallucinated Metrics)',
-      'Single Source of Truth (SSOT) Memory Primacy',
+      'Human-in-the-Loop (HITL) checkpoints: every changed skill and playbook declares a `HITL:` line or a `## Human checkpoint` section (check_hitl)',
+      'Skill frontmatter: unique lowercase `name` and a `description` of at most 1024 characters in every changed SKILL.md (check_skills)',
+      'Relative Markdown links resolve to files in the commit (check_links)',
+      'No forgotten draft placeholders in changed Markdown, YAML and JSON (check_placeholders)',
+      'Rule mirrors (CLAUDE.md, GEMINI.md, .cursorrules, .windsurfrules) point to AGENTS.md (check_symlinks)',
+      'Project rules from .clckernel.yaml (check_custom)',
+      'Secret Leak Guard (scan_secrets)',
+      'Single Source of Truth (SSOT) memory protocol (agent-enforced; not checked by a guard)',
       'Local-only Spec Driven Development (sdds/)',
       'Red→Green TDD Verifier (runs changed tests with vitest / jest / node:test)'
     ];
+    if (targetDir && hasContentCalendar(targetDir)) {
+      safeguards.push('Content-calendar integrity: no invented metrics on pending posts (check_domain_data) & test calendar parity (check_test_calendar_sync)');
+    }
+    return safeguards;
   }
 
-  getTools() {
+  /**
+   * Guards for any Agent-OS; the content-calendar guards are added only when
+   * targetDir has templates/content-calendar/ or content-calendar/.
+   * @param {string} [targetDir] - Project root
+   */
+  getTools(targetDir) {
+    const domain = targetDir && hasContentCalendar(targetDir) ? DOMAIN_TOOLS : [];
     return [
       {
         name: 'check_symlinks',
         language: 'js',
         path: 'check_symlinks.js',
         command: 'node tools/check_symlinks.js',
-        description: 'AI IDE symlinks and rule mirror verification'
+        description: 'AI IDE rule mirrors point to AGENTS.md (symlink or identical copy)'
       },
       {
         name: 'check_hitl',
         language: 'js',
         path: 'check_hitl.js',
         command: 'node tools/check_hitl.js',
-        description: 'Human-in-the-Loop review checkpoint validator'
+        description: 'Explicit Human-in-the-Loop checkpoint marker in changed skills and playbooks'
       },
       {
-        name: 'check_domain_data',
+        name: 'check_skills',
         language: 'js',
-        path: 'check_domain_data.js',
-        command: 'node tools/check_domain_data.js',
-        description: 'Domain deliverables schema and clean state integrity'
+        path: 'check_skills.js',
+        command: 'node tools/check_skills.js',
+        description: 'SKILL.md frontmatter: name and description present, well-formed and unique'
       },
       {
-        name: 'check_test_calendar_sync',
+        name: 'check_links',
         language: 'js',
-        path: 'check_test_calendar_sync.js',
-        command: 'node tools/check_test_calendar_sync.js',
-        description: 'Test calendar harness parity check (read-only; run standalone with --fix to sync)'
+        path: 'check_links.js',
+        command: 'node tools/check_links.js',
+        description: 'Relative links in changed Markdown point to files in the commit'
       },
+      {
+        name: 'check_placeholders',
+        language: 'js',
+        path: 'check_placeholders.js',
+        command: 'node tools/check_placeholders.js',
+        description: 'Forgotten draft placeholders in changed Markdown, YAML and JSON (templates/ may keep slots)'
+      },
+      ...domain,
       {
         name: 'scan_secrets',
         language: 'js',
@@ -116,6 +210,13 @@ class AgentOSAdapter extends BaseAdapter {
         path: 'verify_tdd.js',
         command: 'node tools/verify_tdd.js',
         description: 'Runs changed tests (vitest / jest / node:test) against BASE (must fail) and the staged code (must pass)'
+      },
+      {
+        name: 'check_custom',
+        language: 'js',
+        path: 'check_custom.js',
+        command: 'node tools/check_custom.js',
+        description: 'Project rules from .clckernel.yaml (e.g. sections every playbook must have)'
       }
     ];
   }
@@ -127,7 +228,11 @@ class AgentOSAdapter extends BaseAdapter {
     // would make the guard below skip the dual-layer render entirely.
     super.provision(targetDir, { ...(config || {}), skipAgentsMd: true });
 
-    // 2. Write Dual-Layer AGENTS.md
+    // 2. Write Dual-Layer AGENTS.md, describing only the folders that exist.
+    const layers = presentLayers(targetDir);
+    const layerMap = layers.length > 0
+      ? layers.map(layer => `- \`${layer.folder}/\` — ${layer.text}`).join('\n')
+      : '- No agent folders yet. Add skills, playbooks, rules, prompts or templates folders and describe them here.';
     const dualLayerAgents = `# Standard Operating Procedure (SOP) — AGENTS
 Governed by **CLC Kernel: The Universal AI Agent Governance Engine**.
 Target System: **${this.name}**
@@ -148,7 +253,7 @@ All AI Agents (Antigravity, OpenCode, Claude Code, Cursor, Windsurf, Copilot) de
 
 ### Engineering Rules
 1. **Conventional Commits Only**: Commits must use Conventional Commits (e.g. \`feat(...): ...\`, \`fix(...): ...\`). NEVER add \`Co-Authored-By\` or AI attribution.
-2. **Mirror Links Interoperability**: \`CLAUDE.md\`, \`GEMINI.md\`, \`.cursorrules\`, and \`.windsurfrules\` must remain valid symlinks to \`AGENTS.md\`.
+2. **Mirror Links Interoperability**: \`CLAUDE.md\`, \`GEMINI.md\`, \`.cursorrules\`, and \`.windsurfrules\` must remain symlinks to (or identical copies of) \`AGENTS.md\` (checked by \`tools/check_symlinks.js\`).
 3. **No Superficial Symptom Patches**: Always address root causes.
 
 ---
@@ -157,10 +262,14 @@ All AI Agents (Antigravity, OpenCode, Claude Code, Cursor, Windsurf, Copilot) de
 When operating as domain agents for end-users and non-technical operators:
 
 1. **Non-Technical Operator Friendly**: Interact naturally with the operator. Guide step-by-step through conversational prompts without technical jargon.
-2. **Mandatory Human-in-the-Loop (HITL) Checkpoints**: Always pause phase-by-phase during multi-step pipelines. Present draft output and WAIT for explicit user confirmation before executing irreversible steps.
-3. **SSOT Memory Primacy**: Always read from and persist to designated single-source-of-truth memory files (e.g. \`brand/client-profile.md\` or \`docs/\`).
-4. **Clean Creation State (No Hallucinated Data)**: When new records, calendars, or deliverables are drafted, metric fields must initialize as \`null\` / empty. Never invent fictional stats.
-5. **Deterministic Output Standard**: Outputs must strictly follow valid Markdown, JSON schema, or domain templates.
+2. **Mandatory Human-in-the-Loop (HITL) Checkpoints**: Always pause phase-by-phase during multi-step pipelines. Present draft output and WAIT for explicit user confirmation before executing irreversible steps. Every skill and playbook declares its checkpoint with a \`HITL:\` line or a \`## Human checkpoint\` section (checked by \`tools/check_hitl.js\`).
+3. **Skill Contract**: Every \`SKILL.md\` opens with a frontmatter holding a unique lowercase \`name\` and a \`description\` that says when to use the skill (checked by \`tools/check_skills.js\`).
+4. **SSOT Memory Primacy**: Read from and persist to the files this repository designates as its single source of truth; never keep operator data only in a conversation.
+5. **Clean Creation State (No Hallucinated Data)**: Never invent facts, metrics or results. A field you cannot fill stays empty / \`null\` until real data exists.
+6. **Finished Documents**: Deliverables follow the repository's templates and formats, keep no draft placeholders and link only to files that exist (checked by \`tools/check_placeholders.js\` and \`tools/check_links.js\`).
+
+### Repository Map
+${layerMap}
 
 ---
 
@@ -182,7 +291,7 @@ When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`,
 ---
 
 ## 🛡️ Core AI Safeguards
-${this.getSafeguards().map(s => `- ${s}`).join('\n')}
+${this.getSafeguards(targetDir).map(s => `- ${s}`).join('\n')}
 `;
 
     // Guard: never overwrite a project-customized AGENTS.md (e.g. a Laila MOS
@@ -202,21 +311,8 @@ ${this.getSafeguards().map(s => `- ${s}`).join('\n')}
         }
       } catch {}
     }
-
-    // 4. Copy domain guard tools into tools/
-    const srcToolsDir = path.join(__dirname, '..', '..', 'tools');
-    const targetToolsDir = path.join(targetDir, 'tools');
-    const toolsToCopy = ['check_symlinks.js', 'check_hitl.js', 'check_domain_data.js', 'check_test_calendar_sync.js', 'scan_secrets.js', 'audit.js'];
-
-    for (const toolFile of toolsToCopy) {
-      const srcFile = path.join(srcToolsDir, toolFile);
-      const destFile = path.join(targetToolsDir, toolFile);
-      if (fs.existsSync(srcFile) && !fs.existsSync(destFile)) {
-        try {
-          fs.copyFileSync(srcFile, destFile);
-        } catch {}
-      }
-    }
+    // Guards are copied by the generator from getTools(targetDir), so the
+    // registry and the hook list exactly what is installed.
   }
 }
 

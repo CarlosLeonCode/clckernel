@@ -33,4 +33,44 @@ function teardown(dir) {
   fs.rmSync(dir, { recursive: true, force: true });
 }
 
-module.exports = { createTmpProject, teardown };
+/** Runs git in dir and fails the test on a non-zero exit. */
+function git(dir, ...args) {
+  const { spawnSync } = require('child_process');
+  const res = spawnSync('git', args, { cwd: dir, encoding: 'utf-8' });
+  if (res.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${res.stderr}`);
+  return res.stdout;
+}
+
+/**
+ * Temporary git repository: `committed` files land in an initial commit,
+ * `staged` files are then written and staged (the snapshot a pre-commit sees).
+ *
+ * @param {Record<string, string>} committed - Files of the initial commit.
+ * @param {Record<string, string>} [staged] - Files written and staged afterwards.
+ * @returns {string} Path to the repository.
+ */
+function createGitRepo(committed = {}, staged = {}) {
+  const dir = createTmpProject(committed);
+  git(dir, 'init', '-q');
+  git(dir, 'config', 'user.email', 'test@test.com');
+  git(dir, 'config', 'user.name', 'Test');
+  git(dir, 'config', 'commit.gpgsign', 'false');
+  if (Object.keys(committed).length > 0) {
+    git(dir, 'add', '-A');
+    git(dir, 'commit', '-q', '--no-verify', '-m', 'initial');
+  }
+  stageFiles(dir, staged);
+  return dir;
+}
+
+/** Writes the files into dir and stages them. */
+function stageFiles(dir, files = {}) {
+  for (const [rel, content] of Object.entries(files)) {
+    const filePath = path.join(dir, rel);
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, content, 'utf-8');
+    git(dir, 'add', '--', rel);
+  }
+}
+
+module.exports = { createTmpProject, teardown, git, createGitRepo, stageFiles };

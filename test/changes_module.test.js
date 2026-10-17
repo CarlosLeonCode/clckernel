@@ -45,7 +45,7 @@ function write(dir, rel, content) {
  * Runs the same queries through both implementations.
  * @returns {{ js: object, py: object }} each { mode, files, reads, exists }
  */
-function query(dir, { extensions, read = [], exists = [] } = {}) {
+function query(dir, { extensions, read = [], exists = [], list = false } = {}) {
   // JS: fresh process so module state never leaks between cases.
   const jsScript = `
     const c = require(${JSON.stringify(JS_MODULE)});
@@ -54,7 +54,8 @@ function query(dir, { extensions, read = [], exists = [] } = {}) {
     const { mode, files } = c.changedFiles(dir, { extensions: q.extensions });
     const reads = Object.fromEntries(q.read.map(f => [f, c.readFile(dir, f, mode)]));
     const exists = Object.fromEntries(q.exists.map(f => [f, c.exists(dir, f, mode)]));
-    process.stdout.write(JSON.stringify({ mode, files, reads, exists }));
+    const all = q.list ? c.listFiles(dir, mode) : null;
+    process.stdout.write(JSON.stringify({ mode, files, reads, exists, all }));
   `;
   const pyScript = `
 import json, sys
@@ -69,9 +70,10 @@ print(json.dumps({
     "files": r["files"],
     "reads": {f: c.read_file(d, f, mode) for f in q["read"]},
     "exists": {f: c.exists(d, f, mode) for f in q["exists"]},
+    "all": c.list_files(d, mode) if q["list"] else None,
 }))
 `;
-  const q = JSON.stringify({ extensions: extensions || null, read, exists });
+  const q = JSON.stringify({ extensions: extensions || null, read, exists, list });
   const js = spawnSync('node', ['-e', jsScript, dir, q], { encoding: 'utf-8' });
   assert.strictEqual(js.status, 0, `js failed: ${js.stderr}`);
   const py = spawnSync('python3', ['-c', pyScript, dir, q], { encoding: 'utf-8' });
@@ -222,5 +224,41 @@ describe('_changes (JS and Python twins)', () => {
     } finally {
       teardown(dir);
     }
+  });
+
+  describe('listFiles / list_files: every file of the snapshot (sorted, registry included)', () => {
+    it('staged mode lists the index, not the working copy, from the repository root', () => {
+      const dir = initRepo({ 'README.md': '# r\n', 'skills/a/SKILL.md': 'a\n' });
+      try {
+        commitAll(dir, 'base');
+        write(dir, 'playbooks/new.md', 'n\n');
+        git(dir, 'add', 'playbooks/new.md');
+        write(dir, 'untracked.md', 'u\n');
+        const r = query(dir, { list: true });
+        assertBoth(r, { mode: 'staged', all: ['README.md', 'playbooks/new.md', 'skills/a/SKILL.md'] });
+      } finally {
+        teardown(dir);
+      }
+    });
+
+    it('last-commit mode lists HEAD', () => {
+      const dir = initRepo({ 'README.md': '# r\n', 'my dir/café.md': 'c\n' });
+      try {
+        commitAll(dir, 'base');
+        write(dir, 'dirty.md', 'd\n');
+        assertBoth(query(dir, { list: true }), { mode: 'last-commit', all: ['README.md', 'my dir/café.md'] });
+      } finally {
+        teardown(dir);
+      }
+    });
+
+    it('no git lists nothing', () => {
+      const dir = createTmpProject({ 'a.md': 'x\n' });
+      try {
+        assertBoth(query(dir, { list: true }), { mode: null, all: [] });
+      } finally {
+        teardown(dir);
+      }
+    });
   });
 });

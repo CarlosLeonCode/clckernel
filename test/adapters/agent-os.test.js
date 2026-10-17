@@ -32,9 +32,9 @@ describe('AgentOSAdapter', () => {
       }
     });
 
-    it('returns true when skills/ directory has prompt markdown files', () => {
+    it('returns true when skills/<name>/SKILL.md exists (sdds/agent-os-generic)', () => {
       const dir = createTmpProject({
-        'skills/skill_onboarding.md': '# Onboarding Skill\n',
+        'skills/onboarding/SKILL.md': '---\nname: onboarding\ndescription: d\n---\n',
       });
       try {
         const adapter = new AgentOSAdapter();
@@ -44,14 +44,14 @@ describe('AgentOSAdapter', () => {
       }
     });
 
-    it('returns true when brand/ or templates/ exist alongside README referencing agents', () => {
+    it('a README mentioning agents next to brand/ is no longer a signal (sdds/agent-os-generic)', () => {
       const dir = createTmpProject({
         'brand/client-profile.md': '# Brand Profile\n',
         'README.md': '# Operating System powered by AI Subagents\n'
       });
       try {
         const adapter = new AgentOSAdapter();
-        assert.strictEqual(adapter.detect(dir), true);
+        assert.strictEqual(adapter.detect(dir), false);
       } finally {
         teardown(dir);
       }
@@ -127,11 +127,11 @@ describe('AgentOSAdapter', () => {
         assert.ok(fs.existsSync(geminiLink), 'GEMINI.md link must exist');
         assert.ok(fs.existsSync(cursorrules), '.cursorrules link must exist');
 
-        // Tools exist
-        assert.ok(fs.existsSync(path.join(dir, 'tools', 'check_symlinks.js')), 'check_symlinks must exist');
-        assert.ok(fs.existsSync(path.join(dir, 'tools', 'check_hitl.js')), 'check_hitl must exist');
-        assert.ok(fs.existsSync(path.join(dir, 'tools', 'check_domain_data.js')), 'check_domain_data must exist');
-        assert.ok(fs.existsSync(path.join(dir, 'tools', 'check_test_calendar_sync.js')), 'check_test_calendar_sync must exist');
+        // tools/ exists; guards are copied by generateHarness from getTools(targetDir),
+        // so provision never installs the content-calendar guards unconditionally.
+        assert.ok(fs.existsSync(path.join(dir, 'tools')), 'tools/ must exist');
+        assert.ok(!fs.existsSync(path.join(dir, 'tools', 'check_domain_data.js')), 'check_domain_data needs a content calendar');
+        assert.ok(!fs.existsSync(path.join(dir, 'tools', 'check_test_calendar_sync.js')), 'check_test_calendar_sync needs a content calendar');
       } finally {
         teardown(dir);
       }

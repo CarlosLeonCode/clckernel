@@ -1,97 +1,97 @@
 #!/usr/bin/env node
 /**
  * Human-in-the-Loop (HITL) Checkpoint Guard
- * Ensures subagent playbooks and workflows in skills/ or .agents/skills/
- * define mandatory user review or approval checkpoints before final output.
+ * Every skill and playbook changed in the snapshot must declare its human
+ * checkpoint with an explicit marker:
+ *   - a line starting with `HITL:` (list, quote and bold markup allowed), or
+ *   - a heading `## Human checkpoint` or `## HITL` (any level from 2 to 6).
+ * A word such as "review" or "confirm" is not a marker. Markers inside fenced
+ * code blocks do not count.
+ * Checked files: SKILL.md under skills/, .agents/skills/ or .claude/skills/,
+ * flat skills/*.md files, and Markdown under playbooks/ (README.md excluded).
+ * Skills the harness or tool plugins install (clckernel_cli, clc_forge_cli,
+ * impeccable) and registry files are ignored.
  * Self-contained: uses only Node.js built-ins.
  *
- * @param {string} targetDir - Directory to scan (defaults to cwd)
+ * @param {string} targetDir - Repository root (defaults to cwd)
  * @returns {{ exitCode: number, skipped: boolean, name: string, data: object }}
  */
-const check = async function checkHitl(targetDir) {
-  const fs = require('fs');
-  const path = require('path');
+const { changedFiles, readFile } = require('./_changes');
 
-  const dir = targetDir || process.cwd();
-  const searchDirs = [
-    path.join(dir, 'skills'),
-    path.join(dir, '.agents', 'skills')
-  ];
+const NAME = 'check_hitl';
+const SKILL_ROOTS = ['skills/', '.agents/skills/', '.claude/skills/'];
+const EXCLUDED_SKILLS = new Set(['clckernel_cli', 'clc_forge_cli', 'impeccable']);
+const FENCE_RE = /^\s{0,3}(`{3,}|~{3,})/;
+const INLINE_MARKER_RE = /^\s*(?:(?:[-*+]|\d+[.)]|>)\s+)*[*_]{0,2}HITL[*_]{0,2}\s*:/i;
+const HEADING_MARKER_RE = /^\s{0,3}#{2,6}\s+(?:Human[- ]checkpoints?|HITL)\b/i;
 
-  const skillFiles = [];
-  for (const sDir of searchDirs) {
-    if (fs.existsSync(sDir)) {
-      try {
-        const entries = fs.readdirSync(sDir, { withFileTypes: true });
-        for (const entry of entries) {
-          if (entry.isFile() && entry.name.endsWith('.md')) {
-            skillFiles.push(path.join(sDir, entry.name));
-          } else if (entry.isDirectory()) {
-            // Exclude framework CLI scaffolding and tool plugins
-            if (entry.name === 'clckernel_cli' || entry.name === 'clc_forge_cli' || entry.name === 'impeccable') {
-              continue;
-            }
-            const subDirPath = path.join(sDir, entry.name);
-            const subEntries = fs.readdirSync(subDirPath, { withFileTypes: true });
-            for (const sub of subEntries) {
-              if (sub.isFile() && sub.name.endsWith('.md')) {
-                skillFiles.push(path.join(subDirPath, sub.name));
-              }
-            }
-          }
-        }
-      } catch {}
+/** True for a changed file that must carry a HITL marker. */
+function needsMarker(file) {
+  if (!file.endsWith('.md')) return false;
+  const parts = file.split('/');
+  const base = parts[parts.length - 1];
+  if (base.toLowerCase() === 'readme.md') return false;
+  if (parts.some(segment => EXCLUDED_SKILLS.has(segment))) return false;
+  if (file.startsWith('playbooks/')) return true;
+  const root = SKILL_ROOTS.find(r => file.startsWith(r));
+  if (!root) return false;
+  const rest = file.slice(root.length).split('/');
+  // skills/<name>/SKILL.md, or a flat skills/<name>.md file.
+  return base === 'SKILL.md' || rest.length === 1;
+}
+
+/** True when the Markdown text holds an explicit HITL marker outside code fences. */
+function hasMarker(text) {
+  let fence = null;
+  for (const line of text.split(/\r?\n/)) {
+    const open = FENCE_RE.exec(line);
+    if (fence) {
+      if (open && open[1][0] === fence[0] && open[1].length >= fence.length) fence = null;
+      continue;
     }
+    if (open) {
+      fence = open[1];
+      continue;
+    }
+    if (INLINE_MARKER_RE.test(line) || HEADING_MARKER_RE.test(line)) return true;
   }
+  return false;
+}
 
-  if (skillFiles.length === 0) {
+const check = async function checkHitl(targetDir) {
+  const dir = targetDir || process.cwd();
+  const { mode, files } = changedFiles(dir, { extensions: ['.md'] });
+  const targets = files.filter(needsMarker);
+
+  if (targets.length === 0) {
     return {
       exitCode: 0,
       skipped: true,
-      name: 'check_hitl',
-      data: { violations: [], message: 'No skills/ or subagent playbook files found' }
+      name: NAME,
+      data: { violations: [], message: 'No changed skills or playbooks' },
     };
   }
 
-  const hitlKeywords = [
-    /human[- ]in[- ]the[- ]loop/i,
-    /hitl/i,
-    /checkpoint/i,
-    /approval/i,
-    /confirm/i,
-    /review/i,
-    /pausa/i,
-    /aprobaci[oó]n/i,
-    /esperar/i,
-    /validaci[oó]n/i
-  ];
-
   const violations = [];
-  for (const file of skillFiles) {
-    try {
-      const content = fs.readFileSync(file, 'utf-8');
-      const hasHitl = hitlKeywords.some(kw => kw.test(content));
-
-      if (!hasHitl) {
-        violations.push({
-          file: path.relative(dir, file),
-          message: 'Skill/Playbook missing mandatory Human-in-the-Loop (HITL) review checkpoint'
-        });
-      }
-    } catch {}
+  for (const file of targets) {
+    const text = readFile(dir, file, mode);
+    if (text === null || hasMarker(text)) continue;
+    violations.push({
+      file,
+      message: 'Missing explicit Human-in-the-Loop checkpoint: add a `HITL:` line or a `## Human checkpoint` section',
+    });
   }
 
-  const exitCode = violations.length > 0 ? 1 : 0;
   return {
-    exitCode,
+    exitCode: violations.length > 0 ? 1 : 0,
     skipped: false,
-    name: 'check_hitl',
+    name: NAME,
     data: {
       violations,
       message: violations.length > 0
-        ? `${violations.length} skill(s) missing mandatory Human-in-the-Loop checkpoints`
-        : 'All subagent skills include mandatory Human-in-the-Loop (HITL) checkpoints'
-    }
+        ? `${violations.length} skill(s)/playbook(s) missing an explicit HITL checkpoint marker`
+        : `All ${targets.length} changed skill(s)/playbook(s) declare a HITL checkpoint`,
+    },
   };
 };
 

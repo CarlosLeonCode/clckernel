@@ -25,10 +25,13 @@ class BaseAdapter {
   /**
    * Returns the tool manifest for this adapter.
    * Each entry describes one pre-commit tool (script or external CLI).
-   * Override in subclasses to declare stack-specific tools.
+   * Override in subclasses to declare stack-specific tools. The generator
+   * passes the project root, so an adapter may add guards whose structure is
+   * present; without it the adapter's unconditional set is returned.
+   * @param {string} [targetDir] - Project root
    * @returns {Array<{name: string, language: string, path: string, command: string, description: string, extCLI?: string}>}
    */
-  getTools() {
+  getTools(targetDir) {
     return [];
   }
 

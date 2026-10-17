@@ -134,4 +134,23 @@ function exists(dir, file, mode) {
   return git(cwd, ['cat-file', '-e', objectName(file, mode)]) !== null;
 }
 
-module.exports = { changedFiles, readFile, exists };
+/**
+ * Lists every file of the snapshot, for whole-repository facts (e.g. a name
+ * that must be unique, a link target that must exist): the index in staged
+ * mode, HEAD in last-commit mode. Paths are relative to the repository root
+ * and sorted; nothing is excluded. With mode null (no git) nothing is listed.
+ * @param {string} dir - Directory inside the repository
+ * @param {'staged'|'last-commit'|null} mode - Snapshot (from changedFiles)
+ * @returns {string[]}
+ */
+function listFiles(dir, mode) {
+  const cwd = dir || process.cwd();
+  if (mode !== 'staged' && mode !== 'last-commit') return [];
+  const out = mode === 'staged'
+    ? git(cwd, ['ls-files', '-z', '--cached', '--full-name', '--', ':/'])
+    : git(cwd, ['ls-tree', '-r', '-z', '--name-only', '--full-tree', 'HEAD']);
+  if (out === null) return [];
+  return [...new Set(splitNul(out))].sort();
+}
+
+module.exports = { changedFiles, readFile, exists, listFiles };
