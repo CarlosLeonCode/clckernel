@@ -85,3 +85,43 @@ describe('postgres_guard', () => {
     }
   });
 });
+
+describe('postgres_guard detects unsafe SQL passed to execute()', () => {
+  const cases = [
+    ['f-string', 'cur.execute(f"SELECT * FROM users WHERE id = {uid}")', 'sql_string_formatting'],
+    ['% formatting', 'cur.execute("SELECT * FROM users WHERE id = %s" % uid)', 'sql_string_formatting'],
+    ['.format()', 'cur.execute("SELECT * FROM users WHERE id = {}".format(uid))', 'sql_string_formatting'],
+    ['concatenation', 'cur.execute("SELECT * FROM users WHERE id = " + uid)', 'sql_string_concatenation'],
+    ['executemany f-string', 'cur.executemany(f"INSERT INTO {table} VALUES (%s)", rows)', 'sql_string_formatting'],
+    ['raw hstore', 'cur.execute("SELECT \'a=>1\'::hstore")', 'hstore_raw_usage'],
+  ];
+
+  for (const [label, line, issue] of cases) {
+    it(`flags ${label}`, async () => {
+      const dir = createTmpProject({});
+      initGitRepo(dir);
+      fs.writeFileSync(path.join(dir, 'repo.py'), `def find(cur, uid, table, rows):\n    ${line}\n`);
+      spawnSync('git', ['add', 'repo.py'], { cwd: dir });
+      try {
+        const result = await runPostgresGuard(dir);
+        assert.strictEqual(result.exit_code, 1, JSON.stringify(result.data));
+        assert.ok(result.data.findings.some((f) => f.issue === issue), `expected ${issue}: ${JSON.stringify(result.data.findings)}`);
+      } finally {
+        teardown(dir);
+      }
+    });
+  }
+
+  it('accepts parameterized queries', async () => {
+    const dir = createTmpProject({});
+    initGitRepo(dir);
+    fs.writeFileSync(path.join(dir, 'repo.py'), 'def find(cur, uid):\n    cur.execute("SELECT * FROM users WHERE id = %s", (uid,))\n');
+    spawnSync('git', ['add', 'repo.py'], { cwd: dir });
+    try {
+      const result = await runPostgresGuard(dir);
+      assert.strictEqual(result.exit_code, 0, JSON.stringify(result.data));
+    } finally {
+      teardown(dir);
+    }
+  });
+});

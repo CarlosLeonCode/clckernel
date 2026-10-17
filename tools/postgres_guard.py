@@ -66,7 +66,8 @@ class PostgresVisitor(ast.NodeVisitor):
 
     def visit_Call(self, node: ast.Call):
         # Check for cursor.execute(), connection.execute(), etc.
-        if self._is_sql_method(node):
+        # The method name lives on the callee (node.func), not on the Call node.
+        if self._is_sql_method(node.func):
             # Check for raw SQL with string formatting (f-string, %, .format())
             if self._has_formatted_sql(node):
                 self._add_violation(
