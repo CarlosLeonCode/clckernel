@@ -197,10 +197,10 @@ async function runUpdate(targetDir = process.cwd()) {
   try {
     const result = updateHarness(targetDir);
 
-    console.log(`${colors.green}✔ Salvaguardas estándar actualizadas en tools/${colors.reset}`);
-    console.log(`${colors.green}✔ Playbooks y Skills agénticos actualizados en .agents/skills/${colors.reset}`);
-    console.log(`${colors.green}✔ Enlaces simbióticos de IDEs actualizados (Cursor, Claude, Copilot, Antigravity)${colors.reset}`);
-    console.log(`${colors.green}✔ Hooks de git sincronizados${colors.reset}`);
+    console.log(`${colors.emerald}✔ Salvaguardas estándar actualizadas en tools/${colors.reset}`);
+    console.log(`${colors.emerald}✔ Playbooks y Skills agénticos actualizados en .agents/skills/${colors.reset}`);
+    console.log(`${colors.emerald}✔ Enlaces simbióticos de IDEs actualizados (Cursor, Claude, Copilot, Antigravity)${colors.reset}`);
+    console.log(`${colors.emerald}✔ Hooks de git sincronizados${colors.reset}`);
     for (const removedPath of result.legacyCleanup.removed) {
       console.log(`${colors.emerald}✔ Removed legacy artifact: ${removedPath}${colors.reset}`);
     }
@@ -211,7 +211,7 @@ async function runUpdate(targetDir = process.cwd()) {
     console.log(`   • ${colors.emerald}sdds/${colors.reset} (Especificaciones locales intactas)`);
     console.log(`   • ${colors.emerald}tools/guards/${colors.reset} (Reglas y salvaguardas personalizadas intactas)`);
     console.log(`   • ${colors.emerald}.clckernel.yaml${colors.reset} (Configuraciones de equipo intactas)\n`);
-    console.log(`${colors.green}✨ ¡Proyecto actualizado con éxito a la última versión de CLC Kernel!${colors.reset}\n`);
+    console.log(`${colors.emerald}✨ ¡Proyecto actualizado con éxito a la última versión de CLC Kernel!${colors.reset}\n`);
     return result;
   } catch (err) {
     console.error(`\n❌ Error actualizando el arnés: ${err.message}`);

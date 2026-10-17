@@ -149,3 +149,18 @@ describe('updateHarness (Non-Destructive Update)', () => {
     }
   });
 });
+
+describe('clckernel update output', () => {
+  it('never prints "undefined" in its summary lines', () => {
+    const { spawnSync } = require('child_process');
+    const dir = createTmpProject({ 'requirements.txt': 'fastapi\n', 'main.py': 'app = None\n' });
+    try {
+      const cli = path.resolve(__dirname, '..', 'bin', 'cli.js');
+      const res = spawnSync(process.execPath, [cli, 'update', dir], { encoding: 'utf-8' });
+      assert.strictEqual(res.status, 0, res.stderr);
+      assert.ok(!res.stdout.includes('undefined'), `output contains "undefined":\n${res.stdout}`);
+    } finally {
+      teardown(dir);
+    }
+  });
+});
