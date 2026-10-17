@@ -203,7 +203,8 @@ describe('Integration: Component Composition', () => {
       assert.ok(fs.existsSync(path.join(dir, 'sdds')), 'sdds/ should exist');
       assert.ok(fs.existsSync(path.join(dir, 'docs', 'Journal')), 'docs/Journal/ should exist');
       assert.ok(fs.existsSync(path.join(dir, 'tools')), 'tools/ should exist');
-      assert.ok(fs.existsSync(path.join(dir, '.husky', 'pre-commit')), '.husky/pre-commit should exist');
+      // No Husky in this project: the hook goes where git runs it.
+      assert.ok(fs.existsSync(path.join(dir, '.githooks', 'pre-commit')), '.githooks/pre-commit should exist');
 
       // Verify AGENTS.md content
       const agents = fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8');

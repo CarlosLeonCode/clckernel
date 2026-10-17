@@ -8,6 +8,11 @@
  *   - null:          no git repository / git unavailable
  * File content always comes from that snapshot, never from the working copy.
  *
+ * Files the harness installed itself are listed in tools/.clckernel-managed.json
+ * (written by `clckernel` install/update). changedFiles drops every listed path,
+ * so no guard evaluates the harness's own code. Without a registry (e.g. the
+ * clckernel repository, where tools/ is source code) nothing is excluded.
+ *
  * Self-contained: uses only Node.js built-ins. Git runs with argument arrays,
  * never through a shell; paths are read NUL-separated (-z), so spaces and
  * non-ASCII names survive.
@@ -17,6 +22,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const BINARY_PROBE_BYTES = 8000;
+const MANAGED_REGISTRY = 'tools/.clckernel-managed.json';
 const MAX_BUFFER = 512 * 1024 * 1024;
 
 /** Runs git in dir; stdout Buffer on success, null on any failure. */
@@ -61,11 +67,34 @@ function changedFiles(dir, { extensions } = {}) {
   }
   if (out === null) return { mode: null, files: [] };
 
-  let files = splitNul(out);
+  const managed = managedFiles(cwd, mode);
+  let files = splitNul(out).filter(f => !managed.has(f));
   if (Array.isArray(extensions) && extensions.length > 0) {
     files = files.filter(f => extensions.some(ext => f.endsWith(ext)));
   }
   return { mode, files };
+}
+
+/**
+ * Paths listed in the harness registry: read from the snapshot being evaluated,
+ * falling back to the working copy at the repository root. A missing or
+ * malformed registry excludes nothing.
+ * @returns {Set<string>}
+ */
+function managedFiles(cwd, mode) {
+  let text = readFile(cwd, MANAGED_REGISTRY, mode);
+  if (text === null && mode !== null) {
+    const top = git(cwd, ['rev-parse', '--show-toplevel']);
+    text = readFile(top ? top.toString('utf-8').trim() : cwd, MANAGED_REGISTRY, null);
+  }
+  if (text === null) return new Set();
+  try {
+    const list = JSON.parse(text);
+    if (Array.isArray(list)) return new Set(list.filter(f => typeof f === 'string'));
+  } catch {
+    // Malformed registry: exclude nothing.
+  }
+  return new Set();
 }
 
 /** Object name of a path in the snapshot (paths are relative to the repo root). */

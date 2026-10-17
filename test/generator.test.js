@@ -8,7 +8,7 @@ const { generateHookFromManifest, generateHarness } = require('../src/generator'
 
 describe('generateHookFromManifest', () => {
   describe('frontend hook', () => {
-    it('creates a .husky/pre-commit that is safe without a husky install', () => {
+    it('writes .githooks/pre-commit when Husky is not the active hook manager', () => {
       const adapter = {
         projectType: 'frontend',
         name: 'Next.js (App Router)',
@@ -19,13 +19,14 @@ describe('generateHookFromManifest', () => {
       };
       const dir = createTmpProject({});
       try {
-        generateHookFromManifest(adapter, dir);
+        const hook = generateHookFromManifest(adapter, dir);
 
-        const hookFile = path.join(dir, '.husky', 'pre-commit');
-        assert.ok(fs.existsSync(hookFile), '.husky/pre-commit should exist');
+        const hookFile = path.join(dir, '.githooks', 'pre-commit');
+        assert.ok(fs.existsSync(hookFile), '.githooks/pre-commit should exist');
+        assert.strictEqual(hook.file, '.githooks/pre-commit');
 
         const content = fs.readFileSync(hookFile, 'utf-8');
-        assert.ok(content.startsWith('#!/usr/bin/env sh'), 'should start with sh shebang');
+        assert.ok(content.startsWith('#!/usr/bin/env bash'), 'should start with bash shebang');
         assert.ok(content.includes('node tools/scan_secrets.js'), 'should include tool command');
         // The generator never runs `husky init`, so _/husky.sh does not exist
         // and sourcing it would break every commit.
@@ -39,8 +40,8 @@ describe('generateHookFromManifest', () => {
           'should guard the external CLI and report when it is skipped'
         );
 
-        // Frontend should NOT have .githooks directory
-        assert.ok(!fs.existsSync(path.join(dir, '.githooks')), 'should not create .githooks for frontend');
+        // Without Husky active, nothing is written to .husky (git would never run it)
+        assert.ok(!fs.existsSync(path.join(dir, '.husky')), 'should not create .husky without Husky');
       } finally {
         teardown(dir);
       }
@@ -55,7 +56,7 @@ describe('generateHookFromManifest', () => {
       const dir = createTmpProject({});
       try {
         generateHookFromManifest(adapter, dir);
-        assert.ok(fs.existsSync(path.join(dir, '.husky', 'pre-commit')), '.husky/pre-commit should exist');
+        assert.ok(fs.existsSync(path.join(dir, '.githooks', 'pre-commit')), '.githooks/pre-commit should exist');
       } finally {
         teardown(dir);
       }
@@ -122,7 +123,7 @@ describe('generateHookFromManifest', () => {
       try {
         generateHookFromManifest(adapter, dir);
 
-        const hookFile = path.join(dir, '.husky', 'pre-commit');
+        const hookFile = path.join(dir, '.githooks', 'pre-commit');
         const content = fs.readFileSync(hookFile, 'utf-8');
         assert.ok(!content.includes('undefined'), 'should not include undefined in hook');
         assert.ok(content.includes('node tools/scan_secrets.js'), 'should include valid command');
@@ -165,10 +166,10 @@ describe('generateHookFromManifest', () => {
       try {
         generateHookFromManifest(adapter, dir);
 
-        const hookFile = path.join(dir, '.husky', 'pre-commit');
+        const hookFile = path.join(dir, '.githooks', 'pre-commit');
         const content = fs.readFileSync(hookFile, 'utf-8');
-        // Just the shebang: no bootstrap, and nothing to run.
-        assert.ok(content.startsWith('#!/usr/bin/env sh'));
+        // Just the preamble: no bootstrap, and nothing to run.
+        assert.ok(content.startsWith('#!/usr/bin/env bash'));
         assert.ok(!content.includes('husky.sh'));
         assert.ok(!content.includes('tsc'));
       } finally {
@@ -221,7 +222,7 @@ describe('generateHarness', () => {
         assert.ok(fs.existsSync(path.join(dir, 'sdds')), 'sdds/ should exist');
         assert.ok(fs.existsSync(path.join(dir, 'tools')), 'tools/ should exist');
         assert.ok(fs.existsSync(path.join(dir, 'AGENTS.md')), 'AGENTS.md should exist');
-        assert.ok(fs.existsSync(path.join(dir, '.husky', 'pre-commit')), '.husky/pre-commit should exist');
+        assert.ok(fs.existsSync(path.join(dir, '.githooks', 'pre-commit')), '.githooks/pre-commit should exist');
       } finally {
         teardown(dir);
       }
@@ -400,7 +401,7 @@ describe('generateHarness', () => {
   });
 
   describe('fallback hook generation', () => {
-    it('creates .husky/pre-commit for frontend projects', () => {
+    it('creates .githooks/pre-commit for frontend projects without Husky', () => {
       const config = {
         projectType: 'frontend',
         framework: 'Next.js',
@@ -412,11 +413,11 @@ describe('generateHarness', () => {
       try {
         generateHarness(dir, config);
 
-        const hookFile = path.join(dir, '.husky', 'pre-commit');
-        assert.ok(fs.existsSync(hookFile), '.husky/pre-commit should exist');
+        const hookFile = path.join(dir, '.githooks', 'pre-commit');
+        assert.ok(fs.existsSync(hookFile), '.githooks/pre-commit should exist');
 
         const content = fs.readFileSync(hookFile, 'utf-8');
-        assert.ok(content.startsWith('#!/usr/bin/env sh'), 'should have sh shebang');
+        assert.ok(content.startsWith('#!/usr/bin/env bash'), 'should have bash shebang');
         assert.ok(!content.includes('husky.sh'), 'fallback hook must not source a missing bootstrap');
         assert.ok(content.includes('scan_secrets'), 'should reference scan_secrets');
       } finally {
@@ -475,9 +476,9 @@ describe('technology guards in the generated hook', () => {
 describe('fail-closed pre-commit hooks', () => {
   const { spawnSync } = require('child_process');
 
-  function readHook(dir, projectType) {
-    const rel = projectType === 'frontend' ? '.husky/pre-commit' : '.githooks/pre-commit';
-    return fs.readFileSync(path.join(dir, rel), 'utf-8');
+  // No Husky in these projects: both project types write .githooks/pre-commit.
+  function readHook(dir) {
+    return fs.readFileSync(path.join(dir, '.githooks', 'pre-commit'), 'utf-8');
   }
 
   function assertFailClosed(content) {
@@ -528,9 +529,9 @@ describe('fail-closed pre-commit hooks', () => {
       const dir = createTmpProject({});
       try {
         generateHookFromManifest(adapter, dir);
-        const rel = projectType === 'frontend' ? '.husky/pre-commit' : '.githooks/pre-commit';
-        const shell = projectType === 'frontend' ? 'sh' : 'bash';
-        const res = spawnSync(shell, [path.join(dir, rel)], { cwd: dir, encoding: 'utf-8' });
+        const hookFile = path.join(dir, '.githooks', 'pre-commit');
+        assert.ok(fs.existsSync(hookFile), 'hook must exist');
+        const res = spawnSync('bash', [hookFile], { cwd: dir, encoding: 'utf-8' });
         assert.notStrictEqual(res.status, 0, 'a failing middle command must fail the hook');
       } finally {
         teardown(dir);

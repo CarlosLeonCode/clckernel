@@ -23,6 +23,21 @@ function makeAdapter(overrides = {}) {
   };
 }
 
+/** Project whose repository runs its hooks through Husky (core.hooksPath=.husky). */
+function createHuskyProject(files = {}) {
+  const { spawnSync } = require('child_process');
+  const dir = createTmpProject(files);
+  const env = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
+  for (const args of [['init', '-q'], ['config', 'core.hooksPath', '.husky']]) {
+    const res = spawnSync('git', args, { cwd: dir, env, encoding: 'utf-8' });
+    assert.strictEqual(res.status, 0, res.stderr);
+  }
+  return dir;
+}
+
+/** Without Husky, the frontend hook is written to .githooks/pre-commit. */
+const HOOK = path.join('.githooks', 'pre-commit');
+
 describe('published package contains the skills the installer copies', () => {
   it('packs the clckernel_cli skill that installAgenticCLI reads', () => {
     const { execFileSync } = require('child_process');
@@ -59,7 +74,7 @@ describe('published package contains the skills the installer copies', () => {
 
 describe('generateHookFromManifest() produces a working hook', () => {
   it('never sources a husky bootstrap file that the generator does not create', () => {
-    const dir = createTmpProject({});
+    const dir = createHuskyProject({});
     try {
       generateHookFromManifest(makeAdapter(), dir);
       const hook = fs.readFileSync(path.join(dir, '.husky', 'pre-commit'), 'utf-8');
@@ -83,7 +98,7 @@ describe('generateHookFromManifest() produces a working hook', () => {
     });
     try {
       generateHookFromManifest(makeAdapter(), dir);
-      const hookFile = path.join(dir, '.husky', 'pre-commit');
+      const hookFile = path.join(dir, HOOK);
       const { execSync } = require('child_process');
       try { fs.chmodSync(hookFile, '755'); } catch {}
       const res = execSync(`sh "${hookFile}"`, { cwd: dir, stdio: 'pipe' });
@@ -97,7 +112,7 @@ describe('generateHookFromManifest() produces a working hook', () => {
     const dir = createTmpProject({ 'tools/scan_secrets.js': 'process.exit(0);\n' });
     try {
       generateHookFromManifest(makeAdapter(), dir);
-      const hookFile = path.join(dir, '.husky', 'pre-commit');
+      const hookFile = path.join(dir, HOOK);
       const hook = fs.readFileSync(hookFile, 'utf-8');
 
       // lint-staged only runs behind its runtime availability check.
@@ -119,7 +134,7 @@ describe('generateHookFromManifest() produces a working hook', () => {
     const dir = createTmpProject({});
     try {
       generateHookFromManifest(makeAdapter(), dir);
-      const hook = fs.readFileSync(path.join(dir, '.husky', 'pre-commit'), 'utf-8');
+      const hook = fs.readFileSync(path.join(dir, HOOK), 'utf-8');
       assert.ok(
         hook.includes('node tools/scan_secrets.js'),
         'bundled guard commands must still run on commit'
@@ -135,7 +150,7 @@ describe('generateHookFromManifest() produces a working hook', () => {
     });
     try {
       generateHookFromManifest(makeAdapter(), dir);
-      const hookFile = path.join(dir, '.husky', 'pre-commit');
+      const hookFile = path.join(dir, HOOK);
       const hook = fs.readFileSync(hookFile, 'utf-8');
 
       // Extract only the real command lines (skip shebang, source, echo, blanks).
@@ -159,7 +174,7 @@ describe('generateHookFromManifest() produces a working hook', () => {
   });
 
   it('sources the husky bootstrap when the project actually has one', () => {
-    const dir = createTmpProject({
+    const dir = createHuskyProject({
       '.husky/_/husky.sh': '#!/usr/bin/env sh\n# real husky bootstrap\n',
     });
     try {
@@ -180,7 +195,7 @@ describe('generateHookFromManifest() produces a working hook', () => {
     });
     try {
       generateHookFromManifest(makeAdapter(), dir);
-      const hook = fs.readFileSync(path.join(dir, '.husky', 'pre-commit'), 'utf-8');
+      const hook = fs.readFileSync(path.join(dir, HOOK), 'utf-8');
       assert.ok(
         hook.includes('npx lint-staged'),
         'installed CLIs must be wired into the hook'

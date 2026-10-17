@@ -116,11 +116,17 @@ async function promptOptions(detected) {
 /**
  * Prints the installation summary.
  * @param {string} targetDir - Provisioned project root
- * @param {boolean} isFront - Whether the hook lives in .husky
+ * @param {{ file: string, active: boolean }} [hook] - Hook written (relative path)
+ *   and whether git runs it
  * @param {object} config - Final project config
  * @param {string[]} [installedGuards] - Guards actually copied into tools/
  */
-function printSuccess(targetDir, isFront, config, installedGuards = []) {
+function printSuccess(targetDir, hook, config, installedGuards = []) {
+  const hookDesc = !hook
+    ? `${colors.amber}no hook written${colors.reset}`
+    : hook.active
+      ? `active hook ${colors.amber}${hook.file}${colors.reset}`
+      : `${colors.amber}${hook.file} written but not active (core.hooksPath unchanged)${colors.reset}`;
   const guardsDesc = installedGuards.length > 0
     ? `${colors.emerald}${installedGuards.length} guard(s): ${installedGuards.join(', ')}${colors.reset}`
     : `${colors.amber}no guards installed${colors.reset}`;
@@ -129,7 +135,7 @@ function printSuccess(targetDir, isFront, config, installedGuards = []) {
     `🔨 ${colors.bold}Proyecto Inicializado:${colors.reset} ${colors.cyan}${targetDir}${colors.reset}`,
     `🛡️  ${colors.bold}Salvaguardas:${colors.reset} ${guardsDesc}`,
     `📝 ${colors.bold}Leyes & SDD:${colors.reset} AGENTS.md, sdds/, docs/Journal/ precargados`,
-    `🔒 ${colors.bold}Git Hooks:${colors.reset} Configurados en ${colors.amber}${isFront ? '.husky/pre-commit' : '.githooks/pre-commit'}${colors.reset}`
+    `🔒 ${colors.bold}Git Hooks:${colors.reset} ${hookDesc}`
   ].join('\n');
 
   if (p.note && p.outro) {

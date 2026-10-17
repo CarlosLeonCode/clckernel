@@ -264,14 +264,14 @@ async function runCli() {
     s.start('Configurando salvaguardas y motor de gobernanza...');
   }
 
-  const { installedGuards } = generateHarness(targetDir, finalConfig) || {};
+  const { installedGuards, hook } = generateHarness(targetDir, finalConfig) || {};
 
   if (s) {
     s.stop('Salvaguardas y motor de gobernanza configurados.');
   }
 
   // 6. Render Pro Success Card
-  printSuccess(targetDir, finalConfig.projectType === 'frontend', finalConfig, installedGuards);
+  printSuccess(targetDir, hook, finalConfig, installedGuards);
 }
 
 module.exports = { runCli };

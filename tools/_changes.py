@@ -8,17 +8,24 @@ A guard evaluates exactly the snapshot being verified:
   - None:          no git repository / git unavailable
 File content always comes from that snapshot, never from the working copy.
 
+Files the harness installed itself are listed in tools/.clckernel-managed.json
+(written by `clckernel` install/update). changed_files drops every listed path,
+so no guard evaluates the harness's own code. Without a registry (e.g. the
+clckernel repository, where tools/ is source code) nothing is excluded.
+
 Self-contained: Python 3.9+ standard library only. Git runs with argument
 lists, never through a shell; paths are read NUL-separated (-z), so spaces and
 non-ASCII names survive.
 """
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 from typing import Optional
 
 BINARY_PROBE_BYTES = 8000
+MANAGED_REGISTRY = "tools/.clckernel-managed.json"
 
 
 def _git(cwd: str, *args: str) -> Optional[bytes]:
@@ -68,10 +75,33 @@ def changed_files(target_dir: Optional[str] = None, extensions=None) -> dict:
     if out is None:
         return {"mode": None, "files": []}
 
-    files = _split_nul(out)
+    managed = _managed_files(cwd, mode)
+    files = [f for f in _split_nul(out) if f not in managed]
     if extensions:
         files = [f for f in files if f.endswith(tuple(extensions))]
     return {"mode": mode, "files": files}
+
+
+def _managed_files(cwd: str, mode: Optional[str]) -> set:
+    """
+    Paths listed in the harness registry: read from the snapshot being evaluated,
+    falling back to the working copy at the repository root. A missing or
+    malformed registry excludes nothing.
+    """
+    text = read_file(cwd, MANAGED_REGISTRY, mode)
+    if text is None and mode is not None:
+        top = _git(cwd, "rev-parse", "--show-toplevel")
+        root = top.decode("utf-8", errors="surrogateescape").strip() if top else cwd
+        text = read_file(root, MANAGED_REGISTRY, None)
+    if text is None:
+        return set()
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return set()
+    if not isinstance(data, list):
+        return set()
+    return {f for f in data if isinstance(f, str)}
 
 
 def _object_name(file: str, mode: str) -> str:

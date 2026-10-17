@@ -54,7 +54,8 @@ class AstroAdapter extends BaseAdapter {
       { name: 'verify_tdd',       language: 'js',       path: 'verify_tdd.js',       command: 'node tools/verify_tdd.js',       description: 'Runs changed tests (vitest / jest / node:test) against BASE (must fail) and the staged code (must pass)' },
       { name: 'check_custom',     language: 'js',       path: 'check_custom.js',     command: 'node tools/check_custom.js',     description: 'Runs user-defined custom rules from .clckernel.yaml' },
       { name: 'astro_check',      language: 'external', path: '', command: 'npx astro check', description: 'Astro type checking', extCLI: 'astro', availableIf: '[ -x node_modules/.bin/astro ]' },
-      { name: 'vitest',           language: 'external', path: '', command: 'npx vitest run',  description: 'Test runner', extCLI: 'vitest', availableIf: '[ -x node_modules/.bin/vitest ]' },
+      // vitest fails when there are no test files yet (a fresh project): that is not a failure.
+      { name: 'vitest',           language: 'external', path: '', command: 'npx vitest run --passWithNoTests',  description: 'Test runner', extCLI: 'vitest', availableIf: '[ -x node_modules/.bin/vitest ]' },
     ];
     return baseTools;
   }

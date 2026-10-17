@@ -29,9 +29,57 @@ function availabilityCondition(tool) {
  * @param {object} tool - External tool descriptor
  * @returns {string}
  */
-function guardedCommand(tool) {
-  return `if ${availabilityCondition(tool)} >/dev/null 2>&1; then ${tool.command}; ` +
+function guardedCommand(tool, managed = []) {
+  return `if ${availabilityCondition(tool)} >/dev/null 2>&1; then ${withManagedExcludes(tool, managed)}; ` +
     `else echo "clckernel: ${tool.name} not available, skipped"; fi`;
+}
+
+/** Registry of the files the harness installed into tools/ (paths relative to the project root). */
+const MANAGED_REGISTRY = 'tools/.clckernel-managed.json';
+
+/**
+ * Appends the harness's own files to a whole-project linter's exclusions.
+ * A tool opts in with `excludeManaged: { flag, extensions }` (e.g. ruff's
+ * --extend-exclude for .py); without managed files of those extensions the
+ * command is unchanged.
+ * @param {object} tool - External tool descriptor
+ * @param {string[]} managed - Paths listed in the registry
+ * @returns {string}
+ */
+function withManagedExcludes(tool, managed) {
+  if (!tool.excludeManaged) return tool.command;
+  const { flag, extensions } = tool.excludeManaged;
+  const files = managed.filter(f => extensions.some(ext => f.endsWith(ext)));
+  return files.length > 0 ? `${tool.command} ${flag} ${files.join(',')}` : tool.command;
+}
+
+/**
+ * Reads the registry written by the last install/update; [] when absent or malformed.
+ * @param {string} targetDir - Target project root
+ * @returns {string[]}
+ */
+function readManagedRegistry(targetDir) {
+  try {
+    const list = JSON.parse(fs.readFileSync(path.join(targetDir, MANAGED_REGISTRY), 'utf-8'));
+    return Array.isArray(list) ? list.filter(f => typeof f === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Writes the registry: the sorted list of every file this run installed into
+ * tools/, the registry itself included. The snapshot helpers (_changes.js/.py)
+ * drop these paths from the files a guard evaluates.
+ * @param {string} targetDir - Target project root
+ * @param {string[]} toolFiles - File names written into tools/
+ * @returns {string[]} The registered paths
+ */
+function writeManagedRegistry(targetDir, toolFiles) {
+  const paths = [...new Set([...toolFiles.map(f => `tools/${f}`), MANAGED_REGISTRY])].sort();
+  fs.mkdirSync(path.join(targetDir, 'tools'), { recursive: true });
+  fs.writeFileSync(path.join(targetDir, MANAGED_REGISTRY), JSON.stringify(paths, null, 2) + '\n', 'utf-8');
+  return paths;
 }
 
 /**
@@ -104,9 +152,60 @@ function configureHooksPath(targetDir) {
   return runGit(targetDir, ['config', 'core.hooksPath', GITHOOKS_DIR]).ok;
 }
 
+/** core.hooksPath values that mean Husky (v9: .husky/_, older: .husky) runs the hooks. */
+const HUSKY_HOOKS_PATHS = new Set(['.husky', '.husky/_']);
+
+/** True when Husky is the active hook manager of the repository at targetDir. */
+function huskyActive(targetDir) {
+  const current = runGit(targetDir, ['config', '--get', 'core.hooksPath']).out.replace(/\/+$/, '');
+  return HUSKY_HOOKS_PATHS.has(current);
+}
+
+/**
+ * Writes the pre-commit hook where git will run it: .husky/pre-commit only when
+ * Husky is active for a frontend project; otherwise .githooks/pre-commit, with
+ * core.hooksPath set through configureHooksPath (and its safety checks).
+ * @param {string} targetDir - Target project root
+ * @param {boolean} isFront - Frontend project (may use Husky)
+ * @param {string[]} commands - Hook body lines
+ * @param {string} banner - Text echoed when the hook starts
+ * @returns {{ file: string, active: boolean }} Hook path relative to targetDir,
+ *   and whether git runs it
+ */
+function writeHook(targetDir, isFront, commands, banner) {
+  const useHusky = isFront && huskyActive(targetDir);
+  const hookDir = path.join(targetDir, useHusky ? '.husky' : GITHOOKS_DIR);
+  const hookFile = path.join(hookDir, 'pre-commit');
+
+  const lines = [];
+  if (useHusky) {
+    lines.push('#!/usr/bin/env sh');
+    // The husky bootstrap only exists with older Husky installs. Source it only
+    // then, so a generated hook never points at a missing file.
+    if (fs.existsSync(path.join(hookDir, '_', 'husky.sh'))) {
+      lines.push('. "$(dirname -- "$0")/_/husky.sh"');
+    }
+  } else {
+    lines.push('#!/usr/bin/env bash');
+  }
+  // Fail closed: any failing guard aborts the commit, not just the last one.
+  lines.push('set -e');
+  lines.push(`echo "${banner}"`);
+  lines.push('');
+  lines.push(...commands);
+
+  fs.mkdirSync(hookDir, { recursive: true });
+  fs.writeFileSync(hookFile, lines.join('\n') + '\n', 'utf-8');
+  try { fs.chmodSync(hookFile, '755'); } catch (e) {}
+
+  const active = useHusky ? true : configureHooksPath(targetDir);
+  return { file: path.posix.join(useHusky ? '.husky' : GITHOOKS_DIR, 'pre-commit'), active };
+}
+
 /**
  * Generates a pre-commit hook dynamically from the adapter's tool manifest.
- * Frontend projects use .husky; backend projects use .githooks.
+ * The hook goes to .husky/pre-commit only for a frontend project whose
+ * core.hooksPath already points at Husky; everything else uses .githooks.
  *
  * External CLIs (language === 'external', e.g. tsc, ruff, cargo) are wrapped in
  * a runtime availability check (see guardedCommand): the hook runs them when
@@ -117,48 +216,15 @@ function configureHooksPath(targetDir) {
  * @param {string} targetDir - Target project root
  * @param {Array} [tools] - Resolved tool manifest (see buildToolManifest).
  *   Defaults to adapter.getTools() when omitted.
+ * @param {string[]} [managed] - Registered harness files (see writeManagedRegistry);
+ *   defaults to the registry on disk
+ * @returns {{ file: string, active: boolean }} The hook written and whether git runs it
  */
-function generateHookFromManifest(adapter, targetDir, tools = adapter.getTools()) {
-  const isFront = adapter.projectType === 'frontend';
-
-  const hookDir = isFront
-    ? path.join(targetDir, '.husky')
-    : path.join(targetDir, '.githooks');
-  const hookFile = path.join(hookDir, 'pre-commit');
-
-  // The husky bootstrap only exists when the project ran `husky init`. Source it
-  // only in that case, so a generated hook never points at a missing file.
-  const huskyBootstrap = path.join(hookDir, '_', 'husky.sh');
-  const useHuskyBootstrap = isFront && fs.existsSync(huskyBootstrap);
-
-  const lines = [];
-  if (isFront) {
-    lines.push('#!/usr/bin/env sh');
-    if (useHuskyBootstrap) {
-      lines.push('. "$(dirname -- "$0")/_/husky.sh"');
-    }
-    // Fail closed: any failing guard aborts the commit, not just the last one.
-    lines.push('set -e');
-    lines.push('');
-  } else {
-    lines.push('#!/usr/bin/env bash');
-    lines.push('set -e');
-    lines.push(`echo "Running CLC Kernel ${adapter.name} Safeguards..."`);
-    lines.push('');
-  }
-
-  tools.forEach(tool => {
-    if (!tool.command) return;
-    lines.push(tool.language === 'external' ? guardedCommand(tool) : tool.command);
-  });
-
-  fs.mkdirSync(hookDir, { recursive: true });
-  fs.writeFileSync(hookFile, lines.join('\n') + '\n', 'utf-8');
-  try { fs.chmodSync(hookFile, '755'); } catch (e) {}
-
-  if (!isFront) {
-    configureHooksPath(targetDir);
-  }
+function generateHookFromManifest(adapter, targetDir, tools = adapter.getTools(), managed = readManagedRegistry(targetDir)) {
+  const commands = tools
+    .filter(tool => tool.command)
+    .map(tool => (tool.language === 'external' ? guardedCommand(tool, managed) : tool.command));
+  return writeHook(targetDir, adapter.projectType === 'frontend', commands, `Running CLC Kernel ${adapter.name} Safeguards...`);
 }
 
 /** Audit orchestrator that discovers guards of each language. */
@@ -171,17 +237,21 @@ const ORCHESTRATORS = { '.js': 'audit.js', '.py': 'audit.py' };
  * audit.js is installed: Node is the one runtime known to exist.
  * @param {string} targetDir - Target project root
  * @param {string[]} copiedFiles - tools/ file names copied for this project
+ * @returns {string[]} File names written into tools/
  */
 function installOrchestrators(targetDir, copiedFiles) {
   const wanted = new Set(copiedFiles.map(f => ORCHESTRATORS[path.extname(f)]).filter(Boolean));
   if (wanted.size === 0) wanted.add('audit.js');
+  const written = [];
   for (const file of wanted) {
     const src = path.join(__dirname, '..', 'tools', file);
     if (!fs.existsSync(src)) continue;
     const dest = path.join(targetDir, 'tools', file);
     fs.copyFileSync(src, dest);
     try { fs.chmodSync(dest, '755'); } catch (e) {}
+    written.push(file);
   }
+  return written;
 }
 
 /** Shared modules the diff-based guards import from their own directory, by guard language. */
@@ -194,7 +264,8 @@ const SNAPSHOT_HELPERS = { '.js': '_changes.js', '.py': '_changes.py' };
  * @param {string} targetDir - Target project root
  * @param {Array} manifest - Tool manifest from adapter.getTools()
  * @param {object} config - Project config (projectType, framework, testRunner)
- * @returns {string[]} Names of the guards copied into tools/
+ * @returns {{ installed: string[], written: string[] }} Names of the guards copied,
+ *   and every file name written into tools/
  */
 function installToolsFromManifest(targetDir, manifest, config) {
   const sourceToolsDir = path.join(__dirname, '..', 'tools');
@@ -230,15 +301,15 @@ function installToolsFromManifest(targetDir, manifest, config) {
     }
   });
 
-  installOrchestrators(targetDir, copiedPaths);
+  const written = [...copiedPaths, ...installOrchestrators(targetDir, copiedPaths)];
 
   // check_custom.js parses the project YAML config, so the generated project
   // must ship the parser alongside it.
   if (validTools.some(tool => tool.path === 'check_custom.js')) {
-    installYamlModule(targetDir);
+    written.push(...installYamlModule(targetDir));
   }
-  installSnapshotHelpers(targetDir, copiedPaths);
-  return installed;
+  written.push(...installSnapshotHelpers(targetDir, copiedPaths));
+  return { installed, written };
 }
 
 /**
@@ -250,13 +321,15 @@ function installToolsFromManifest(targetDir, manifest, config) {
  * harness provisions and owns.
  *
  * @param {string} targetDir - Target project root
+ * @returns {string[]} File names written into tools/
  */
 function installYamlModule(targetDir) {
   const yamlSrc = path.join(__dirname, '..', 'tools', 'yaml.js');
-  if (!fs.existsSync(yamlSrc)) return;
+  if (!fs.existsSync(yamlSrc)) return [];
   const toolsDest = path.join(targetDir, 'tools');
   fs.mkdirSync(toolsDest, { recursive: true });
   fs.copyFileSync(yamlSrc, path.join(toolsDest, 'yaml.js'));
+  return ['yaml.js'];
 }
 
 /**
@@ -268,16 +341,20 @@ function installYamlModule(targetDir) {
  *
  * @param {string} targetDir - Target project root
  * @param {string[]} copiedFiles - tools/ file names copied for this project
+ * @returns {string[]} File names written into tools/
  */
 function installSnapshotHelpers(targetDir, copiedFiles) {
   const toolsDest = path.join(targetDir, 'tools');
   const helpers = new Set(copiedFiles.map(f => SNAPSHOT_HELPERS[path.extname(f)]).filter(Boolean));
+  const written = [];
   for (const file of helpers) {
     const src = path.join(__dirname, '..', 'tools', file);
     if (!fs.existsSync(src)) continue;
     fs.mkdirSync(toolsDest, { recursive: true });
     fs.copyFileSync(src, path.join(toolsDest, file));
+    written.push(file);
   }
+  return written;
 }
 
 /** Generic harness for an unknown stack: Node is guaranteed (the user ran npx). */
@@ -298,66 +375,45 @@ const LEGACY_FALLBACK_FILES = [
  * forced frontend/backend type keeps the legacy set.
  * @param {string} targetDir - Target project root
  * @param {string} [projectType] - Detected or forced project type
- * @returns {string[]} Names of the guards copied into tools/ (orchestrators excluded)
+ * @returns {{ installed: string[], written: string[] }} Names of the guards copied
+ *   (orchestrators excluded), and every file name written into tools/
  */
 function installFallbackTools(targetDir, projectType) {
   const sourceToolsDir = path.join(__dirname, '..', 'tools');
   const fallbackFiles = projectType === 'unknown' ? GENERIC_FALLBACK_FILES : LEGACY_FALLBACK_FILES;
 
   const installed = new Set();
+  const written = [];
   fallbackFiles.forEach(file => {
     const srcFile = path.join(sourceToolsDir, file);
     const destFile = path.join(targetDir, 'tools', file);
     if (fs.existsSync(srcFile)) {
       fs.copyFileSync(srcFile, destFile);
       try { fs.chmodSync(destFile, '755'); } catch (e) {}
+      written.push(file);
       const name = path.basename(file, path.extname(file));
       if (name !== 'audit') installed.add(name);
     }
   });
 
   if (fallbackFiles.includes('check_custom.js')) {
-    installYamlModule(targetDir);
+    written.push(...installYamlModule(targetDir));
   }
-  installSnapshotHelpers(targetDir, fallbackFiles);
-  return [...installed];
+  written.push(...installSnapshotHelpers(targetDir, fallbackFiles));
+  return { installed: [...installed], written };
 }
 
 /**
  * Generates a minimal generic pre-commit hook when no adapter is available.
  * @param {string} targetDir - Target project root
  * @param {string} projectType - 'frontend', 'backend' or 'unknown'
+ * @returns {{ file: string, active: boolean }} The hook written and whether git runs it
  */
 function generateFallbackHook(targetDir, projectType) {
   const isFront = projectType === 'frontend';
-  // An unknown stack must not depend on Python: Node is the one runtime we know exists.
-  const secretScan = projectType === 'unknown' ? 'node tools/scan_secrets.js' : 'python3 tools/scan_secrets.py';
-
-  if (isFront) {
-    const hookDir = path.join(targetDir, '.husky');
-    fs.mkdirSync(hookDir, { recursive: true });
-    const hookFile = path.join(hookDir, 'pre-commit');
-    // Only source the husky bootstrap when the project actually has it.
-    const bootstrap = fs.existsSync(path.join(hookDir, '_', 'husky.sh'))
-      ? '. "$(dirname -- "$0")/_/husky.sh"\n'
-      : '';
-    fs.writeFileSync(hookFile, `#!/usr/bin/env sh
-${bootstrap}set -e
-node tools/scan_secrets.js
-`, 'utf-8');
-    try { fs.chmodSync(hookFile, '755'); } catch (e) {}
-  } else {
-    const hookDir = path.join(targetDir, '.githooks');
-    fs.mkdirSync(hookDir, { recursive: true });
-    const hookFile = path.join(hookDir, 'pre-commit');
-    fs.writeFileSync(hookFile, `#!/usr/bin/env bash
-set -e
-echo "Running CLC Kernel Safeguards..."
-${secretScan}
-`, 'utf-8');
-    try { fs.chmodSync(hookFile, '755'); } catch (e) {}
-    configureHooksPath(targetDir);
-  }
+  // Node is the one runtime known to exist for frontend and unknown stacks.
+  const secretScan = isFront || projectType === 'unknown' ? 'node tools/scan_secrets.js' : 'python3 tools/scan_secrets.py';
+  return writeHook(targetDir, isFront, [secretScan], 'Running CLC Kernel Safeguards...');
 }
 
 /**
@@ -535,20 +591,27 @@ When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`,
 
   // Steps 2-3: Install tools and generate the pre-commit hook from the same
   // manifest, so every guard copied into tools/ is also run by the hook.
+  // The registry of everything written into tools/ is recorded before the hook
+  // is generated, so whole-project linters can exclude those files.
   let installedGuards;
+  let hook;
   if (config.adapter) {
     const manifest = buildToolManifest(config.adapter, config.techTools || []);
-    installedGuards = installToolsFromManifest(targetDir, manifest, config);
-    generateHookFromManifest(config.adapter, targetDir, manifest);
+    const { installed, written } = installToolsFromManifest(targetDir, manifest, config);
+    installedGuards = installed;
+    const managed = writeManagedRegistry(targetDir, written);
+    hook = generateHookFromManifest(config.adapter, targetDir, manifest, managed);
   } else {
-    installedGuards = installFallbackTools(targetDir, config.projectType);
-    generateFallbackHook(targetDir, config.projectType);
+    const { installed, written } = installFallbackTools(targetDir, config.projectType);
+    installedGuards = installed;
+    writeManagedRegistry(targetDir, written);
+    hook = generateFallbackHook(targetDir, config.projectType);
   }
 
   // Step 4: Install LLM Conversational CLI & Agent Context
   installAgenticCLI(targetDir);
 
-  return { installedGuards };
+  return { installedGuards, hook };
 }
 
 /**

@@ -298,8 +298,8 @@ describe('verify_tdd.js ships with JS stacks', () => {
   const { discoverGuards } = require('../tools/audit');
 
   const stacks = [
-    ['Next.js', require('../src/adapters/nextjs'), { 'package.json': JSON.stringify({ dependencies: { next: '14.0.0' } }) }, '.husky'],
-    ['Astro', require('../src/adapters/astro'), { 'package.json': JSON.stringify({ dependencies: { astro: '4.0.0' } }), 'astro.config.mjs': 'export default {}' }, '.husky'],
+    ['Next.js', require('../src/adapters/nextjs'), { 'package.json': JSON.stringify({ dependencies: { next: '14.0.0' } }) }, '.githooks'],
+    ['Astro', require('../src/adapters/astro'), { 'package.json': JSON.stringify({ dependencies: { astro: '4.0.0' } }), 'astro.config.mjs': 'export default {}' }, '.githooks'],
     ['Agent-OS', require('../src/adapters/agent-os'), { 'package.json': JSON.stringify({ name: 'demo', keywords: ['agent-os'] }) }, '.githooks'],
   ];
 

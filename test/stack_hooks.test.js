@@ -20,8 +20,9 @@ function loadAdapter(file) {
   return new Adapter();
 }
 
-function hookPath(dir, adapter) {
-  return path.join(dir, adapter.projectType === 'frontend' ? '.husky' : '.githooks', 'pre-commit');
+// No Husky in these projects: every stack's hook goes to .githooks (sdds/first-commit).
+function hookPath(dir) {
+  return path.join(dir, '.githooks', 'pre-commit');
 }
 
 /** Generates the hook for an adapter's own manifest in an empty project. */
@@ -43,7 +44,7 @@ function guardedLine(name, availableIf, command) {
 const EXTERNAL_TOOLS = {
   'astro.js': [
     ['astro_check', '[ -x node_modules/.bin/astro ]', 'npx astro check'],
-    ['vitest', '[ -x node_modules/.bin/vitest ]', 'npx vitest run'],
+    ['vitest', '[ -x node_modules/.bin/vitest ]', 'npx vitest run --passWithNoTests'],
   ],
   'nextjs.js': [
     ['tsc', '[ -x node_modules/.bin/tsc ]', 'npx tsc --noEmit'],
@@ -51,7 +52,8 @@ const EXTERNAL_TOOLS = {
   ],
   'fastapi.js': [
     ['ruff', 'python3 -m ruff --version', 'python3 -m ruff check .'],
-    ['pytest', 'python3 -m pytest --version', 'python3 -m pytest'],
+    // Exit 5 = no tests collected (a fresh project), not a failure.
+    ['pytest', 'python3 -m pytest --version', 'python3 -m pytest || [ $? -eq 5 ]'],
   ],
   'django.js': [
     ['ruff', 'python3 -m ruff --version', 'python3 -m ruff check .'],
@@ -187,6 +189,69 @@ describe('stack hooks: real hook behavior with a fake tool on PATH (plan 2)', ()
         assert.match(res.stdout, /not available, skipped/);
         assert.strictEqual(res.stderr, '', `${shell}: condition output must be silenced`);
       }
+    } finally {
+      teardown(dir);
+    }
+  });
+});
+
+describe('stack hooks: a fresh project without tests or with harness files (sdds/first-commit)', () => {
+  const FastApiAdapter = require('../src/adapters/fastapi');
+  const fastapiTool = (name) => new FastApiAdapter().getTools().find((t) => t.name === name);
+
+  /** Hook running only the real FastAPI pytest line, with a fake python3 exiting `code`. */
+  function pytestHook(code) {
+    const dir = createTmpProject({});
+    const adapter = { name: 'FastAPI', projectType: 'backend', getTools: () => [fastapiTool('pytest')] };
+    generateHookFromManifest(adapter, dir, adapter.getTools(), []);
+    const bin = path.join(dir, 'fakebin');
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(bin, 'python3'),
+      `#!/bin/sh\n[ "$3" = "--version" ] && exit 0\necho pytest-ran\nexit ${code}\n`);
+    fs.chmodSync(path.join(bin, 'python3'), 0o755);
+    return { dir, bin, hook: hookPath(dir) };
+  }
+
+  for (const shell of ['sh', 'bash']) {
+    for (const [code, passes] of [[0, true], [5, true], [1, false], [2, false]]) {
+      it(`${shell}: pytest exit ${code} ${passes ? 'passes' : 'fails'} the hook`, () => {
+        const { dir, bin, hook } = pytestHook(code);
+        try {
+          const res = spawnSync(shell, [hook], {
+            cwd: dir, encoding: 'utf-8', env: { ...process.env, ...GIT_ENV, PATH: `${bin}:/usr/bin:/bin` },
+          });
+          assert.match(res.stdout, /pytest-ran/);
+          if (passes) assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+          else assert.notStrictEqual(res.status, 0, res.stdout + res.stderr);
+        } finally {
+          teardown(dir);
+        }
+      });
+    }
+  }
+
+  it('ruff excludes the registered .py harness files, and only those', () => {
+    const dir = createTmpProject({});
+    try {
+      const adapter = { name: 'FastAPI', projectType: 'backend', getTools: () => [fastapiTool('ruff')] };
+      const managed = ['tools/.clckernel-managed.json', 'tools/_changes.py', 'tools/audit.py', 'tools/scan_secrets.js'];
+      generateHookFromManifest(adapter, dir, adapter.getTools(), managed);
+      const hook = fs.readFileSync(hookPath(dir), 'utf-8');
+      assert.ok(
+        hook.includes('then python3 -m ruff check . --extend-exclude tools/_changes.py,tools/audit.py;'),
+        hook
+      );
+    } finally {
+      teardown(dir);
+    }
+  });
+
+  it('ruff reads the registry on disk when no list is passed', () => {
+    const dir = createTmpProject({ 'tools/.clckernel-managed.json': '["tools/verify_tdd.py"]\n' });
+    try {
+      const adapter = { name: 'Django', projectType: 'backend', getTools: () => [fastapiTool('ruff')] };
+      generateHookFromManifest(adapter, dir);
+      assert.ok(fs.readFileSync(hookPath(dir), 'utf-8').includes('--extend-exclude tools/verify_tdd.py;'));
     } finally {
       teardown(dir);
     }
