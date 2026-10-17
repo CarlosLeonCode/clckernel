@@ -4,6 +4,7 @@
  */
 
 const p = require('@clack/prompts');
+const { adapters, buildStackConfig } = require('./detector');
 const { version: PACKAGE_VERSION } = require('../package.json');
 
 // ANSI Color Palette
@@ -53,19 +54,37 @@ function printBox(title, items) {
   console.log(`${colors.dim}└${'─'.repeat(width)}┘${colors.reset}\n`);
 }
 
-async function promptOptions(detected) {
-  const isInteractive = Boolean(process.stdin.isTTY) &&
-    !process.env.CI &&
-    !process.argv.includes('--yes') &&
-    !process.argv.includes('-y');
+/** Second-level select value for the stack-agnostic harness. */
+const GENERIC_STACK = 'generic';
 
-  if (!isInteractive) {
+/**
+ * Lets the user confirm the detected stack, pick another one, or cancel.
+ * Picking another stack returns the config the detector builds for that
+ * adapter, so the chosen adapter drives provisioning, AGENTS.md and the hook.
+ * @param {object} detected - Config from autoDetectStack
+ * @param {object} [options]
+ * @param {string} [options.targetDir] - Project root (cwd when absent)
+ * @param {object} [options.prompts] - Prompts implementation (@clack/prompts)
+ * @param {boolean} [options.interactive] - Defaults to TTY, no CI, no --yes/-y
+ * @returns {Promise<object>} Final config
+ */
+async function promptOptions(detected, options = {}) {
+  const {
+    targetDir = process.cwd(),
+    prompts = p,
+    interactive = Boolean(process.stdin.isTTY) &&
+      !process.env.CI &&
+      !process.argv.includes('--yes') &&
+      !process.argv.includes('-y')
+  } = options;
+
+  if (!interactive) {
     return detected;
   }
 
-  p.intro(`${colors.cyan}${colors.bold}CLC Kernel Setup${colors.reset}`);
+  prompts.intro(`${colors.cyan}${colors.bold}CLC Kernel Setup${colors.reset}`);
 
-  const choice = await p.select({
+  const choice = await prompts.select({
     message: '¿Cómo deseas inicializar CLC Kernel en este proyecto?',
     initialValue: 'confirm',
     options: [
@@ -75,19 +94,9 @@ async function promptOptions(detected) {
         hint: `Recomendado (${detected.projectType.toUpperCase()} - ${detected.framework})`
       },
       {
-        value: 'frontend',
-        label: 'Forzar modo FRONTEND',
-        hint: 'Salvaguardas A11y, Zod, Next/Image, UI Reuse'
-      },
-      {
-        value: 'backend',
-        label: 'Forzar modo BACKEND',
-        hint: 'Salvaguardas TDD, Clean Arch, N+1, Secrets'
-      },
-      {
-        value: 'agent-os',
-        label: 'Forzar modo AGENT-OS',
-        hint: 'Salvaguardas HITL, Symlinks, Schemas, Memoria SSOT'
+        value: 'other',
+        label: 'Elegir otro stack',
+        hint: 'Instalar las salvaguardas de otro framework'
       },
       {
         value: 'cancel',
@@ -97,20 +106,39 @@ async function promptOptions(detected) {
     ]
   });
 
-  if (p.isCancel(choice) || choice === 'cancel') {
-    p.cancel('Instalación de CLC Kernel cancelada.');
+  if (prompts.isCancel(choice) || choice === 'cancel') {
+    prompts.cancel('Instalación de CLC Kernel cancelada.');
     process.exit(0);
   }
 
-  if (choice === 'frontend') {
-    detected.projectType = 'frontend';
-  } else if (choice === 'backend') {
-    detected.projectType = 'backend';
-  } else if (choice === 'agent-os') {
-    detected.projectType = 'agent-os';
+  if (choice !== 'other') {
+    return detected;
   }
 
-  return detected;
+  const stack = await prompts.select({
+    message: '¿Qué stack deseas instalar?',
+    initialValue: detected.adapter ? detected.adapter.name : GENERIC_STACK,
+    options: [
+      ...adapters.map((adapter) => ({
+        value: adapter.name,
+        label: adapter.name,
+        hint: `${adapter.projectType.toUpperCase()} - ${adapter.testRunner}`
+      })),
+      {
+        value: GENERIC_STACK,
+        label: 'Genérico',
+        hint: 'Salvaguardas agnósticas de stack'
+      }
+    ]
+  });
+
+  if (prompts.isCancel(stack)) {
+    prompts.cancel('Instalación de CLC Kernel cancelada.');
+    process.exit(0);
+  }
+
+  const adapter = adapters.find((a) => a.name === stack) || null;
+  return buildStackConfig(targetDir, adapter);
 }
 
 /**

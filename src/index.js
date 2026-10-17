@@ -254,7 +254,7 @@ async function runCli() {
   ]);
 
   // 4. Prompt User for Confirmation or Override
-  const finalConfig = await promptOptions(detected);
+  const finalConfig = await promptOptions(detected, { targetDir });
 
   // 5. Generate Harness & Safeguards
   let s;

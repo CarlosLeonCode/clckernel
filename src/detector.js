@@ -30,46 +30,54 @@ const adapters = [
   new LaravelAdapter()
 ];
 
-function autoDetectStack(targetDir) {
-  // 1. Check registered polyglot adapters
-  for (const adapter of adapters) {
-    if (adapter.detect(targetDir)) {
-      // Detect Phase-1 technologies (Celery, Redis, PostgreSQL, Docker)
-      const techDetector = new TechnologyDetector();
-      const detectedTechs = techDetector.detect(targetDir);
-      const techTools = techDetector.getToolsForTech(detectedTechs);
-
-      return {
-        projectType: adapter.projectType,
-        framework: adapter.name,
-        styling: adapter.projectType === 'frontend' ? 'Tailwind CSS v4' : 'N/A',
-        uiLibrary: adapter.projectType === 'frontend' ? 'Component Primitives' : 'N/A',
-        testRunner: adapter.testRunner,
-        gitHooks: fs.existsSync(path.join(targetDir, '.husky')) ? 'husky' : 'githooks',
-        orm: 'Framework Native',
-        adapter,
-        techTools
-      };
-    }
-  }
-
-  // 2. Fallback: no adapter matched. Report the stack as unknown instead of
-  // guessing one; the generator installs a generic, stack-agnostic harness.
+/**
+ * Builds the project config for a given adapter, exactly as auto-detection
+ * does for a matched adapter. A null adapter yields the generic config.
+ * Used by autoDetectStack and by the "Elegir otro stack" prompt, so a stack
+ * chosen by hand provisions exactly what a detected one would.
+ * @param {string} targetDir - Project root
+ * @param {object|null} adapter - One of `adapters`, or null for generic
+ * @returns {object} Project config
+ */
+function buildStackConfig(targetDir, adapter) {
+  // Phase-1 technologies (Celery, Redis, PostgreSQL, Docker)
   const techDetector = new TechnologyDetector();
   const detectedTechs = techDetector.detect(targetDir);
   const techTools = techDetector.getToolsForTech(detectedTechs);
+  const gitHooks = fs.existsSync(path.join(targetDir, '.husky')) ? 'husky' : 'githooks';
+
+  if (!adapter) {
+    // No adapter: report the stack as unknown instead of guessing one; the
+    // generator installs a generic, stack-agnostic harness.
+    return {
+      projectType: 'unknown',
+      framework: 'unknown',
+      styling: 'none',
+      uiLibrary: 'none',
+      testRunner: 'unknown',
+      gitHooks,
+      orm: 'none',
+      adapter: null,
+      techTools
+    };
+  }
 
   return {
-    projectType: 'unknown',
-    framework: 'unknown',
-    styling: 'none',
-    uiLibrary: 'none',
-    testRunner: 'unknown',
-    gitHooks: fs.existsSync(path.join(targetDir, '.husky')) ? 'husky' : 'githooks',
-    orm: 'none',
-    adapter: null,
+    projectType: adapter.projectType,
+    framework: adapter.name,
+    styling: adapter.projectType === 'frontend' ? 'Tailwind CSS v4' : 'N/A',
+    uiLibrary: adapter.projectType === 'frontend' ? 'Component Primitives' : 'N/A',
+    testRunner: adapter.testRunner,
+    gitHooks,
+    orm: 'Framework Native',
+    adapter,
     techTools
   };
 }
 
-module.exports = { autoDetectStack };
+function autoDetectStack(targetDir) {
+  const adapter = adapters.find((a) => a.detect(targetDir)) || null;
+  return buildStackConfig(targetDir, adapter);
+}
+
+module.exports = { autoDetectStack, buildStackConfig, adapters };
