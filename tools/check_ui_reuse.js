@@ -37,7 +37,11 @@ const check = async function checkUiReuse(targetDir) {
     }
   }
 
-  if (!files || files.length === 0) {
+  // tools/ is owned by the harness: guard sources mention raw elements as
+  // pattern strings, which are not rendered UI.
+  files = (files || []).filter(f => !f.trim().startsWith('tools/'));
+
+  if (files.length === 0) {
     return { exitCode: 0, skipped: false, name: 'check_ui_reuse', data: { violations: {}, message: 'No files changed' } };
   }
 
