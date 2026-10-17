@@ -40,7 +40,7 @@ class LaravelAdapter extends BaseAdapter {
       { name: 'phpstan',  language: 'external', path: '', command: './vendor/bin/phpstan analyse', description: 'PHP static analysis', extCLI: 'phpstan' },
       { name: 'artisan',  language: 'external', path: '', command: 'php artisan test',            description: 'Laravel test runner', extCLI: 'artisan' },
     ];
-    return this._mergeTechTools(baseTools);
+    return baseTools;
   }
 
   provision(targetDir, config) {

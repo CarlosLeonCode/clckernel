@@ -39,7 +39,7 @@ class RustAdapter extends BaseAdapter {
       { name: 'cargo_audit',   language: 'external', path: '', command: 'cargo audit',                description: 'Security vulnerability scanner', extCLI: 'cargo-audit' },
       { name: 'cargo_test',    language: 'external', path: '', command: 'cargo test',                  description: 'Rust test runner', extCLI: 'cargo' },
     ];
-    return this._mergeTechTools(baseTools);
+    return baseTools;
   }
 
   provision(targetDir, config) {

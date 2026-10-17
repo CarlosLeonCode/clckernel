@@ -60,7 +60,7 @@ class NextjsAdapter extends BaseAdapter {
       { name: 'tsc',                language: 'external', path: '', command: 'npx tsc --noEmit',        description: 'TypeScript type checking', extCLI: 'tsc' },
       { name: 'lint',               language: 'external', path: '', command: 'npx lint-staged',         description: 'Lint staged files', extCLI: 'lint-staged' },
     ];
-    return this._mergeTechTools(baseTools);
+    return baseTools;
   }
 
   provision(targetDir, config) {

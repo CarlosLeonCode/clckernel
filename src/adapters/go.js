@@ -38,7 +38,7 @@ class GoAdapter extends BaseAdapter {
       { name: 'golangci-lint', language: 'external', path: '', command: 'golangci-lint run',  description: 'Go linter and static analysis', extCLI: 'golangci-lint' },
       { name: 'go_test',       language: 'external', path: '', command: 'go test ./...',       description: 'Go test runner', extCLI: 'go' },
     ];
-    return this._mergeTechTools(baseTools);
+    return baseTools;
   }
 
   provision(targetDir, config) {

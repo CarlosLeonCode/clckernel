@@ -58,7 +58,7 @@ class DjangoAdapter extends BaseAdapter {
       { name: 'ruff',                 language: 'external', path: '', command: 'python3 -m ruff check .', description: 'Python AST linter', extCLI: 'ruff' },
       { name: 'manage',               language: 'external', path: '', command: 'python3 manage.py test',  description: 'Django test runner', extCLI: 'manage.py' },
     ];
-    return this._mergeTechTools(baseTools);
+    return baseTools;
   }
 
   provision(targetDir, config) {

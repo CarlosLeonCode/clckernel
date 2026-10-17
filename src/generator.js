@@ -27,6 +27,27 @@ function isCliInstalled(targetDir, pkg) {
 }
 
 /**
+ * Builds the single tool manifest used both to copy guards into tools/ and to
+ * generate the pre-commit hook, so every installed guard is also executed.
+ * Technology tools (Celery, Redis, PostgreSQL, Docker) are inserted right
+ * before check_custom, keeping the user-defined rules last; when the adapter
+ * has no check_custom they are appended.
+ * @param {object} adapter - Adapter with getTools()
+ * @param {Array} [techTools] - Tools for detected technologies
+ * @returns {Array} Merged tool manifest
+ */
+function buildToolManifest(adapter, techTools = []) {
+  const frameworkTools = adapter.getTools();
+  const checkCustomIdx = frameworkTools.findIndex(t => t.name === 'check_custom');
+  if (checkCustomIdx < 0) return [...frameworkTools, ...techTools];
+  return [
+    ...frameworkTools.slice(0, checkCustomIdx),
+    ...techTools,
+    ...frameworkTools.slice(checkCustomIdx),
+  ];
+}
+
+/**
  * Generates a pre-commit hook dynamically from the adapter's tool manifest.
  * Frontend projects use .husky; backend projects use .githooks.
  *
@@ -37,9 +58,10 @@ function isCliInstalled(targetDir, pkg) {
  *
  * @param {object} adapter - Adapter with getTools() and projectType
  * @param {string} targetDir - Target project root
+ * @param {Array} [tools] - Resolved tool manifest (see buildToolManifest).
+ *   Defaults to adapter.getTools() when omitted.
  */
-function generateHookFromManifest(adapter, targetDir) {
-  const tools = adapter.getTools();
+function generateHookFromManifest(adapter, targetDir, tools = adapter.getTools()) {
   const isFront = adapter.projectType === 'frontend';
 
   const hookDir = isFront
@@ -406,34 +428,14 @@ When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`,
 
   }
 
-  // Step 2: Install tools (manifest-driven or fallback)
+  // Steps 2-3: Install tools and generate the pre-commit hook from the same
+  // manifest, so every guard copied into tools/ is also run by the hook.
   if (config.adapter) {
-    const frameworkTools = config.adapter.getTools();
-    const techTools = config.techTools || [];
-
-    // Merge order: [frameworkTools prefix, ...techTools, check_custom + suffix]
-    // Split around check_custom to insert tech tools before it
-    const checkCustomIdx = frameworkTools.findIndex(t => t.name === 'check_custom');
-    const mergedManifest = checkCustomIdx >= 0
-      ? [
-          ...frameworkTools.slice(0, checkCustomIdx),
-          ...techTools,
-          ...frameworkTools.slice(checkCustomIdx)
-        ]
-      : [
-          ...frameworkTools,
-          ...techTools
-        ];
-
-    installToolsFromManifest(targetDir, mergedManifest, config);
+    const manifest = buildToolManifest(config.adapter, config.techTools || []);
+    installToolsFromManifest(targetDir, manifest, config);
+    generateHookFromManifest(config.adapter, targetDir, manifest);
   } else {
     installFallbackTools(targetDir);
-  }
-
-  // Step 3: Generate pre-commit hook (manifest-driven or fallback)
-  if (config.adapter) {
-    generateHookFromManifest(config.adapter, targetDir);
-  } else {
     generateFallbackHook(targetDir, config.projectType);
   }
 
@@ -518,4 +520,4 @@ function installAgenticCLI(targetDir) {
   });
 }
 
-module.exports = { generateHarness, generateHookFromManifest };
+module.exports = { generateHarness, generateHookFromManifest, buildToolManifest };

@@ -55,7 +55,7 @@ class AstroAdapter extends BaseAdapter {
       { name: 'astro_check',      language: 'external', path: '', command: 'npx astro check', description: 'Astro type checking', extCLI: 'astro' },
       { name: 'vitest',           language: 'external', path: '', command: 'npx vitest run',  description: 'Test runner', extCLI: 'vitest' },
     ];
-    return this._mergeTechTools(baseTools);
+    return baseTools;
   }
 
   provision(targetDir, config) {

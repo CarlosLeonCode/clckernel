@@ -6,15 +6,12 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
-const { TechnologyDetector } = require('../technologies/detector');
 
 class BaseAdapter {
   constructor(name, projectType, testRunner) {
     this.name = name;
     this.projectType = projectType;
     this.testRunner = testRunner;
-    this.techDetector = new TechnologyDetector();
   }
 
   detect(targetDir) {
@@ -33,27 +30,6 @@ class BaseAdapter {
    */
   getTools() {
     return [];
-  }
-
-  /**
-   * Merges technology-specific tools into the adapter tool manifest.
-   * Tech tools are inserted before check_custom to preserve user override escape hatch.
-   * @param {Array} baseTools - The adapter's base tool manifest
-   * @returns {Array} Merged tool manifest with technology tools inserted
-   */
-  _mergeTechTools(baseTools) {
-    const techTools = this.techDetector.getToolsForTech(this.detectedTech || []);
-    if (techTools.length === 0) return baseTools;
-
-    const result = [];
-    for (const tool of baseTools) {
-      if (tool.name === 'check_custom') {
-        // Insert tech tools before check_custom
-        result.push(...techTools);
-      }
-      result.push(tool);
-    }
-    return result;
   }
 
   provision(targetDir, config) {

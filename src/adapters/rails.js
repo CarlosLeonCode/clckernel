@@ -42,7 +42,7 @@ class RailsAdapter extends BaseAdapter {
       { name: 'brakeman', language: 'external', path: '', command: 'bundle exec brakeman -q',        description: 'Rails vulnerability scanner', extCLI: 'brakeman' },
       { name: 'rspec',    language: 'external', path: '', command: 'bundle exec rspec',               description: 'Test runner', extCLI: 'rspec' },
     ];
-    return this._mergeTechTools(baseTools);
+    return baseTools;
   }
 
   provision(targetDir, config) {

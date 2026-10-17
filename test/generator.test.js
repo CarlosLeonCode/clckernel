@@ -445,6 +445,28 @@ describe('generateHarness', () => {
   });
 });
 
+describe('technology guards in the generated hook', () => {
+  const { autoDetectStack } = require('../src/detector');
+
+  it('wires celery_guard into the FastAPI hook before check_custom', () => {
+    const dir = createTmpProject({ 'requirements.txt': 'fastapi\ncelery\n' });
+    try {
+      const config = autoDetectStack(dir);
+      generateHarness(dir, config);
+
+      assert.ok(fs.existsSync(path.join(dir, 'tools', 'celery_guard.py')), 'celery_guard.py should be copied');
+      const lines = fs.readFileSync(path.join(dir, '.githooks', 'pre-commit'), 'utf-8').split('\n');
+      const celeryIdx = lines.indexOf('python3 tools/celery_guard.py');
+      const customIdx = lines.indexOf('python3 tools/check_custom.py');
+      assert.ok(celeryIdx >= 0, `hook must run celery_guard:\n${lines.join('\n')}`);
+      assert.ok(customIdx >= 0, 'hook must run check_custom');
+      assert.ok(celeryIdx < customIdx, 'celery_guard must run before check_custom');
+    } finally {
+      teardown(dir);
+    }
+  });
+});
+
 describe('fail-closed pre-commit hooks', () => {
   const { spawnSync } = require('child_process');
 
