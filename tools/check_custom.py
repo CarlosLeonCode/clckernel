@@ -174,45 +174,47 @@ def _parse_flow_mapping(s: str) -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Glob-to-Regex Converter (~15 lines)
-# Handles: **, *, {a,b} alternation
+# Glob-to-Regex Converter
+# Handles: **/, trailing **, *, ?, {a,b} alternation; everything else literal
 # ═══════════════════════════════════════════════════════════════════════
 
-import fnmatch
-
-
 def _glob_to_regex(glob_pattern: str) -> re.Pattern:
-    """Convert a glob pattern to a compiled regex. Handles **, *, {a,b}."""
-    # fnmatch.translate converts globs but adds \Z$ at end, we need to adjust
-    # for ** patterns that need to match across path separators
-    parts = glob_pattern.split('/')
-    regex_parts = []
-    i = 0
-    while i < len(parts):
-        part = parts[i]
-        if part == '**':
-            # ** matches zero or more path segments
-            regex_parts.append('(?:.+/)?')
-            # Skip trailing empty segment if glob ends with **
-            i += 1
-            continue
-        else:
-            # Convert single segment with fnmatch
-            translated = fnmatch.translate(part)
-            # fnmatch.translate adds (?s:...) and \Z at end; strip wrapper
-            # Remove leading (?s: and trailing )\Z
-            inner = translated
-            if inner.startswith('(?s:'):
-                inner = inner[4:]
-            if inner.endswith(')\\Z'):
-                inner = inner[:-3]
-            elif inner.endswith('\\Z'):
-                inner = inner[:-2]
-            regex_parts.append(inner)
-        i += 1
+    """
+    Convert a glob pattern to a compiled, fully anchored regex.
 
-    full = '/'.join(regex_parts)
-    return re.compile('^' + full + '$')
+    - ``**/`` matches zero or more leading directories
+    - ``**`` (trailing or standalone) matches anything, separators included
+    - ``*`` matches any run of characters except ``/``
+    - ``?`` matches exactly one character except ``/``
+    - ``{a,b}`` matches either alternative (alternatives are literal)
+    - every other character is matched literally
+    """
+    out = []
+    i = 0
+    n = len(glob_pattern)
+    while i < n:
+        ch = glob_pattern[i]
+        if glob_pattern.startswith('**/', i):
+            out.append('(?:.+/)?')
+            i += 3
+        elif glob_pattern.startswith('**', i):
+            out.append('.*')
+            i += 2
+        elif ch == '*':
+            out.append('[^/]*')
+            i += 1
+        elif ch == '?':
+            out.append('[^/]')
+            i += 1
+        elif ch == '{' and '}' in glob_pattern[i + 1:]:
+            close = glob_pattern.index('}', i + 1)
+            alternatives = glob_pattern[i + 1:close].split(',')
+            out.append('(?:' + '|'.join(re.escape(a) for a in alternatives) + ')')
+            i = close + 1
+        else:
+            out.append(re.escape(ch))
+            i += 1
+    return re.compile('^' + ''.join(out) + '$')
 
 
 # ═══════════════════════════════════════════════════════════════════════
