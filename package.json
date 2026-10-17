@@ -9,7 +9,9 @@
     "tools",
     ".agents/skills/clckernel_cli",
     "README.md",
-    "README.es.md"
+    "README.es.md",
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "bin": {
     "clckernel": "bin/cli.js",
@@ -41,6 +43,14 @@
   ],
   "author": "Carlos Leon Code",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CarlosLeonCode/clc_forge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/CarlosLeonCode/clc_forge/issues"
+  },
+  "homepage": "https://clckernel.carlosleoncode.com",
   "engines": {
     "node": ">=18.0.0"
   },

@@ -28,6 +28,7 @@ Los agentes de programación con IA (Cursor, Claude Code, Windsurf, Copilot) cod
 - [🏛️ Arquitectura: Standalone vs. Simbiosis con Gentle AI](#-arquitectura-standalone-vs-simbiosis-con-gentle-ai)
 - [🧩 Herramientas Complementarias (Opcionales)](#-herramientas-complementarias-opcionales)
 - [📖 Glosario de Términos Clave](#-glosario-de-términos-clave)
+- [🤝 Contribuciones y Comunidad](#-contribuciones-y-comunidad)
 - [📄 Licencia](#-licencia)
 
 ---
@@ -265,6 +266,14 @@ CLC Kernel se enfoca estrictamente en gobernanza y opera con **cero dependencias
 
 ---
 
+## 🤝 Contribuciones y Comunidad
+Las contribuciones son bienvenidas. Consulte estos documentos (en inglés):
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) — configuración, el hook pre-commit, las pruebas y el flujo de pull requests.
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — conducta esperada y cómo reportar un problema.
+- [SECURITY.md](SECURITY.md) — cómo reportar una vulnerabilidad de forma privada.
+- [CHANGELOG.md](CHANGELOG.md) — cambios relevantes de cada versión.
+
 <a id="licencia"></a>
 ## 📄 Licencia
-MIT © [CarlosLeonCode](https://github.com/carlosleoncode)
+MIT © [CarlosLeonCode](https://github.com/carlosleoncode) — consulte [LICENSE](LICENSE).

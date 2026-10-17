@@ -1,0 +1,75 @@
+name: Bug report
+description: Something in clckernel does not work as documented.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+        **Redact secrets** (API keys, tokens, passwords, private paths) from every log or output you paste below.
+        Security vulnerabilities must be reported privately — see SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: clckernel version
+      description: Output of `npx clckernel --version`, or the version in your lockfile.
+      placeholder: "1.2.19"
+    validations:
+      required: true
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version
+      placeholder: "node --version"
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python version (if your stack uses Python guards)
+      placeholder: "python3 --version"
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "macOS 15, Ubuntu 24.04, Windows 11 + WSL..."
+    validations:
+      required: true
+  - type: input
+    id: stack
+    attributes:
+      label: Detected stack / adapter
+      description: The stack clckernel detected or you selected (e.g. FastAPI, Django, Next.js, Astro, Rails, Go, Rust, Laravel).
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `npx clckernel` in ...
+        2. Stage ...
+        3. Commit ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include the full error or guard output (redacted).
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `clckernel doctor`
+      description: Run `npx clckernel doctor` in the affected project and paste the output (redacted).
+      render: shell

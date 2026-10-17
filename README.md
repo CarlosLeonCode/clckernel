@@ -28,6 +28,7 @@ AI coding agents (Cursor, Claude Code, Windsurf, Copilot) code fast, but without
 - [🏛️ Architecture: Standalone vs. Gentle AI Symbiosis](#-architecture-standalone-vs-gentle-ai-symbiosis)
 - [🧩 Optional Ecosystem Companions](#-optional-ecosystem-companions)
 - [📖 Glossary of Key Terms](#-glossary-of-key-terms)
+- [🤝 Contributing & Community](#-contributing--community)
 - [📄 License](#-license)
 
 ---
@@ -265,6 +266,14 @@ CLC Kernel focuses strictly on governance and runs with **zero foreign dependenc
 
 ---
 
+## 🤝 Contributing & Community
+Contributions are welcome. Start with these documents:
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) — setup, the pre-commit hook, tests and the pull request flow.
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — expected behavior and how to report a problem.
+- [SECURITY.md](SECURITY.md) — how to report a vulnerability privately.
+- [CHANGELOG.md](CHANGELOG.md) — notable changes per release.
+
 <a id="license"></a>
 ## 📄 License
-MIT © [CarlosLeonCode](https://github.com/carlosleoncode)
+MIT © [CarlosLeonCode](https://github.com/carlosleoncode) — see [LICENSE](LICENSE).
