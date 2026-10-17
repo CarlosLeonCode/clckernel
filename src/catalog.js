@@ -126,7 +126,7 @@ const SAFEGUARD_CATALOG = [
     phase: 'audit', file: 'check_domain_data.js', manifest: true, planned: false, lens: 'architecture' },
 
   { name: 'check_test_calendar_sync', labels: ['check_test_calendar_sync', 'check_test_calendar_sync.js'],
-    checks: 'Test calendar harness synchronization and parity check', verify: ['verify_calendar_sync', 'verify_test_calendar_sync'],
+    checks: 'Test calendar harness parity check (read-only; run standalone with `--fix` to sync)', verify: ['verify_calendar_sync', 'verify_test_calendar_sync'],
     applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
     phase: 'audit', file: 'check_test_calendar_sync.js', manifest: true, planned: false, lens: 'performance' },
 

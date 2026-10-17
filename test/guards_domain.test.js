@@ -7,6 +7,22 @@ const checkSymlinks = require('../tools/check_symlinks');
 const checkHitl = require('../tools/check_hitl');
 const checkDomainData = require('../tools/check_domain_data');
 const checkTestCalendarSync = require('../tools/check_test_calendar_sync');
+const crypto = require('crypto');
+const { execFileSync, spawnSync } = require('child_process');
+
+/** Map of relative path -> sha256 for every file under dir (detects writes and new files). */
+function hashTree(dir) {
+  const out = {};
+  const walk = (d) => {
+    for (const entry of fs.readdirSync(d, { withFileTypes: true })) {
+      const full = path.join(d, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else out[path.relative(dir, full)] = crypto.createHash('sha256').update(fs.readFileSync(full)).digest('hex');
+    }
+  };
+  walk(dir);
+  return out;
+}
 
 describe('Domain Safeguards (Agent-OS)', () => {
   describe('check_symlinks', () => {
@@ -150,23 +166,69 @@ describe('Domain Safeguards (Agent-OS)', () => {
       }
     });
 
-    it('auto-synchronizes files from templates/content-calendar to tests/ when differing', async () => {
+    it('reports drift as a failure and does NOT modify any file (read-only by default)', async () => {
       const dir = createTmpProject({
         'templates/content-calendar/index.html': '<html><body>Template V2</body></html>',
-        'templates/content-calendar/data.js': 'const data = { v: 2 };',
+        'templates/content-calendar/data.js': 'const data = {\n    "channelProfiles": {\n      "ig": 1\n    }\n};',
         'tests/index.html': '<html><body>Old Test V1</body></html>',
-        'tests/data.js': 'const data = { v: 1 };'
+        'tests/data.js': 'const data = { v: 1 };',
+        'tests/mock-content.json': '{\n    "pillarMix": {\n      "a": 1\n    }\n}\n'
       });
       try {
+        const before = hashTree(dir);
         const res = await checkTestCalendarSync(dir);
-        assert.strictEqual(res.exitCode, 0);
+        assert.strictEqual(res.exitCode, 1, 'drift must fail the check');
         assert.strictEqual(res.skipped, false);
+        const files = res.data.violations.map(v => v.file);
+        assert.ok(files.includes('index.html'), 'lists index.html as out of sync');
+        assert.ok(files.includes('data.js'), 'lists data.js as out of sync');
+        assert.ok(files.includes('mock-data.js'), 'lists missing mock-data.js as out of sync');
+        assert.ok(files.includes('mock-content.json'), 'lists mock-content.json missing channelProfiles');
+        assert.ok(res.data.message.includes('--fix'), 'message tells how to fix');
+        assert.deepStrictEqual(hashTree(dir), before, 'no file may be created or modified');
+      } finally {
+        teardown(dir);
+      }
+    });
+
+    it('syncs files only when run standalone with --fix', () => {
+      const dir = createTmpProject({
+        'templates/content-calendar/index.html': '<html><body>Template V2</body></html>',
+        'templates/content-calendar/data.js': 'const data = {\n    "channelProfiles": {\n      "ig": 1\n    }\n};',
+        'tests/index.html': '<html><body>Old Test V1</body></html>',
+        'tests/data.js': 'const data = { v: 1 };',
+        'tests/mock-content.json': '{\n    "pillarMix": {\n      "a": 1\n    }\n}\n'
+      });
+      try {
+        const script = path.join(__dirname, '..', 'tools', 'check_test_calendar_sync.js');
+        const out = execFileSync(process.execPath, [script, dir, '--fix'], { encoding: 'utf-8' });
+        const res = JSON.parse(out);
+        assert.strictEqual(res.exitCode, 0);
         assert.ok(res.data.syncedFiles.includes('index.html'));
         assert.ok(res.data.syncedFiles.includes('data.js'));
+        assert.ok(res.data.syncedFiles.includes('mock-data.js'));
+        assert.ok(res.data.syncedFiles.includes('mock-content.json'));
 
-        // Verify files were actually overwritten in tests/
-        const newTestHtml = fs.readFileSync(path.join(dir, 'tests', 'index.html'), 'utf-8');
-        assert.strictEqual(newTestHtml, '<html><body>Template V2</body></html>');
+        const read = (rel) => fs.readFileSync(path.join(dir, rel), 'utf-8');
+        assert.strictEqual(read('tests/index.html'), '<html><body>Template V2</body></html>');
+        assert.strictEqual(read('tests/mock-data.js'), read('templates/content-calendar/data.js'));
+        assert.ok(read('tests/mock-content.json').includes('"channelProfiles"'), 'hydrates channelProfiles');
+      } finally {
+        teardown(dir);
+      }
+    });
+
+    it('standalone run without --fix exits 1 on drift and writes nothing', () => {
+      const dir = createTmpProject({
+        'templates/content-calendar/index.html': '<html><body>Template V2</body></html>',
+        'tests/index.html': '<html><body>Old Test V1</body></html>'
+      });
+      try {
+        const before = hashTree(dir);
+        const script = path.join(__dirname, '..', 'tools', 'check_test_calendar_sync.js');
+        const run = spawnSync(process.execPath, [script, dir], { encoding: 'utf-8' });
+        assert.strictEqual(run.status, 1);
+        assert.deepStrictEqual(hashTree(dir), before);
       } finally {
         teardown(dir);
       }

@@ -100,7 +100,7 @@ class AgentOSAdapter extends BaseAdapter {
         language: 'js',
         path: 'check_test_calendar_sync.js',
         command: 'node tools/check_test_calendar_sync.js',
-        description: 'Test calendar harness synchronization and parity check'
+        description: 'Test calendar harness parity check (read-only; run standalone with --fix to sync)'
       },
       {
         name: 'scan_secrets',
