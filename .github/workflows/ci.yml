@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Node ${{ matrix.node }} / Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['18', '20', '22']
+        # Clean interpreters without PyYAML: exercises the stdlib fallback parser
+        # that consumer projects rely on.
+        python: ['3.9', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Guards fall back to HEAD~1 when nothing is staged.
+          fetch-depth: 2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - run: npm ci
+
+      - run: npm test
+
+      - name: Audit gate
+        if: matrix.node == '22' && matrix.python == '3.13'
+        run: node tools/audit.js
