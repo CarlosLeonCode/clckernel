@@ -27,9 +27,46 @@ QUERY_METHODS = {
     "fetch", "fetchall", "fetchone", "query", "raw"
 }
 
-QUERY_CALLERS = {
-    "db", "session", "objects", "cursor", "connection", "repo", "repository"
-}
+# Receiver names (case-insensitive) that hold an ORM session / connection:
+# session.get(...), db.execute(...), self.session.scalars(...).
+SESSION_NAMES = {"session", "db", "db_session"}
+
+
+def _is_orm_receiver(node: ast.AST) -> bool:
+    """
+    True when a method call on `node` looks like an ORM query:
+      - the attribute chain contains `.objects` (Django manager),
+      - it ends in a session-like name (session, db, db_session; self.session),
+      - it is the result of a `.query(...)` call (SQLAlchemy Query chain),
+      - it is `Model.query` (Flask-SQLAlchemy).
+    Anything else (dict.get, requests.get, config.get) is not a query.
+    """
+    if isinstance(node, ast.Name):
+        return node.id.lower() in SESSION_NAMES
+    if isinstance(node, ast.Attribute):
+        if node.attr == "objects" or node.attr == "query":
+            return True
+        if node.attr.lower() in SESSION_NAMES:
+            # Django's request.session is a dict-like store, not an ORM session.
+            return not (isinstance(node.value, ast.Name) and node.value.id == "request")
+        return _is_orm_receiver(node.value)
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+        if node.func.attr == "query":
+            return True
+        return _is_orm_receiver(node.func.value)
+    return False
+
+
+def _chain_calls(node: ast.AST) -> list[ast.Call]:
+    """Calls inside the receiver chain of `node` (x.query(...).filter(...) -> both calls)."""
+    calls: list[ast.Call] = []
+    while isinstance(node, (ast.Attribute, ast.Call)):
+        if isinstance(node, ast.Call):
+            calls.append(node)
+            node = node.func
+        else:
+            node = node.value
+    return calls
 
 
 class LoopQueryVisitor(ast.NodeVisitor):
@@ -38,6 +75,8 @@ class LoopQueryVisitor(ast.NodeVisitor):
         self.violations: list[dict] = []
         self._loop_depth = 0
         self._is_async_func = False
+        # Calls already covered by an enclosing query chain (one finding per chain).
+        self._reported: set[int] = set()
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
         prev = self._is_async_func
@@ -88,30 +127,20 @@ class LoopQueryVisitor(ast.NodeVisitor):
                     })
 
         # 2. Detect DB queries inside loops (N+1 query hazard)
-        if self._loop_depth > 0:
-            if isinstance(node.func, ast.Attribute):
-                attr_name = node.func.attr
-                val = node.func.value
-
-                # Match session.execute(), db.query(), Model.objects.filter(), etc.
-                is_db_call = False
-                caller_name = ""
-
-                if isinstance(val, ast.Name):
-                    caller_name = val.id.lower()
-                    if caller_name in QUERY_CALLERS or attr_name in QUERY_METHODS:
-                        is_db_call = True
-                elif isinstance(val, ast.Attribute):
-                    caller_name = val.attr.lower()
-                    if caller_name in QUERY_CALLERS or attr_name in QUERY_METHODS:
-                        is_db_call = True
-
-                if is_db_call and attr_name in QUERY_METHODS:
-                    self.violations.append({
-                        "lineNo": node.lineno,
-                        "rule": "db-query-in-loop",
-                        "message": f"Database query call '.{attr_name}()' detected inside loop/comprehension. Causes N+1 performance bottleneck. Use bulk queries or eager loading (selectinload/joinedload/select_related)."
-                    })
+        if (
+            self._loop_depth > 0
+            and id(node) not in self._reported
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr in QUERY_METHODS
+            and _is_orm_receiver(node.func.value)
+        ):
+            attr_name = node.func.attr
+            self._reported.update(id(c) for c in _chain_calls(node.func.value))
+            self.violations.append({
+                "lineNo": node.lineno,
+                "rule": "db-query-in-loop",
+                "message": f"Database query call '.{attr_name}()' detected inside loop/comprehension. Causes N+1 performance bottleneck. Use bulk queries or eager loading (selectinload/joinedload/select_related)."
+            })
 
         self.generic_visit(node)
 
