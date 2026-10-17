@@ -1,6 +1,6 @@
 /**
  * CLC Kernel — FastAPI Stack Adapter
- * Supports FastAPI apps, pytest, Pydantic V2, Alembic migration reversibility, and Python AST layer checks.
+ * Supports FastAPI apps, pytest, Alembic migration reversibility, and Python AST layer checks.
  */
 
 const fs = require('fs');
@@ -34,11 +34,10 @@ class FastApiAdapter extends BaseAdapter {
       'N+1 Heuristic (ORM-like calls inside loops, Python AST)',
       'Alembic Migration Reversibility Guard (upgrade/downgrade, destructive operations)',
       'Red→Green TDD Verifier (runs changed tests with pytest)',
-      'Pydantic V2 Response Schema Validation Guard',
       'Secret & Private Key Leak Scanner',
       'Scope protocol (agent-enforced; not checked by a guard)',
       'Educational Audit Gate (05-audit-report.md)',
-      'Memory Guard (Engram / Graphify ADR Sync)'
+      'Memory protocol (agent-enforced; Engram / Graphify optional, not checked by a guard)'
     ];
   }
 

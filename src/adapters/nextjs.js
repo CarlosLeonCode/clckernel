@@ -38,7 +38,7 @@ class NextjsAdapter extends BaseAdapter {
       'Performance & Next/Image Guard (next/image & tree-shaking)',
       'Storybook Story Coverage Guard (.stories.tsx)',
       'Educational Audit Gate (05-audit-report.md)',
-      'Memory Guard & PR Generator (.github/pull_request_body.md)'
+      'Memory protocol (agent-enforced; Engram / Graphify optional, not checked by a guard)'
     ];
   }
 

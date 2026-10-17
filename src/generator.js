@@ -486,18 +486,18 @@ ${isFront ? `- UI Component Reuse First (components/ui/ & semantic tokens)
 - Next/Image & Tree-Shaking Guard
 - Storybook Coverage Guard
 - Educational Audit Gate
-- Memory Guard (Engram / Graphify)` : isGeneric ? `- Wait for Audit Gate
+- Memory protocol (agent-enforced; Engram / Graphify optional, not checked by a guard)` : isGeneric ? `- Wait for Audit Gate
 - Secret Leak Guard (tools/scan_secrets.js, run by the pre-commit hook)
 - Scope protocol (agent-enforced; not checked by a guard)
 - TDD protocol (agent-enforced; no verifier installed for this stack)
-- Memory Guard (Engram / Graphify)` : `- Wait for Audit Gate
+- Memory protocol (agent-enforced; Engram / Graphify optional, not checked by a guard)` : `- Wait for Audit Gate
 - Scope protocol (agent-enforced; not checked by a guard)
 - TDD protocol (agent-enforced; no verifier installed for this stack)
 - Secret Leak Guard
 - Clean Architecture protocol (agent-enforced; no layer guard installed for this stack)
 - N+1 Heuristic (ORM-like calls inside loops, Python AST)
 - Migration Reversibility protocol (agent-enforced; no migration guard installed for this stack)
-- Memory Guard (Engram / Graphify)`}
+- Memory protocol (agent-enforced; Engram / Graphify optional, not checked by a guard)`}
 
 ## 3. Universal Command Interface (All LLMs & Agents)
 When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`, execute the deterministic state machine below:

@@ -40,7 +40,7 @@ class DjangoAdapter extends BaseAdapter {
       'Secret & Private Key Leak Scanner',
       'Scope protocol (agent-enforced; not checked by a guard)',
       'Educational Audit Gate (05-audit-report.md)',
-      'Memory Guard (Engram / Graphify ADR Sync)'
+      'Memory protocol (agent-enforced; Engram / Graphify optional, not checked by a guard)'
     ];
   }
 

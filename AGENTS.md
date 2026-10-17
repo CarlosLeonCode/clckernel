@@ -30,7 +30,7 @@ Forged by **CLC Kernel: The AI Agent Governance Engine**.
 - Clean Architecture protocol (agent-enforced; no layer guard installed for this stack)
 - N+1 Heuristic (ORM-like calls inside loops, Python AST)
 - Migration Reversibility protocol (agent-enforced; no migration guard installed for this stack)
-- Memory Guard (Engram / Graphify)
+- Memory protocol (agent-enforced; Engram / Graphify optional, not checked by a guard)
 
 ## 3. Universal Command Interface (All LLMs & Agents)
 When given a command matching `clckernel <action>` or `/clckernel <action>`, execute the deterministic state machine below:

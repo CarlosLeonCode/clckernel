@@ -23,6 +23,24 @@ const REAL_AST_GUARDS = [
   'postgres_guard.py',
 ];
 
+// Residual claims (sdds/residual-claims): performance, accuracy, guards and
+// orchestrators the code does not have. Also scanned in website/src/**.
+const RESIDUAL_FORBIDDEN = [
+  /<\s?5\s?ms/,
+  '0 false positives',
+  '0 falsos positivos',
+  'Pydantic V2',
+  'Memory Guard',
+  'PR Generator',
+  'audit.rb',
+  'audit.go',
+  'audit.php',
+  '.git/hooks/pre-commit',
+  '100% compliance',
+  '100% de cumplimiento',
+  '100% of the CLC Kernel standard',
+];
+
 // Case-sensitive phrases that overstate what a guard does.
 const FORBIDDEN = [
   'Idempotency',
@@ -44,13 +62,18 @@ const FORBIDDEN = [
   'Canonical Review Lenses',
   'Canonical RDD Lenses',
   'Lentes Canónicos',
+  ...RESIDUAL_FORBIDDEN,
 ];
 
 const VERIFIER = 'Red→Green TDD Verifier';
 const AST_RE = /\bAST\b/;
 
-function findForbidden(text) {
-  return FORBIDDEN.filter((phrase) => text.includes(phrase));
+function matches(text, phrase) {
+  return phrase instanceof RegExp ? phrase.test(text) : text.includes(phrase);
+}
+
+function findForbidden(text, phrases = FORBIDDEN) {
+  return phrases.filter((phrase) => matches(text, phrase)).map(String);
 }
 
 /** Lines mentioning AST that are not explicitly about Python's `ast`. */
@@ -190,6 +213,38 @@ describe('honest claims — catalog and tool docstrings', () => {
         return findForbidden(text).map((phrase) => `${f}: ${phrase}`);
       });
     assert.deepStrictEqual(offenders, []);
+  });
+});
+
+function listWebsiteSources(dir) {
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) return listWebsiteSources(full);
+    return /\.(astro|js)$/.test(entry.name) ? [full] : [];
+  });
+}
+
+describe('honest claims — website sources', () => {
+  const files = listWebsiteSources(path.join(ROOT, 'website', 'src'));
+
+  it('finds website sources to scan', () => {
+    assert.ok(files.length > 0, 'expected .astro/.js files under website/src');
+  });
+
+  for (const file of files) {
+    const rel = path.relative(ROOT, file);
+    it(`${rel} contains no residual overstated claims`, () => {
+      const text = fs.readFileSync(file, 'utf-8');
+      assert.deepStrictEqual(findForbidden(text, RESIDUAL_FORBIDDEN), []);
+    });
+  }
+});
+
+describe('honest claims — doctor summary', () => {
+  it('src/doctor.js reports a concrete check count, not a percentage', () => {
+    const text = fs.readFileSync(path.join(ROOT, 'src', 'doctor.js'), 'utf-8');
+    assert.deepStrictEqual(findForbidden(text), []);
   });
 });
 

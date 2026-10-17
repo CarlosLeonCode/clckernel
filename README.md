@@ -131,7 +131,7 @@ Pre-commit hooks automatically execute the installed guards (e.g. Clean Architec
 ```bash
 npx clckernel doctor
 ```
-Audits 100% compliance across `AGENTS.md`, `sdds/`, `tools/`, active test runners, and Git hooks.
+Checks `AGENTS.md`, `sdds/`, `tools/`, test runners and Git hooks.
 
 ---
 
@@ -183,7 +183,7 @@ clckernel update
 | Ecosystem | Detection Signature | Test Runner | Native Safeguards |
 |---|---|---|---|
 | ⚛️ **Next.js** | `next` | Vitest / Jest | Clean Arch, UI Reuse, Semantic Tokens, RSC, A11y, Responsive, SEO |
-| ⚡ **FastAPI** | `fastapi` | Pytest | Pydantic V2, Alembic Migration Reversibility, Clean Arch (Python AST), N+1 Heuristic (Python AST), Red→Green TDD Verifier (pytest) |
+| ⚡ **FastAPI** | `fastapi` | Pytest | Alembic Migration Reversibility, Clean Arch (Python AST), N+1 Heuristic (Python AST), Red→Green TDD Verifier (pytest) |
 | 💎 **Rails** | `Gemfile` | RSpec | RuboCop, Brakeman Security |
 | 🐹 **Golang** | `go.mod` | `go test` | `golangci-lint`, Domain/UseCase Layer Isolation |
 | 🦀 **Rust** | `Cargo.toml` | `cargo test` | `cargo clippy`, `cargo audit`, Strict Memory Safety |

@@ -49,6 +49,22 @@ describe('runDoctor', () => {
       }
     });
 
+    it('summarizes with the concrete number of checks, not a percentage', () => {
+      const dir = createHealthyProject();
+      try {
+        runDoctor(dir);
+        const output = capturedOutput.join('\n');
+        const passLines = capturedOutput.filter((line) => line.includes('[PASS]')).length;
+        assert.ok(
+          output.includes(`All ${passLines} doctor checks passed.`),
+          `expected "All ${passLines} doctor checks passed." in output`
+        );
+        assert.ok(!output.includes('100%'), 'should not claim a percentage');
+      } finally {
+        teardown(dir);
+      }
+    });
+
     it('has PASS status for AGENTS.md check', () => {
       const dir = createHealthyProject();
       try {

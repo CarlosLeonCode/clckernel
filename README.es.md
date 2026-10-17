@@ -131,7 +131,7 @@ Los hooks pre-commit ejecutan automáticamente los guards instalados (por ejempl
 ```bash
 npx clckernel doctor
 ```
-Audita el 100% de cumplimiento en `AGENTS.md`, `sdds/`, `tools/`, runners de pruebas activos y hooks de Git.
+Verifica `AGENTS.md`, `sdds/`, `tools/`, los runners de pruebas y los hooks de Git.
 
 ---
 
@@ -183,7 +183,7 @@ clckernel update
 | Ecosistema | Firma de Detección | Test Runner | Salvaguardas Nativas |
 |---|---|---|---|
 | ⚛️ **Next.js** | `next` | Vitest / Jest | Clean Architecture, Reutilización de UI, Tokens Semánticos, RSC, A11y, Responsive, SEO |
-| ⚡ **FastAPI** | `fastapi` | Pytest | Pydantic V2, Reversibilidad de Migraciones Alembic, Clean Architecture (Python AST), Heurística N+1 (Python AST), Verificador TDD Rojo→Verde (pytest) |
+| ⚡ **FastAPI** | `fastapi` | Pytest | Reversibilidad de Migraciones Alembic, Clean Architecture (Python AST), Heurística N+1 (Python AST), Verificador TDD Rojo→Verde (pytest) |
 | 💎 **Rails** | `Gemfile` | RSpec | RuboCop, Seguridad Brakeman |
 | 🐹 **Golang** | `go.mod` | `go test` | `golangci-lint`, Aislamiento de Capas Dominio/Casos de Uso |
 | 🦀 **Rust** | `Cargo.toml` | `cargo test` | `cargo clippy`, `cargo audit`, Seguridad Estricta de Memoria |

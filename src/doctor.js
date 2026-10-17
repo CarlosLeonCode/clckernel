@@ -124,7 +124,7 @@ function runDoctor(targetDir) {
 
   console.log('\n---------------------------------------------------------------');
   if (passedCount === checks.length) {
-    console.log(` ${colors.bgEmerald} HEALTHY ${colors.reset} ${colors.emerald}${colors.bold}Repository meets 100% of the CLC Kernel standard.${colors.reset}\n`);
+    console.log(` ${colors.bgEmerald} HEALTHY ${colors.reset} ${colors.emerald}${colors.bold}All ${checks.length} doctor checks passed.${colors.reset}\n`);
   } else {
     console.log(` ${colors.amber}  ${checks.length - passedCount} issue(s) detected. Run \`npx clckernel\` to repair.${colors.reset}\n`);
   }

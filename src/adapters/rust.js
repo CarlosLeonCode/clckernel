@@ -23,7 +23,7 @@ class RustAdapter extends BaseAdapter {
       'TDD protocol (agent-enforced; no verifier installed for this stack)',
       'Secret & Private Key Leak Scanner',
       'Educational Audit Gate (05-audit-report.md)',
-      'Memory Guard (Engram / Graphify ADR Sync)'
+      'Memory protocol (agent-enforced; Engram / Graphify optional, not checked by a guard)'
     ];
   }
 
