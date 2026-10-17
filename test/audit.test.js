@@ -151,6 +151,24 @@ describe('Audit orchestrator fails closed on broken guards', () => {
       }
     });
 
+    it('discovers *_guard.py technology guards and fails on their violations', () => {
+      const dir = createTmpProject({
+        'tools/audit.py': fs.readFileSync(auditPy, 'utf-8'),
+        'tools/docker_guard.py':
+          'def check(target_dir=None):\n'
+          + '    return {"exit_code": 1, "skipped": False, "name": "docker_guard",\n'
+          + '            "data": {"message": "Container runs as root"}}\n',
+      });
+      try {
+        const res = spawnSync('python3', [path.join(dir, 'tools', 'audit.py'), dir], { cwd: dir, encoding: 'utf-8' });
+        assert.notStrictEqual(res.status, 0, `audit.py must exit non-zero: ${res.stdout}${res.stderr}`);
+        assert.match(res.stdout, /docker_guard/);
+        assert.strictEqual(readReceipt(dir).verdict, 'FAILED');
+      } finally {
+        teardown(dir);
+      }
+    });
+
     it('reports a guard that returns a non-dict as FAILED and exits non-zero', () => {
       const { dir, res } = runPyAudit('def check(target_dir=None):\n    return "ok"\n');
       try {

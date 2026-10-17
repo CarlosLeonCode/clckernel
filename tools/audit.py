@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Modular Audit Orchestrator — Python
-Discovers check_*.py and scan_*.py guard scripts at runtime, runs each with
+Discovers check_*.py, scan_*.py, verify_*.py and *_guard.py guard scripts at runtime, runs each with
 graceful degradation, and generates an English audit report (05-audit-report.md).
 Self-contained: uses only Python stdlib.
 """
@@ -78,15 +78,19 @@ def find_active_sdd(change_name: str | None = None) -> pathlib.Path | None:
 
 def discover_guards(tools_dir: pathlib.Path) -> list[pathlib.Path]:
     """
-    Discover all check_*.py and scan_*.py guard scripts in tools/.
-    Excludes audit.py itself. Returns sorted list for deterministic ordering.
+    Discover all check_*.py, scan_*.py, verify_*.py and *_guard.py guard
+    scripts in tools/ (the *_guard.py ones are technology guards such as
+    docker_guard.py). Excludes audit.py itself. Returns sorted list for
+    deterministic ordering.
     """
     guards: list[pathlib.Path] = []
     for f in sorted(tools_dir.iterdir()):
         if not f.is_file():
             continue
         name = f.name
-        if (name.startswith("check_") or name.startswith("scan_") or name.startswith("verify_")) and name.endswith(".py"):
+        if not name.endswith(".py"):
+            continue
+        if name.startswith(("check_", "scan_", "verify_")) or name.endswith("_guard.py"):
             guards.append(f)
     return guards
 
