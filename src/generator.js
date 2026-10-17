@@ -250,9 +250,42 @@ function partGuardedCommand(tool, dir, managed = []) {
   const local = dir === '.' ? managed : managed
     .filter(f => f.startsWith(`${dir}/`))
     .map(f => f.slice(dir.length + 1));
-  const body = `if ${availabilityCondition(tool)} >/dev/null 2>&1; then ${withManagedExcludes(tool, local)}; ` +
-    `else echo "clckernel: ${tool.name} (${dir}) not available, skipped"; fi`;
+  const skip = `else echo "clckernel: ${tool.name} (${dir}) not available, skipped"; fi`;
+  const bin = dir === '.' ? null : nodeBinOf(tool);
+  if (bin) return `( cd ${shellQuote(dir)} && ${hoistedNodeBody(tool, bin, dir, local)} ${skip} )`;
+  const body = `if ${availabilityCondition(tool)} >/dev/null 2>&1; then ${withManagedExcludes(tool, local)}; ${skip}`;
   return dir === '.' ? body : `( cd ${shellQuote(dir)} && ${body} )`;
+}
+
+/**
+ * Name of the node_modules binary a Node-based external tool runs: its
+ * availableIf is `[ -x node_modules/.bin/<bin> ]` and its command `npx <bin> ...`.
+ * @param {object} tool - External tool descriptor
+ * @returns {string|null}
+ */
+function nodeBinOf(tool) {
+  const match = /^\[ -x node_modules\/\.bin\/([\w.@-]+) \]$/.exec((tool.availableIf || '').trim());
+  if (!match) return null;
+  return new RegExp(`^npx ${match[1].replace(/[.]/g, '\\.')}(\\s|$)`).test(tool.command) ? match[1] : null;
+}
+
+/**
+ * `if/elif` branches of a part's Node tool (sdds/monorepo-gaps, gap 1): the
+ * part's own node_modules/.bin/<bin> first, then the one hoisted to the
+ * repository root by npm/yarn/pnpm workspaces. The branch runs the binary it
+ * found (not npx), with cwd = the part dir. The caller appends the else/fi.
+ * @param {object} tool - External tool descriptor (see nodeBinOf)
+ * @param {string} bin - Binary name
+ * @param {string} dir - Part dir relative to the root (not '.')
+ * @param {string[]} local - Managed files relative to the part dir
+ * @returns {string}
+ */
+function hoistedNodeBody(tool, bin, dir, local) {
+  const args = withManagedExcludes(tool, local).slice(`npx ${bin}`.length);
+  const up = dir.split('/').filter(Boolean).map(() => '..').join('/');
+  return [`node_modules/.bin/${bin}`, `${up}/node_modules/.bin/${bin}`]
+    .map((exe, i) => `${i === 0 ? 'if' : 'elif'} [ -x ${exe} ]; then ${exe}${args};`)
+    .join(' ');
 }
 
 /**
