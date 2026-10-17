@@ -42,6 +42,42 @@ def _detect_framework(target_dir: str, mode: str | None) -> str:
     return "generic"
 
 
+def _package_parts(filepath: str) -> list[str]:
+    """Directory segments of a file: the package a relative import resolves against."""
+    return [part for part in filepath.replace("\\", "/").split("/")[:-1] if part]
+
+
+def _imported_modules(node: ast.AST, filepath: str, with_names: bool = True) -> list[str]:
+    """
+    Every module an import statement reaches, as dotted absolute names.
+
+    `import a, b` yields a and b; `from m import x` yields m and m.x (x may be a
+    submodule; only with with_names); relative imports are resolved against
+    the file's package path.
+    """
+    if isinstance(node, ast.Import):
+        return [alias.name for alias in node.names]
+    if not isinstance(node, ast.ImportFrom):
+        return []
+
+    if node.level:
+        package = _package_parts(filepath)
+        keep = max(0, len(package) - (node.level - 1))
+        base = package[:keep]
+    else:
+        base = []
+    if node.module:
+        base = base + node.module.split(".")
+
+    modules = [".".join(base)] if base else []
+    if not with_names:
+        return modules
+    for alias in node.names:
+        if alias.name != "*":
+            modules.append(".".join(base + [alias.name]))
+    return modules
+
+
 def _check_django_layers(
     filepath: str, content: str, tree: ast.Module,
 ) -> list[dict]:
@@ -68,14 +104,7 @@ def _check_django_layers(
         return violations  # Can't determine layer, skip
 
     for node in ast.walk(tree):
-        if isinstance(node, (ast.Import, ast.ImportFrom)):
-            if isinstance(node, ast.ImportFrom) and node.module:
-                imported = node.module
-            elif isinstance(node, ast.Import):
-                imported = node.names[0].name if node.names else ""
-            else:
-                continue
-
+        for imported in _imported_modules(node, filepath, with_names=False):
             # Django models should not import from views, urls, admin
             if file_layer == "models":
                 bad_targets = ("views", "urls", "admin", "serializers", "forms")
@@ -111,60 +140,73 @@ def _check_django_layers(
     return violations
 
 
+# Clean Architecture layers: the directory names that mark each one.
+_LAYER_DIRS = {
+    "domain": ("domain",),
+    "application": ("application", "use_cases"),
+    "infrastructure": ("infrastructure", "adapters"),
+    "routes": ("routes", "api"),
+}
+
+# For each layer, the directory names its code must not import from.
+_FORBIDDEN = {
+    "domain": ("application", "use_cases", "infrastructure", "adapters", "routes", "api"),
+    "application": ("infrastructure", "adapters", "routes", "api"),
+}
+
+_REASONS = {
+    "domain": "Domain layer imports from '{0}' — domain must be framework-independent",
+    "application": "Application layer imports from '{0}' — use dependency inversion",
+}
+
+
+def _file_layer(filepath: str) -> str | None:
+    """The layer of a file: the first layer (by priority) whose name is a path segment."""
+    segments = set(_package_parts(filepath))
+    for layer, names in _LAYER_DIRS.items():
+        if segments.intersection(names):
+            return layer
+    return None
+
+
+def _own_prefix_len(module_parts: list[str], package: list[str]) -> int:
+    """Leading segments an imported module shares with the importing file's package."""
+    n = 0
+    for a, b in zip(module_parts, package):
+        if a != b:
+            break
+        n += 1
+    return n
+
+
 def _check_clean_architecture(
     filepath: str, content: str, tree: ast.Module,
 ) -> list[dict]:
     """Check Clean Architecture boundary violations for generic Python projects."""
     violations: list[dict] = []
 
-    # Detect layer from path
-    if "/domain" in filepath:
-        file_layer = "domain"
-    elif "/application" in filepath or "/use_cases" in filepath:
-        file_layer = "application"
-    elif "/infrastructure" in filepath or "/adapters" in filepath:
-        file_layer = "infrastructure"
-    elif "/routes" in filepath or "/api" in filepath:
-        file_layer = "routes"
-    else:
-        return violations  # Can't determine layer
+    file_layer = _file_layer(filepath)
+    if file_layer not in _FORBIDDEN:
+        return violations  # Unknown layer, or one with no outgoing restriction
+
+    package = _package_parts(filepath)
+    forbidden = _FORBIDDEN[file_layer]
 
     for node in ast.walk(tree):
-        if isinstance(node, (ast.Import, ast.ImportFrom)):
-            if isinstance(node, ast.ImportFrom) and node.module:
-                imported = node.module
-            elif isinstance(node, ast.Import):
-                imported = node.names[0].name if node.names else ""
-            else:
-                continue
-
-            # Domain must not import from application, infrastructure, or routes
-            if file_layer == "domain":
-                bad = ("application", "use_cases", "infrastructure", "adapters", "routes", "api")
-                for b in bad:
-                    if f".{b}" in imported or imported.startswith(b):
-                        violations.append({
-                            "lineNo": getattr(node, "lineno", 0),
-                            "module": imported,
-                            "reason": (
-                                f"Domain layer imports from '{b}' — "
-                                f"domain must be framework-independent"
-                            ),
-                        })
-
-            # Application must not import from infrastructure or routes
-            if file_layer == "application":
-                bad = ("infrastructure", "adapters", "routes", "api")
-                for b in bad:
-                    if f".{b}" in imported or imported.startswith(b):
-                        violations.append({
-                            "lineNo": getattr(node, "lineno", 0),
-                            "module": imported,
-                            "reason": (
-                                f"Application layer imports from '{b}' — "
-                                f"use dependency inversion"
-                            ),
-                        })
+        reported: set[str] = set()
+        for imported in _imported_modules(node, filepath):
+            parts = imported.split(".")
+            # Segments shared with the file's own package (e.g. a root package
+            # named `api`) are the file's location, not the imported layer.
+            tail = parts[_own_prefix_len(parts, package):]
+            for b in forbidden:
+                if b in tail and b not in reported:
+                    reported.add(b)
+                    violations.append({
+                        "lineNo": getattr(node, "lineno", 0),
+                        "module": imported,
+                        "reason": _REASONS[file_layer].format(b),
+                    })
 
     return violations
 
