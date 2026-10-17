@@ -17,7 +17,7 @@ function makeAdapter(overrides = {}) {
     getSafeguards: () => [],
     getTools: () => [
       { name: 'scan_secrets', language: 'js', path: 'scan_secrets.js', command: 'node tools/scan_secrets.js' },
-      { name: 'lint', language: 'external', path: '', command: 'npx lint-staged', extCLI: 'lint-staged' },
+      { name: 'lint', language: 'external', path: '', command: 'npx lint-staged', extCLI: 'lint-staged', availableIf: '[ -x node_modules/.bin/lint-staged ]' },
     ],
     ...overrides,
   };
@@ -94,16 +94,22 @@ describe('generateHookFromManifest() produces a working hook', () => {
   });
 
   it('does not invoke an external CLI that is not installed in the target', () => {
-    const dir = createTmpProject({});
+    const dir = createTmpProject({ 'tools/scan_secrets.js': 'process.exit(0);\n' });
     try {
       generateHookFromManifest(makeAdapter(), dir);
-      const hook = fs.readFileSync(path.join(dir, '.husky', 'pre-commit'), 'utf-8');
+      const hookFile = path.join(dir, '.husky', 'pre-commit');
+      const hook = fs.readFileSync(hookFile, 'utf-8');
 
-      // No node_modules in this project, so lint-staged cannot resolve.
+      // lint-staged only runs behind its runtime availability check.
       assert.ok(
-        !hook.includes('npx lint-staged'),
-        'hook must not call lint-staged when it is not a dependency of the project'
+        !hook.split('\n').includes('npx lint-staged'),
+        'hook must not call lint-staged unconditionally'
       );
+      // No node_modules in this project, so the hook skips it and says so.
+      const { spawnSync } = require('child_process');
+      const res = spawnSync('sh', [hookFile], { cwd: dir, encoding: 'utf-8' });
+      assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+      assert.match(res.stdout, /clckernel: lint not available, skipped/);
     } finally {
       teardown(dir);
     }

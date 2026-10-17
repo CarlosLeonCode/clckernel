@@ -9,21 +9,29 @@ const { spawnSync } = require('child_process');
 const { resolveConfig } = require('./config.js');
 
 /**
- * Detects whether a Node CLI required by a hook command is actually installed
- * in the target project. Resolving through node_modules/.bin is what `npx` does
- * first, so a missing entry there means `npx` would download it on the fly (or
- * fail inside a commit hook, where the network is not available).
- * @param {string} targetDir - Target project root
- * @param {string} pkg - Package name to look for
- * @returns {boolean}
+ * Shell condition that decides at commit time whether an external tool runs.
+ * Adapters declare it as `availableIf`; a tool without one falls back to
+ * `command -v <extCLI or first word of the command>`. A compound condition
+ * (&&, ||, ;, |) is grouped in braces so the redirect silences all of it —
+ * `{ ...; }` is valid in both POSIX sh (husky hooks) and bash.
+ * @param {object} tool - External tool descriptor
+ * @returns {string}
  */
-function isCliInstalled(targetDir, pkg) {
-  if (!pkg) return false;
-  try {
-    return fs.existsSync(path.join(targetDir, 'node_modules', '.bin', pkg));
-  } catch (e) {
-    return false;
-  }
+function availabilityCondition(tool) {
+  const cond = (tool.availableIf || `command -v ${tool.extCLI || tool.command.split(/\s+/)[0]}`).trim();
+  return /&&|\|\||;|\|/.test(cond) ? `{ ${cond}; }` : cond;
+}
+
+/**
+ * Hook line for an external tool: run it when available (a failure aborts
+ * the commit under `set -e`), otherwise say it was skipped instead of
+ * omitting it silently.
+ * @param {object} tool - External tool descriptor
+ * @returns {string}
+ */
+function guardedCommand(tool) {
+  return `if ${availabilityCondition(tool)} >/dev/null 2>&1; then ${tool.command}; ` +
+    `else echo "clckernel: ${tool.name} not available, skipped"; fi`;
 }
 
 /**
@@ -100,10 +108,10 @@ function configureHooksPath(targetDir) {
  * Generates a pre-commit hook dynamically from the adapter's tool manifest.
  * Frontend projects use .husky; backend projects use .githooks.
  *
- * External CLIs (language === 'external', e.g. tsc, lint-staged) are only emitted
- * when the target project already depends on them: the generator does not add
- * dependencies, so referencing an uninstalled binary produces a hook that fails
- * on every commit.
+ * External CLIs (language === 'external', e.g. tsc, ruff, cargo) are wrapped in
+ * a runtime availability check (see guardedCommand): the hook runs them when
+ * the project has them at commit time and prints a "skipped" notice otherwise,
+ * so installing a tool later needs no `clckernel update`.
  *
  * @param {object} adapter - Adapter with getTools() and projectType
  * @param {string} targetDir - Target project root
@@ -139,23 +147,10 @@ function generateHookFromManifest(adapter, targetDir, tools = adapter.getTools()
     lines.push('');
   }
 
-  const skipped = [];
   tools.forEach(tool => {
     if (!tool.command) return;
-    if (tool.language === 'external') {
-      if (!isCliInstalled(targetDir, tool.extCLI)) {
-        skipped.push(tool.extCLI || tool.command);
-        return;
-      }
-    }
-    lines.push(tool.command);
+    lines.push(tool.language === 'external' ? guardedCommand(tool) : tool.command);
   });
-
-  if (skipped.length > 0) {
-    lines.push('');
-    lines.push(`# Not run here (not a dependency of this project): ${skipped.join(', ')}`);
-    lines.push('# Install it and re-run `clckernel update` to enable it.');
-  }
 
   fs.mkdirSync(hookDir, { recursive: true });
   fs.writeFileSync(hookFile, lines.join('\n') + '\n', 'utf-8');
@@ -166,13 +161,36 @@ function generateHookFromManifest(adapter, targetDir, tools = adapter.getTools()
   }
 }
 
+/** Audit orchestrator that discovers guards of each language. */
+const ORCHESTRATORS = { '.js': 'audit.js', '.py': 'audit.py' };
+
+/**
+ * Copies one audit orchestrator per guard language installed in tools/:
+ * audit.js discovers only .js guards and audit.py only .py ones, so a mixed
+ * set (e.g. Next.js + docker_guard.py) gets both. With no guards at all,
+ * audit.js is installed: Node is the one runtime known to exist.
+ * @param {string} targetDir - Target project root
+ * @param {string[]} copiedFiles - tools/ file names copied for this project
+ */
+function installOrchestrators(targetDir, copiedFiles) {
+  const wanted = new Set(copiedFiles.map(f => ORCHESTRATORS[path.extname(f)]).filter(Boolean));
+  if (wanted.size === 0) wanted.add('audit.js');
+  for (const file of wanted) {
+    const src = path.join(__dirname, '..', 'tools', file);
+    if (!fs.existsSync(src)) continue;
+    const dest = path.join(targetDir, 'tools', file);
+    fs.copyFileSync(src, dest);
+    try { fs.chmodSync(dest, '755'); } catch (e) {}
+  }
+}
+
 /** Shared modules the diff-based guards import from their own directory, by guard language. */
 const SNAPSHOT_HELPERS = { '.js': '_changes.js', '.py': '_changes.py' };
 
 /**
  * Installs tools from an adapter's manifest into the target tools/ directory.
  * Only copies tools with valid descriptors. External CLIs are skipped (no file to copy).
- * Always copies the audit orchestrator for the project type.
+ * Copies the audit orchestrator(s) matching the installed guards' languages.
  * @param {string} targetDir - Target project root
  * @param {Array} manifest - Tool manifest from adapter.getTools()
  * @param {object} config - Project config (projectType, framework, testRunner)
@@ -195,16 +213,6 @@ function installToolsFromManifest(targetDir, manifest, config) {
     return true;
   });
 
-  // Always copy the audit orchestrator for the right language
-  const isNodeStack = config.projectType === 'frontend' || config.projectType === 'agent-os';
-  const orchestrator = isNodeStack ? 'audit.js' : 'audit.py';
-  const orchestratorSrc = path.join(sourceToolsDir, orchestrator);
-  const orchestratorDest = path.join(targetDir, 'tools', orchestrator);
-  if (fs.existsSync(orchestratorSrc)) {
-    fs.copyFileSync(orchestratorSrc, orchestratorDest);
-    try { fs.chmodSync(orchestratorDest, '755'); } catch (e) {}
-  }
-
   // Copy only custom tools with valid paths (skip external CLIs and empty paths)
   const installed = [];
   const copiedPaths = [];
@@ -221,6 +229,8 @@ function installToolsFromManifest(targetDir, manifest, config) {
       console.warn(`Warning: tool "${tool.path}" declared by adapter but not found in bundled tools/. Skipping.`);
     }
   });
+
+  installOrchestrators(targetDir, copiedPaths);
 
   // check_custom.js parses the project YAML config, so the generated project
   // must ship the parser alongside it.

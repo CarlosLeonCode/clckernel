@@ -36,9 +36,10 @@ class LaravelAdapter extends BaseAdapter {
    */
   getTools() {
     const baseTools = [
-      { name: 'check_custom', language: 'python',   path: 'check_custom.py', command: 'python3 tools/check_custom.py', description: 'Runs user-defined custom rules from .clckernel.yaml' },
-      { name: 'phpstan',  language: 'external', path: '', command: './vendor/bin/phpstan analyse', description: 'PHP static analysis', extCLI: 'phpstan' },
-      { name: 'artisan',  language: 'external', path: '', command: 'php artisan test',            description: 'Laravel test runner', extCLI: 'artisan' },
+      { name: 'scan_secrets', language: 'js',       path: 'scan_secrets.js', command: 'node tools/scan_secrets.js', description: 'Scans for leaked secrets and API keys' },
+      { name: 'check_custom', language: 'js',       path: 'check_custom.js', command: 'node tools/check_custom.js', description: 'Runs user-defined custom rules from .clckernel.yaml' },
+      { name: 'phpstan',  language: 'external', path: '', command: './vendor/bin/phpstan analyse', description: 'PHP static analysis', extCLI: 'phpstan', availableIf: '[ -x vendor/bin/phpstan ]' },
+      { name: 'artisan',  language: 'external', path: '', command: 'php artisan test',            description: 'Laravel test runner', extCLI: 'artisan', availableIf: '[ -f artisan ] && command -v php' },
     ];
     return baseTools;
   }

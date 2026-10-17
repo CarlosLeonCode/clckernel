@@ -37,8 +37,8 @@ READ-ONLY COMMANDS (do not modify your project's code or config)
   help, --help, -h        Show this help
   version, --version, -v  Print the installed version
   doctor [targetDir]      Run diagnostics on a project
-  audit [targetDir]       Run the installed audit orchestrator (tools/audit.js
-                          or tools/audit.py); it only writes its report to sdds/
+  audit [targetDir]       Run the installed audit orchestrators (tools/audit.js
+                          and/or tools/audit.py); they only write reports to sdds/
                           Checks staged changes, or the last commit if none
 
 WRITES TO THE TARGET PROJECT
@@ -114,10 +114,11 @@ function resolveExistingDir(input) {
 }
 
 /**
- * `clckernel audit [dir]`: runs the orchestrator installed in dir/tools
- * (audit.js preferred, else audit.py) with cwd = dir.
+ * `clckernel audit [dir]`: runs every orchestrator installed in dir/tools
+ * (audit.js, then audit.py) with cwd = dir. A mixed stack has both, and each
+ * only discovers guards of its own language, so all of them must run.
  * @param {string|undefined} input - Target directory argument
- * @returns {number} Exit code (the orchestrator's own status when it ran)
+ * @returns {number} Exit code: the first non-zero orchestrator status, else 0
  */
 function runAudit(input) {
   const dir = resolveExistingDir(input);
@@ -127,8 +128,8 @@ function runAudit(input) {
     { file: 'audit.js', cmd: process.execPath },
     { file: 'audit.py', cmd: 'python3' },
   ];
-  const orchestrator = candidates.find((c) => fs.existsSync(path.join(dir, 'tools', c.file)));
-  if (!orchestrator) {
+  const orchestrators = candidates.filter((c) => fs.existsSync(path.join(dir, 'tools', c.file)));
+  if (orchestrators.length === 0) {
     process.stderr.write(
       `\n❌ No audit orchestrator found in ${path.join(dir, 'tools')} (audit.js or audit.py).\n` +
         `   Install the harness first: clckernel ${input || '.'} --yes\n\n`
@@ -136,15 +137,22 @@ function runAudit(input) {
     return 1;
   }
 
-  const res = spawnSync(orchestrator.cmd, [path.join('tools', orchestrator.file)], {
-    cwd: dir,
-    stdio: 'inherit',
-  });
-  if (res.error) {
-    process.stderr.write(`\n❌ Could not run tools/${orchestrator.file}: ${res.error.message}\n\n`);
-    return 1;
+  let exitCode = 0;
+  for (const orchestrator of orchestrators) {
+    const res = spawnSync(orchestrator.cmd, [path.join('tools', orchestrator.file)], {
+      cwd: dir,
+      stdio: 'inherit',
+    });
+    let status;
+    if (res.error) {
+      process.stderr.write(`\n❌ Could not run tools/${orchestrator.file}: ${res.error.message}\n\n`);
+      status = 1;
+    } else {
+      status = res.status === null ? 1 : res.status;
+    }
+    if (status !== 0 && exitCode === 0) exitCode = status;
   }
-  return res.status === null ? 1 : res.status;
+  return exitCode;
 }
 
 async function runCli() {

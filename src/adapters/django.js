@@ -56,8 +56,8 @@ class DjangoAdapter extends BaseAdapter {
       { name: 'check_db_efficiency',  language: 'py',       path: 'check_db_efficiency.py',  command: 'python3 tools/check_db_efficiency.py',  description: 'Flags ORM-like calls inside loops (N+1 heuristic)' },
       { name: 'verify_tdd',           language: 'py',       path: 'verify_tdd.py',           command: 'python3 tools/verify_tdd.py',           description: 'Runs changed tests against HEAD (must fail) and staged code (must pass)' },
       { name: 'check_custom',          language: 'python',   path: 'check_custom.py',         command: 'python3 tools/check_custom.py',       description: 'Runs user-defined custom rules from .clckernel.yaml' },
-      { name: 'ruff',                 language: 'external', path: '', command: 'python3 -m ruff check .', description: 'Python linter', extCLI: 'ruff' },
-      { name: 'manage',               language: 'external', path: '', command: 'python3 manage.py test',  description: 'Django test runner', extCLI: 'manage.py' },
+      { name: 'ruff',                 language: 'external', path: '', command: 'python3 -m ruff check .', description: 'Python linter', extCLI: 'ruff', availableIf: 'python3 -m ruff --version' },
+      { name: 'manage',               language: 'external', path: '', command: 'python3 manage.py test',  description: 'Django test runner', extCLI: 'manage.py', availableIf: '[ -f manage.py ]' },
     ];
     return baseTools;
   }

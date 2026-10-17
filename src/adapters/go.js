@@ -34,9 +34,10 @@ class GoAdapter extends BaseAdapter {
    */
   getTools() {
     const baseTools = [
+      { name: 'scan_secrets', language: 'js',       path: 'scan_secrets.js', command: 'node tools/scan_secrets.js', description: 'Scans for leaked secrets and API keys' },
       { name: 'check_custom',   language: 'js',       path: 'check_custom.js', command: 'node tools/check_custom.js', description: 'Runs user-defined custom rules from .clckernel.yaml' },
-      { name: 'golangci-lint', language: 'external', path: '', command: 'golangci-lint run',  description: 'Go linter and static analysis', extCLI: 'golangci-lint' },
-      { name: 'go_test',       language: 'external', path: '', command: 'go test ./...',       description: 'Go test runner', extCLI: 'go' },
+      { name: 'golangci-lint', language: 'external', path: '', command: 'golangci-lint run',  description: 'Go linter and static analysis', extCLI: 'golangci-lint', availableIf: 'command -v golangci-lint' },
+      { name: 'go_test',       language: 'external', path: '', command: 'go test ./...',       description: 'Go test runner', extCLI: 'go', availableIf: 'command -v go' },
     ];
     return baseTools;
   }

@@ -34,10 +34,11 @@ class RustAdapter extends BaseAdapter {
    */
   getTools() {
     const baseTools = [
+      { name: 'scan_secrets', language: 'js',       path: 'scan_secrets.js', command: 'node tools/scan_secrets.js', description: 'Scans for leaked secrets and API keys' },
       { name: 'check_custom',  language: 'js',       path: 'check_custom.js', command: 'node tools/check_custom.js', description: 'Runs user-defined custom rules from .clckernel.yaml' },
-      { name: 'cargo_clippy',  language: 'external', path: '', command: 'cargo clippy -- -D warnings', description: 'Rust linter and static analysis', extCLI: 'clippy' },
-      { name: 'cargo_audit',   language: 'external', path: '', command: 'cargo audit',                description: 'Security vulnerability scanner', extCLI: 'cargo-audit' },
-      { name: 'cargo_test',    language: 'external', path: '', command: 'cargo test',                  description: 'Rust test runner', extCLI: 'cargo' },
+      { name: 'cargo_clippy',  language: 'external', path: '', command: 'cargo clippy -- -D warnings', description: 'Rust linter and static analysis', extCLI: 'clippy', availableIf: 'cargo clippy --version' },
+      { name: 'cargo_audit',   language: 'external', path: '', command: 'cargo audit',                description: 'Security vulnerability scanner', extCLI: 'cargo-audit', availableIf: 'command -v cargo-audit' },
+      { name: 'cargo_test',    language: 'external', path: '', command: 'cargo test',                  description: 'Rust test runner', extCLI: 'cargo', availableIf: 'command -v cargo' },
     ];
     return baseTools;
   }

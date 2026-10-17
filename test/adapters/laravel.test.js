@@ -90,8 +90,9 @@ describe('LaravelAdapter', () => {
       const tools = adapter.getTools();
       const customTool = tools.find((t) => t.name === 'check_custom');
       assert.ok(customTool, 'check_custom tool should exist');
-      assert.strictEqual(customTool.language, 'python');
-      assert.strictEqual(customTool.path, 'check_custom.py');
+      // Node is guaranteed (npx); Laravel projects must not need Python.
+      assert.strictEqual(customTool.language, 'js');
+      assert.strictEqual(customTool.path, 'check_custom.js');
     });
   });
 

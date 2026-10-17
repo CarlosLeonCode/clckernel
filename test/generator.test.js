@@ -30,9 +30,14 @@ describe('generateHookFromManifest', () => {
         // The generator never runs `husky init`, so _/husky.sh does not exist
         // and sourcing it would break every commit.
         assert.ok(!content.includes('husky.sh'), 'must not source a bootstrap that does not exist');
-        // tsc is not a dependency of this project, so the hook must not call it.
-        assert.ok(!content.includes('npx tsc'), 'must not call an uninstalled external CLI');
-        assert.ok(content.includes('tsc'), 'should note the skipped CLI so the gap is visible');
+        // External CLIs only run behind a runtime availability check, and the
+        // hook says so when they are missing instead of omitting them.
+        const lines = content.split('\n');
+        assert.ok(!lines.includes('npx tsc --noEmit'), 'must not call an external CLI unconditionally');
+        assert.ok(
+          lines.some((l) => l.startsWith('if ') && l.includes('then npx tsc --noEmit;') && l.includes('tsc not available, skipped')),
+          'should guard the external CLI and report when it is skipped'
+        );
 
         // Frontend should NOT have .githooks directory
         assert.ok(!fs.existsSync(path.join(dir, '.githooks')), 'should not create .githooks for frontend');
