@@ -22,9 +22,8 @@ GEMINI.md
 .antigravity/
 .github/copilot-instructions.md
 
-# CLC Kernel: CLI Agent Skills & Playbooks
-.agents/skills/clckernel_cli/
-.agents/skills/clc_forge_cli/
+# Third-party skill engines: the launcher downloads a version-pinned binary on demand
+**/skills/impeccable/scripts/bin/
 
 # CLC Kernel: Local SDD Specs & Ephemeral Harness Artifacts
 .clckernel.resolved.json
