@@ -80,10 +80,10 @@ const SAFEGUARD_CATALOG = [
     applies_when: 'backend,fastapi,django', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
     phase: 'audit', file: 'check_migrations.py', manifest: true, planned: false, lens: 'architecture' },
 
-  { name: 'verify_tdd', labels: ['verify_tdd', 'verify_tdd.py'],
-    checks: 'pytest red→green: changed tests fail on BASE and pass on the staged code', verify: ['verify_tdd_red_green', 'verify_tdd_evidence'],
-    applies_when: 'backend', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
-    phase: 'audit', file: 'verify_tdd.py', manifest: true, planned: false, lens: 'correctness' },
+  { name: 'verify_tdd', labels: ['verify_tdd', 'verify_tdd.js', 'verify_tdd.py'],
+    checks: 'red→green (pytest / vitest / jest / node:test): changed tests fail on BASE and pass on the staged code', verify: ['verify_tdd_red_green', 'verify_tdd_evidence'],
+    applies_when: 'frontend,backend,agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
+    phase: 'audit', file: 'verify_tdd.js+verify_tdd.py', manifest: true, planned: false, lens: 'correctness' },
 
   { name: 'check_scope', labels: ['check_scope', 'check_scope.py'],
     checks: 'git-diff vs SDD-authorization scope guardrail', verify: ['verify_scope_authorization', 'verify_sdd_scope'],
@@ -192,7 +192,7 @@ const VALID_PHASES = ['audit', 'test', 'review', 'handover'];
 const VALID_APPLIES_WHEN = [
   'always', 'frontend', 'backend', 'fastapi', 'django', 'django|sqlalchemy',
   'celery', 'redis', 'postgresql', 'docker', 'frontend,backend', 'backend,fastapi,django',
-  'agent-os',
+  'agent-os', 'frontend,backend,agent-os',
 ];
 
 /** The 4 RDD lenses guard results are grouped into */

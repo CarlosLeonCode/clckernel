@@ -2,4 +2,5 @@
 set -e
 echo "Running CLC Kernel Safeguards..."
 node tools/scan_secrets.js
+node tools/verify_tdd.js
 npm test

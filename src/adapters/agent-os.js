@@ -68,7 +68,8 @@ class AgentOSAdapter extends BaseAdapter {
       'Symlink Interoperability (.cursorrules, CLAUDE.md, GEMINI.md, .windsurfrules)',
       'Domain Data Integrity & Clean Creation State (No Hallucinated Metrics)',
       'Single Source of Truth (SSOT) Memory Primacy',
-      'Local-only Spec Driven Development (sdds/)'
+      'Local-only Spec Driven Development (sdds/)',
+      'Red→Green TDD Verifier (runs changed tests with vitest / jest / node:test)'
     ];
   }
 
@@ -108,6 +109,13 @@ class AgentOSAdapter extends BaseAdapter {
         path: 'scan_secrets.js',
         command: 'node tools/scan_secrets.js',
         description: 'Security & API key leak scanner'
+      },
+      {
+        name: 'verify_tdd',
+        language: 'js',
+        path: 'verify_tdd.js',
+        command: 'node tools/verify_tdd.js',
+        description: 'Runs changed tests (vitest / jest / node:test) against BASE (must fail) and the staged code (must pass)'
       }
     ];
   }

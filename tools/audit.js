@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Modular Audit Orchestrator — JS
- * Discovers check_*.js guard scripts at runtime, runs each with graceful
+ * Discovers check_*.js, scan_*.js and verify_*.js guard scripts at runtime, runs each with graceful
  * degradation, groups results into 4 lenses,
  * and generates both an English audit report (05-audit-report.md) and
  * an immutable, machine-readable audit receipt (audit-receipt.json).
@@ -82,14 +82,14 @@ function getActiveSddDir(baseDir) {
 }
 
 /**
- * Discover all check_*.js guard scripts in the tools/ directory.
+ * Discover all check_*.js, scan_*.js and verify_*.js guard scripts in the tools/ directory.
  * Returns absolute paths sorted alphabetically for deterministic ordering.
  */
 function discoverGuards(toolsDirParam) {
   const toolsDir = toolsDirParam || __dirname;
   if (!fs.existsSync(toolsDir)) return [];
   return fs.readdirSync(toolsDir)
-    .filter(f => (f.startsWith('check_') || f.startsWith('scan_')) && f.endsWith('.js') && f !== path.basename(__filename || 'audit.js'))
+    .filter(f => (f.startsWith('check_') || f.startsWith('scan_') || f.startsWith('verify_')) && f.endsWith('.js') && f !== path.basename(__filename || 'audit.js'))
     .sort()
     .map(f => path.join(toolsDir, f));
 }

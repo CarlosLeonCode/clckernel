@@ -34,7 +34,7 @@ class AstroAdapter extends BaseAdapter {
       'SEO, GEO & Web Performance Guard (metadata, OpenGraph, Core Web Vitals)',
       'Secret & API Key Leak Scanner',
       'Content Collection Schema Validation Guard',
-      'TDD protocol (agent-enforced; no verifier installed for this stack)',
+      'Red→Green TDD Verifier (runs changed tests with vitest / jest / node:test)',
       'Educational Audit Gate (05-audit-report.md)',
       'Memory protocol (agent-enforced; Engram / Graphify optional, not checked by a guard)'
     ];
@@ -51,6 +51,7 @@ class AstroAdapter extends BaseAdapter {
       { name: 'check_a11y',       language: 'js',       path: 'check_a11y.js',       command: 'node tools/check_a11y.js',       description: 'Validates ARIA and accessibility rules' },
       { name: 'check_responsive', language: 'js',       path: 'check_responsive.js', command: 'node tools/check_responsive.js', description: 'Audits mobile-first responsiveness and fixed-width overflows' },
       { name: 'check_seo',        language: 'js',       path: 'check_seo.js',        command: 'node tools/check_seo.js',        description: 'Validates SEO metadata, OpenGraph, GEO tags, and LCP priority' },
+      { name: 'verify_tdd',       language: 'js',       path: 'verify_tdd.js',       command: 'node tools/verify_tdd.js',       description: 'Runs changed tests (vitest / jest / node:test) against BASE (must fail) and the staged code (must pass)' },
       { name: 'check_custom',     language: 'js',       path: 'check_custom.js',     command: 'node tools/check_custom.js',     description: 'Runs user-defined custom rules from .clckernel.yaml' },
       { name: 'astro_check',      language: 'external', path: '', command: 'npx astro check', description: 'Astro type checking', extCLI: 'astro', availableIf: '[ -x node_modules/.bin/astro ]' },
       { name: 'vitest',           language: 'external', path: '', command: 'npx vitest run',  description: 'Test runner', extCLI: 'vitest', availableIf: '[ -x node_modules/.bin/vitest ]' },

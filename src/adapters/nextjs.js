@@ -37,6 +37,7 @@ class NextjsAdapter extends BaseAdapter {
       'Zod API Contract Guard (services response schema parsing)',
       'Performance & Next/Image Guard (next/image & tree-shaking)',
       'Storybook Story Coverage Guard (.stories.tsx)',
+      'Red→Green TDD Verifier (runs changed tests with vitest / jest / node:test)',
       'Educational Audit Gate (05-audit-report.md)',
       'Memory protocol (agent-enforced; Engram / Graphify optional, not checked by a guard)'
     ];
@@ -56,6 +57,7 @@ class NextjsAdapter extends BaseAdapter {
       { name: 'check_ui_reuse',     language: 'js',       path: 'check_ui_reuse.js',     command: 'node tools/check_ui_reuse.js',     description: 'Enforces UI primitive reuse from components/ui/' },
       { name: 'check_architecture', language: 'js',       path: 'check_architecture.js', command: 'node tools/check_architecture.js', description: 'Validates Next.js Server Component boundaries' },
       { name: 'check_performance',  language: 'js',       path: 'check_performance.js',  command: 'node tools/check_performance.js',  description: 'Checks next/image and bundle optimization' },
+      { name: 'verify_tdd',         language: 'js',       path: 'verify_tdd.js',         command: 'node tools/verify_tdd.js',         description: 'Runs changed tests (vitest / jest / node:test) against BASE (must fail) and the staged code (must pass)' },
       { name: 'check_custom',        language: 'js',       path: 'check_custom.js',       command: 'node tools/check_custom.js',       description: 'Runs user-defined custom rules from .clckernel.yaml' },
       { name: 'tsc',                language: 'external', path: '', command: 'npx tsc --noEmit',        description: 'TypeScript type checking', extCLI: 'tsc', availableIf: '[ -x node_modules/.bin/tsc ]' },
       { name: 'lint',               language: 'external', path: '', command: 'npx lint-staged',         description: 'Lint staged files', extCLI: 'lint-staged', availableIf: '[ -x node_modules/.bin/lint-staged ]' },
