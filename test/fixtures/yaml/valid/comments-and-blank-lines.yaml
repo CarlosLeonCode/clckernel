@@ -1,0 +1,9 @@
+# header
+
+key: value # trailing
+   # indented comment
+list:
+  # before item
+  - a # after item
+
+  - b

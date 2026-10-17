@@ -25,23 +25,27 @@ const check = async function checkCustom(targetDir) {
     };
   }
 
+  const configName = path.basename(configPath);
+  const configError = (message) => ({
+    exitCode: 1, skipped: false, name: 'check_custom',
+    data: { violations: {}, message: `Config error in ${configName}: ${message}` },
+  });
+
   let config;
   try {
     const raw = fs.readFileSync(configPath, 'utf-8');
     config = parseYaml(raw);
   } catch (e) {
+    // Fail closed: rules we cannot read must not turn into a silent PASS.
     return {
-      exitCode: 0, skipped: true, name: 'check_custom',
-      data: { violations: {}, message: `Config parse error: ${e.message}` },
+      exitCode: 1, skipped: false, name: 'check_custom',
+      data: { violations: {}, message: `Config parse error in ${configName}: ${e.message}` },
     };
   }
 
   const rules = config && config.rules;
-  if (rules !== undefined && !Array.isArray(rules)) {
-    return {
-      exitCode: 0, skipped: true, name: 'check_custom',
-      data: { violations: {}, message: 'Config error: "rules" must be a list' },
-    };
+  if (rules !== undefined && rules !== null && !Array.isArray(rules)) {
+    return configError('"rules" must be a list');
   }
   if (!Array.isArray(rules) || rules.length === 0) {
     return {
@@ -50,32 +54,36 @@ const check = async function checkCustom(targetDir) {
     };
   }
 
-  // ── 2. Validate rules: compile regexes, check required fields ───────
+  // ── 2. Validate rules: shape and regex; any invalid rule fails the guard ──
   const validated = [];
-  for (const rule of rules) {
-    if (!rule.name || !rule.pattern || !rule.message) continue;
-    try {
-      validated.push({
-        name: rule.name,
-        pattern: rule.pattern,
-        message: rule.message,
-        severity: rule.severity || 'error',
-        exclude: rule.exclude || [],
-        regex: new RegExp(rule.pattern, 'gm'),
-        scopeRe: globToRegex(rule.scope || '**/*'),
-        excludeRe: (rule.exclude || []).map(globToRegex),
-      });
-    } catch {
-      // Invalid regex — skip this rule silently
+  const errors = [];
+  rules.forEach((rule, i) => {
+    const problems = validateRule(rule);
+    const label = rule && typeof rule.name === 'string' ? `"${rule.name}"` : `#${i + 1}`;
+    if (problems.length > 0) {
+      errors.push(`rule ${label}: ${problems.join(', ')}`);
+      return;
     }
-  }
+    let regex;
+    try {
+      regex = new RegExp(rule.pattern, 'gm');
+    } catch (e) {
+      errors.push(`rule ${label}: invalid pattern: ${e.message}`);
+      return;
+    }
+    validated.push({
+      name: rule.name,
+      pattern: rule.pattern,
+      message: rule.message,
+      severity: rule.severity || 'error',
+      exclude: rule.exclude || [],
+      regex,
+      scopeRe: globToRegex(rule.scope || '**/*'),
+      excludeRe: (rule.exclude || []).map(globToRegex),
+    });
+  });
 
-  if (validated.length === 0) {
-    return {
-      exitCode: 0, skipped: false, name: 'check_custom',
-      data: { violations: {}, message: 'No valid custom rules after validation' },
-    };
-  }
+  if (errors.length > 0) return configError(errors.join('; '));
 
   // ── 3. Get changed files via git diff ───────────────────────────────
   let files;
@@ -159,6 +167,27 @@ const check = async function checkCustom(targetDir) {
   };
 };
 module.exports = check;
+
+/**
+ * Shape problems of one rule (empty list when valid).
+ * @param {*} rule
+ * @returns {string[]}
+ */
+function validateRule(rule) {
+  if (!rule || typeof rule !== 'object' || Array.isArray(rule)) return ['must be a mapping'];
+  const problems = [];
+  for (const field of ['name', 'pattern', 'message']) {
+    if (typeof rule[field] !== 'string' || rule[field] === '') problems.push(`"${field}" must be a non-empty string`);
+  }
+  if (rule.severity != null && !['error', 'warning'].includes(rule.severity)) {
+    problems.push('"severity" must be "error" or "warning"');
+  }
+  if (rule.scope != null && typeof rule.scope !== 'string') problems.push('"scope" must be a string');
+  if (rule.exclude != null && !(Array.isArray(rule.exclude) && rule.exclude.every(e => typeof e === 'string'))) {
+    problems.push('"exclude" must be a list of strings');
+  }
+  return problems;
+}
 
 if (require.main === module) {
   check(process.argv[2]).then(result => {

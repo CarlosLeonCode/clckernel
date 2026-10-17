@@ -1,0 +1,31 @@
+{
+  "x": [
+    1,
+    -2,
+    2.5,
+    true,
+    false,
+    null,
+    null,
+    "s",
+    "q",
+    "plain text"
+  ],
+  "m": {
+    "a": 1,
+    "b": "x",
+    "c": null,
+    "d": true
+  },
+  "trailing": [
+    "a",
+    "b"
+  ],
+  "compact": [
+    "a",
+    "b"
+  ],
+  "json_like": {
+    "k": 1
+  }
+}

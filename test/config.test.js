@@ -244,7 +244,7 @@ describe('config: check_custom behavior preserved (subprocess)', () => {
     }
   });
 
-  it('returns skipped:true with parse error message on unsupported anchor/alias config', async () => {
+  it('fails closed with a parse error message on unsupported anchor/alias config', async () => {
     const dir = createTmpProject({
       '.clc-forge.yml': 'rules:\n  - name: r\n    template: &tpl shared\n',
       'src/app.js': 'module.exports = 1;\n',
@@ -258,10 +258,12 @@ describe('config: check_custom behavior preserved (subprocess)', () => {
       const { parsed, exitCode } = await runCheckCustom(CHECK_CUSTOM, dir);
 
       assert.strictEqual(parsed.name, 'check_custom');
-      assert.strictEqual(parsed.skipped, true);
-      assert.strictEqual(parsed.exitCode, 0);
+      assert.strictEqual(parsed.skipped, false);
+      assert.strictEqual(parsed.exitCode, 1);
+      assert.strictEqual(exitCode, 1);
       assert.ok(
-        parsed.data.message.includes('Config parse error: Unsupported YAML syntax'),
+        parsed.data.message.includes('Config parse error') &&
+          parsed.data.message.includes('Unsupported YAML syntax at line 3'),
         `unexpected message: ${parsed.data.message}`
       );
     } finally {

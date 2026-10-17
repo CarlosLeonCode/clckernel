@@ -1,0 +1,9 @@
+list:
+  -
+    a: 1
+  -
+  - x
+  - [p, q]
+  - {k: v}
+  - "quoted"
+  - # comment only

@@ -1,0 +1,4 @@
+p: 'console\.log'
+q: 'it''s'
+r: '\d+\s*'
+s: ''

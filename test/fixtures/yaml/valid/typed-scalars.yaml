@@ -1,0 +1,24 @@
+int: 42
+neg: -7
+plus: +5
+zero: 0
+neg_zero: -0
+float: 1.5
+neg_float: -0.25
+leading_zero_float: 01.5
+t1: true
+t2: True
+t3: TRUE
+f1: false
+f2: False
+f3: FALSE
+n1: null
+n2: Null
+n3: NULL
+n4: ~
+n5:
+version: 1.2.3
+sci: 1e5
+quoted_int: "42"
+quoted_bool: 'true'
+quoted_yes: "yes"

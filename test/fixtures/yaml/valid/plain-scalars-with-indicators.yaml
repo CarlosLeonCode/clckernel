@@ -1,0 +1,12 @@
+regex: \bfoo\(\)
+url: http://x:8080/a
+chars: a[0-9]+, b{2}
+apostrophe: Don't use it
+dash: -foo
+question: ?x
+colon: :x
+percent: 50%
+mid_star: a*b
+mid_amp: a &b
+mid_bang: wow!
+spaces: a  b   c

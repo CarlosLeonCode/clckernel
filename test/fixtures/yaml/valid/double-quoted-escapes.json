@@ -1,0 +1,11 @@
+{
+  "a": "x\\y",
+  "b": "say \"hi\"",
+  "c": "a/b",
+  "d": "l1\nl2",
+  "e": "t\tt",
+  "f": "r\rr",
+  "g": "nul\u0000",
+  "h": "single ' inside",
+  "i": ""
+}

@@ -1,0 +1,23 @@
+active_guards:
+- check_custom
+- scan_secrets
+gate_mode: advisory
+phases: [research, plan, tdd-red, green, audit]
+rules:
+- name: no-console-log
+  pattern: 'console\.log\('
+  message: "Don't ship console.log # use the logger"
+  severity: error
+  scope: 'src/**/*.{js,ts}'
+  exclude:
+  - '**/*.test.js'
+  - scripts/**
+- name: no-todo
+  pattern: '\bTODO\b'
+  message: Resolve TODOs before committing
+  severity: warning
+  exclude: []
+- name: no-print
+  pattern: '^\s*print\('
+  message: Use logging, not print
+  scope: '**/*.py'

@@ -1,0 +1,4 @@
+pattern: "a#b"
+other: 'c # d'
+plain: a#b
+trailing: x # comment

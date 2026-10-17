@@ -1,0 +1,6 @@
+rules:
+- name: a
+  pattern: b
+- name: c
+  pattern: d
+after: 1

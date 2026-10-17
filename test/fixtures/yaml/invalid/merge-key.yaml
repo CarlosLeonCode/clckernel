@@ -1,0 +1,4 @@
+base:
+  a: 1
+derived:
+  <<: x

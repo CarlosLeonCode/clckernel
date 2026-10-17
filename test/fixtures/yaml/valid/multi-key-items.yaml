@@ -1,0 +1,11 @@
+items:
+  - name: a
+    meta:
+      owner: team
+      tier: 1
+    tags:
+    - x
+    - y
+    done: false
+  -   name: b
+      wide: true

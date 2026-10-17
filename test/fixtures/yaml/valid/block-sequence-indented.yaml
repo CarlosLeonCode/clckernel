@@ -1,0 +1,9 @@
+rules:
+  - name: a
+    exclude:
+      - x
+      - y
+  - name: b
+list:
+    - 1
+    - two

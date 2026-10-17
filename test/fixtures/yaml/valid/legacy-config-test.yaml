@@ -1,0 +1,12 @@
+rules:
+  - name: no-debugger
+    pattern: 'debugger'
+    message: 'No debugger statements'
+    severity: error
+    scope: '**/*.js'
+    meta: {owner: team, tier: 1}
+  - name: no-todo
+    pattern: 'TODO'
+    message: 'No TODOs'
+    severity: warning
+    exclude: ['**/docs/**']

@@ -1,0 +1,5 @@
+x: [1, -2, 2.5, true, False, null, ~, "s", 'q', plain text]
+m: {a: 1, b: x, c: , d: TRUE}
+trailing: [a, b, ]
+compact: [a,b]
+json_like: {"k":1}
