@@ -19,7 +19,7 @@ if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 import _changes  # noqa: E402
 
-# One finding per matching line: (line_no, label, matched_snippet)
+# One finding per matching line: {lineNo, col, label, snippet}; the snippet is redacted.
 PATTERNS: list[tuple[str, str]] = [
     (r"-----BEGIN (?:RSA |EC )?PRIVATE KEY-----", "Private Key"),
     (r"AKIA[0-9A-Z]{16}", "AWS Access Key"),
@@ -38,7 +38,8 @@ PATTERNS: list[tuple[str, str]] = [
         "Secret/Token",
     ),
     (r"ghp_[A-Za-z0-9]{36}", "GitHub Personal Access Token"),
-    (r"sk-[A-Za-z0-9]{20,}", "OpenAI/Stripe API Key"),
+    (r"sk-[A-Za-z0-9]{20,}", "OpenAI API Key"),
+    (r"(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{16,}", "Stripe API Key"),
     (r"eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+", "JWT Token"),
     (
         r"(?:SUPABASE|NEXT_PUBLIC|VITE)_\w*_KEY\s*=\s*['\"][^'\"]{8,}['\"]",
@@ -60,13 +61,28 @@ def _compile_patterns() -> list[tuple[re.Pattern, str]]:
     return [(re.compile(p), label) for p, label in PATTERNS]
 
 
+REDACTED = "\u2026[REDACTED]"
+
+
+def _redact(line: str, compiled: list[tuple[re.Pattern, str]]) -> str:
+    """
+    The line with every secret match (of any pattern) cut to its first 4
+    characters plus a marker, stripped and capped at 120 characters. The full
+    matched value never leaves the guard.
+    """
+    out = line
+    for regex, _label in compiled:
+        out = regex.sub(lambda m: m.group(0)[:4] + REDACTED, out)
+    return out.strip()[:120]
+
+
 def check(target_dir: str | None = None) -> dict:
     """
     Scan changed files for secrets and API keys.
 
     Returns:
         dict with keys: exit_code, skipped, name, data
-        data.findings maps filepath -> list of {lineNo, label, snippet}
+        data.findings maps filepath -> list of {lineNo, col, label, snippet}
     """
     dir_path = target_dir or os.getcwd()
 
@@ -104,8 +120,9 @@ def check(target_dir: str | None = None) -> dict:
                 if m:
                     file_hits.append({
                         "lineNo": line_no,
+                        "col": m.start(),
                         "label": label,
-                        "snippet": line.strip()[:120],
+                        "snippet": _redact(line, compiled),
                     })
                     break  # one finding per line
 

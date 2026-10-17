@@ -32,7 +32,8 @@ const check = async function scanSecrets(targetDir) {
     { regex: /(?:password|passwd|pwd)\s*[=:]\s*['"][^'"]{6,}['"]/i, label: 'Hardcoded Password' },
     { regex: /(?:secret|token|auth[_-]?token|bearer)\s*[=:]\s*['"][A-Za-z0-9_\-\.]{16,}['"]/i, label: 'Secret/Token' },
     { regex: /ghp_[A-Za-z0-9]{36}/, label: 'GitHub Personal Access Token' },
-    { regex: /sk-[A-Za-z0-9]{20,}/, label: 'OpenAI/Stripe API Key' },
+    { regex: /sk-[A-Za-z0-9]{20,}/, label: 'OpenAI API Key' },
+    { regex: /(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{16,}/, label: 'Stripe API Key' },
     { regex: /eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/, label: 'JWT Token' },
     { regex: /(?:SUPABASE|NEXT_PUBLIC|VITE)_\w*_KEY\s*=\s*['"][^'"]{8,}['"]/i, label: 'Framework Secret Key' },
   ];
@@ -55,9 +56,9 @@ const check = async function scanSecrets(targetDir) {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       for (const { regex, label } of patterns) {
-        if (regex.test(line)) {
-          const col = line.search(regex);
-          fileFindings.push({ lineNo: i + 1, col, label, line: line.trim().substring(0, 120) });
+        const match = regex.exec(line);
+        if (match) {
+          fileFindings.push({ lineNo: i + 1, col: match.index, label, snippet: redact(line, patterns) });
           break; // One finding per line
         }
       }
@@ -82,6 +83,25 @@ const check = async function scanSecrets(targetDir) {
   };
 };
 module.exports = check;
+
+const REDACTED = '…[REDACTED]';
+
+/**
+ * The line with every secret match (of any pattern) cut to its first 4
+ * characters plus a marker, trimmed and capped at 120 characters. The full
+ * matched value never leaves the guard.
+ * @param {string} line
+ * @param {{ regex: RegExp }[]} patterns
+ * @returns {string}
+ */
+function redact(line, patterns) {
+  let out = line;
+  for (const { regex } of patterns) {
+    const global = new RegExp(regex.source, regex.flags.includes('g') ? regex.flags : regex.flags + 'g');
+    out = out.replace(global, (m) => m.slice(0, 4) + REDACTED);
+  }
+  return out.trim().substring(0, 120);
+}
 
 if (require.main === module) {
   check(process.argv[2]).then(result => {
