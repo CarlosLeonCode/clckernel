@@ -146,9 +146,12 @@ describe('generateHookFromManifest', () => {
 
         const hookFile = path.join(dir, '.githooks', 'pre-commit');
         const content = fs.readFileSync(hookFile, 'utf-8');
-        // Should only have shebang + set -e + echo + blank line, no empty command
+        // Shebang + set -e + echo, then only the generic project guards block
+        // (sdds/domain-agnostic): no empty command line.
         const lines = content.split('\n').filter(l => l.trim().length > 0);
-        assert.strictEqual(lines.length, 3, 'should only have shebang, set -e and echo line');
+        const kernel = lines.filter(l => !l.startsWith('# Project guards') && !l.startsWith('for g in tools/guards/'));
+        assert.strictEqual(kernel.length, 3, 'should only have shebang, set -e and echo line');
+        assert.strictEqual(lines.length, 5, 'plus the project guards comment and loop');
       } finally {
         teardown(dir);
       }

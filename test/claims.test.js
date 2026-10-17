@@ -328,3 +328,58 @@ describe('honest claims — config file name', () => {
     assert.doesNotMatch(text, NON_CANONICAL_CONFIG_RE);
   });
 });
+
+// sdds/domain-agnostic, decision 6: the kernel names no business domain. The
+// removed domain guards and their folder appear nowhere in what is shipped or
+// installed, nor in the website. src/updater.js may name the old guard files
+// only on the line declaring the migration list (update moves them to
+// tools/guards/). CHANGELOG.md is the historical record and is exempt.
+const DOMAIN_FORBIDDEN = ['content-calendar', 'check_domain_data', 'check_test_calendar_sync'];
+const MIGRATION_LINE = 'LEGACY_DOMAIN_GUARDS = [';
+
+function domainOffenders(file, text) {
+  const rel = path.relative(ROOT, file);
+  return text.split('\n').flatMap((line, i) => {
+    if (rel === path.join('src', 'updater.js') && line.includes(MIGRATION_LINE)) return [];
+    return DOMAIN_FORBIDDEN.filter((word) => line.includes(word)).map((word) => `${rel}:${i + 1}: ${word}`);
+  });
+}
+
+describe('honest claims — no business domain in the kernel', () => {
+  it('src/, tools/, bin/, READMEs, AGENTS.md, the skill and website/src name no domain guard', () => {
+    const files = [
+      ...listTextFiles(path.join(ROOT, 'src')),
+      ...listTextFiles(path.join(ROOT, 'tools')),
+      ...listTextFiles(path.join(ROOT, 'bin')),
+      ...listTextFiles(path.join(ROOT, '.agents', 'skills', 'clckernel_cli')),
+      ...listWebsiteSources(path.join(ROOT, 'website', 'src')),
+      path.join(ROOT, 'README.md'),
+      path.join(ROOT, 'README.es.md'),
+      path.join(ROOT, 'AGENTS.md'),
+    ];
+    const offenders = files.flatMap((file) => domainOffenders(file, fs.readFileSync(file, 'utf-8')));
+    assert.deepStrictEqual(offenders, []);
+  });
+
+  it('the catalog and every adapter\'s installed text (AGENTS.md, safeguards, tools) name no domain guard', () => {
+    const texts = [
+      JSON.stringify(CATALOG),
+      ...loadAdapters().map(({ adapter }) => adapterText(adapter)),
+    ];
+    for (const text of texts) {
+      assert.deepStrictEqual(DOMAIN_FORBIDDEN.filter((word) => text.includes(word)), []);
+    }
+  });
+
+  it('the Agent-OS AGENTS.md generated next to a content-calendar/ folder names no domain guard', () => {
+    const dir = createTmpProject({ 'skills/a/SKILL.md': '---\nname: a\ndescription: d\n---\n', 'content-calendar/x.json': '{}\n' });
+    try {
+      const { autoDetectStack } = require('../src/detector');
+      generateHarness(dir, autoDetectStack(dir));
+      const text = fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8');
+      assert.deepStrictEqual(['check_domain_data', 'check_test_calendar_sync'].filter((word) => text.includes(word)), []);
+    } finally {
+      teardown(dir);
+    }
+  });
+});

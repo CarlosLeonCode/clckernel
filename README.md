@@ -39,7 +39,7 @@ AI coding agents (Cursor, Claude Code, Windsurf, Copilot) code fast, but without
 | Use Case | Problem It Solves | How CLC Kernel Solves It |
 |---|---|---|
 | **1. Coding Agent Governance**<br>*(Cursor, Claude Code, Copilot)* | Agents "vibe code", bypass tests, and violate layer boundaries in backend/frontend apps. | Enforces **Rule #0** (Research -> SDD -> TDD Red-to-Green -> Audit) and blocks commits via the pre-commit hook (`--no-verify` skips it; CI is the backstop). |
-| **2. Agent-OS & Domain Workflows**<br>*(Autonomous bots, marketing/sales OS)* | Agent runtimes execute actions without review, hallucinate metrics, or drift across IDE configs. | Provides **Dual-Layer Governance** and guards for any agent repository: explicit Human-in-the-Loop markers in skills and playbooks (`check_hitl`), SKILL.md frontmatter (`check_skills`), relative links (`check_links`), forgotten placeholders (`check_placeholders`) and rule mirrors pointing to AGENTS.md (`check_symlinks`). Content-calendar guards (`check_domain_data`, `check_test_calendar_sync`) are added only when `content-calendar/` exists. |
+| **2. Agent-OS & Domain Workflows**<br>*(Autonomous bots, marketing/sales OS)* | Agent runtimes execute actions without review, hallucinate metrics, or drift across IDE configs. | Provides **Dual-Layer Governance** and guards for any agent repository: explicit Human-in-the-Loop markers in skills and playbooks (`check_hitl`), SKILL.md frontmatter (`check_skills`), relative links (`check_links`), forgotten placeholders (`check_placeholders`), JSON data files that parse (`check_data_files`) and rule mirrors pointing to AGENTS.md (`check_symlinks`). Domain rules belong to the project: guards in `tools/guards/` run in the hook and the audit. |
 | **3. Complex Refactors & Migrations** | Agents modify files outside the agreed feature scope, causing silent regressions. | Anchors work to a local `sdds/{change}/spec.md`; scope is an agent-enforced protocol (not checked by a guard). |
 | **4. Shift-Left CI/CD & Pre-commit** | Secret leaks, N+1 query loops, and broken database migrations reach remote branches. | Runs zero-dependency checks in your stack's native language before Git commit: pattern-based guards everywhere, Python AST guards (layers, N+1 heuristic) on Python stacks. |
 
@@ -149,7 +149,7 @@ CLC Kernel provides a deterministic command grammar supported natively by **Clau
 | `clckernel audit` | Verification | Runs `node tools/audit.js` or `python tools/audit.py` and emits the Educational Summary. |
 | `clckernel doctor` | Diagnostics | Checks Git pre-commit hooks, IDE mirror symlinks, and guard script integrity. |
 | `clckernel commit <message>` | Version Control | Pre-flight audit, verifies diff vs SDD scope, and commits with Conventional Commits (zero AI attribution). |
-| `clckernel guard create <name>` | Safeguards | Scaffolds a new guard script in the stack's native language in `tools/guards/`. |
+| `clckernel guard create <name>` | Safeguards | Scaffolds a new guard script in the stack's native language in `tools/guards/`; the pre-commit hook and the audit run every `tools/guards/*.js` (node) and `*.py` (python3). |
 | `clckernel update` | Maintenance | Non-destructive update: refreshes core tools, skills & IDE symlinks without overwriting SDDs, custom guards, or `.clckernel.yaml`. |
 | `clckernel start` | Setup | Auto-detects stack, proposes AIUP lifecycle, and generates `.clckernel.yaml`. |
 
@@ -172,7 +172,7 @@ clckernel update
 - **Refreshes & Upgrades:** Core orchestrators (`tools/audit.js`, `tools/audit.py`), built-in guards, Agent Skills (`.agents/skills/`), and IDE symlinks (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`, Copilot, Antigravity).
 - **100% Preserved:**
   - `sdds/`: All local specifications, plans, and verification receipts remain intact.
-  - `tools/guards/`: All team-authored custom guards are preserved without modification.
+  - `tools/guards/`: All team-authored custom guards are preserved without modification. Domain guards that earlier releases installed into `tools/` are moved here (never deleted) and become project guards.
   - `.clckernel.yaml`: All custom thresholds and active safeguard selections are preserved.
   - Application source code and domain models are never touched.
 
@@ -191,7 +191,7 @@ clckernel update
 | 🐘 **Laravel** | `artisan` | Pest / PHPUnit | PHPStan static analysis |
 | 🎸 **Django** | `manage.py` | `pytest-django` | Ruff, Clean Arch (Python AST), N+1 Heuristic (Python AST), Red→Green TDD Verifier (pytest) |
 | 🚀 **Astro** | `astro.config` | Playwright | Tailwind v4 Tokens, Content Schema, A11y, Responsive, SEO |
-| 🤖 **Agent-OS** | `skills/<name>/SKILL.md` (also `.agents/skills/`, `.claude/skills/`), `playbooks/` or `rules/` with Markdown; a code stack in the same repo wins | Contract Tests | Dual-Layer AGENTS.md, HITL markers (`check_hitl`), Skills (`check_skills`), Links (`check_links`), Placeholders (`check_placeholders`), Mirrors (`check_symlinks`), Custom rules (`check_custom`); with `content-calendar/`: `check_domain_data`, `check_test_calendar_sync` |
+| 🤖 **Agent-OS** | `skills/<name>/SKILL.md` (also `.agents/skills/`, `.claude/skills/`), `playbooks/` or `rules/` with Markdown; a code stack in the same repo wins | Contract Tests | Dual-Layer AGENTS.md, HITL markers (`check_hitl`), Skills (`check_skills`), Links (`check_links`), Placeholders (`check_placeholders`), JSON data (`check_data_files`), Mirrors (`check_symlinks`), Custom rules (`check_custom`); project guards in `tools/guards/` |
 
 ### 🧱 Full-stack & monorepos
 

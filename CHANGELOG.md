@@ -22,6 +22,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `## Human checkpoint` / `## HITL` section; words such as "review" or "confirm" no longer pass. The guard now
   also covers `playbooks/` and evaluates the files changed in the commit. Existing Agent-OS repositories may
   start failing when they touch a skill or playbook without a marker.
+- **Domain guards leave the kernel.** `check_domain_data` and `check_test_calendar_sync` are no longer shipped
+  or installed, and Agent-OS detection no longer reacts to the `marketing-os` / `laila-mos` names or a
+  "marketing operating system" description (`agent-os` and `ai-agents` still work). `clckernel update` moves
+  copies installed by earlier releases from `tools/` to `tools/guards/` (never deletes them; when a file with
+  that name already exists there it keeps both and warns), so they keep running as project guards.
 
 ### Added
 
@@ -48,6 +53,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `check_links` (relative Markdown links resolve in the commit) and `check_placeholders` (forgotten draft
   markers outside `templates/`); `check_custom` is now installed for Agent-OS.
 - `listFiles` / `list_files` in `tools/_changes.*`: every file of the snapshot being verified.
+- **Project guards run.** Every generated pre-commit hook ends with a generic block that runs each
+  `tools/guards/*.js` with `node` and `tools/guards/*.py` with `python3` (alphabetical, after the kernel guards;
+  no-op without `tools/guards/`), and `audit.js` / `audit.py` report them. A non-zero exit blocks; the standard
+  JSON result is used when printed. Guards can import the snapshot helpers (`require('../_changes')`).
+- Agent-OS guard `check_data_files`: every changed `.json` file must parse (snapshot content, any folder).
 - CI on Node 18/20/22 and Python 3.9/3.13 (without PyYAML), plus a shared YAML conformance suite and
   regression tests for documentation claims and repository hygiene.
 
@@ -58,10 +68,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Hooks run each stack's external tools (ruff, pytest, rubocop, rspec, phpstan, golangci-lint, go test, cargo)
   when available and print "not available, skipped" otherwise; Rails, Go, Laravel and Rust run the secret scan.
 - Choosing another stack in the prompt selects a real adapter instead of only changing the project type.
-- Agent-OS: `check_domain_data` and `check_test_calendar_sync` are installed only when the repository has
-  `templates/content-calendar/` or `content-calendar/`; `check_symlinks` also fails a rule mirror that does not
-  point to `AGENTS.md` (symlink or identical copy); the generated `AGENTS.md` describes only the folders the
-  repository has.
+- Agent-OS: the kernel installs only guards that hold for any Agent-OS (domain rules belong in the project's
+  `tools/guards/`); `check_symlinks` also fails a rule mirror that does not point to `AGENTS.md` (symlink or
+  identical copy); the generated `AGENTS.md` describes only the folders the repository has, and its Clean
+  Creation State rule is domain-neutral (a field without a real value stays empty or `null`).
 - The CLI refuses missing targets and reserved words as directories, sets `core.hooksPath` only at the
   repository root when unset or already `.githooks`, and `doctor` exits 1 when a check fails.
 - `scan_secrets` redacts detected secrets in its output.

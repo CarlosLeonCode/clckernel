@@ -17,11 +17,11 @@ describe('AgentOSAdapter', () => {
   });
 
   describe('detect()', () => {
-    it('returns true when package.json keywords or name include agent-os or marketing-os or laila-mos', () => {
+    it('returns true when package.json keywords include ai-agents', () => {
       const dir = createTmpProject({
         'package.json': JSON.stringify({
           name: 'my-agent-system',
-          keywords: ['marketing-os', 'ai-agents']
+          keywords: ['ai-agents']
         }),
       });
       try {
@@ -127,11 +127,8 @@ describe('AgentOSAdapter', () => {
         assert.ok(fs.existsSync(geminiLink), 'GEMINI.md link must exist');
         assert.ok(fs.existsSync(cursorrules), '.cursorrules link must exist');
 
-        // tools/ exists; guards are copied by generateHarness from getTools(targetDir),
-        // so provision never installs the content-calendar guards unconditionally.
+        // tools/ exists; guards are copied by generateHarness from getTools(targetDir).
         assert.ok(fs.existsSync(path.join(dir, 'tools')), 'tools/ must exist');
-        assert.ok(!fs.existsSync(path.join(dir, 'tools', 'check_domain_data.js')), 'check_domain_data needs a content calendar');
-        assert.ok(!fs.existsSync(path.join(dir, 'tools', 'check_test_calendar_sync.js')), 'check_test_calendar_sync needs a content calendar');
       } finally {
         teardown(dir);
       }

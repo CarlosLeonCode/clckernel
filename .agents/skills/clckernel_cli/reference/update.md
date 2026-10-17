@@ -5,7 +5,7 @@ Use this playbook when the user wants to update an existing project to the lates
 ## Invariants: The Non-Destructive Update Contract
 
 1. **NEVER DELETE OR OVERWRITE `sdds/`:** All local specifications (`sdds/*/spec.md`, `plan.md`) must stay 100% intact.
-2. **NEVER TOUCH CUSTOM GUARDS:** Any user-defined scripts under `tools/guards/` are preserved without alteration.
+2. **NEVER TOUCH CUSTOM GUARDS:** Any user-defined scripts under `tools/guards/` are preserved without alteration. Domain guards that earlier releases installed into `tools/` are moved into `tools/guards/` (never deleted; if a file with that name already exists there, both are kept and the update warns), and the update reports each move.
 3. **NEVER OVERWRITE CONFIGURATION:** Existing `.clckernel.yaml` settings (or a config under an older name) and custom thresholds remain intact.
 4. **NEVER MODIFY APPLICATION CODE:** Source files, domain layers, and application tests are never touched.
 
@@ -24,7 +24,7 @@ Use this playbook when the user wants to update an existing project to the lates
 3. Refresh Cross-IDE Rule Symlinks:
    - Ensure `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.cursor/rules/*.mdc`, `.github/copilot-instructions.md`, and `.antigravity/rules.md` link to `AGENTS.md`.
 4. Refresh Pre-commit Hook:
-   - Ensure the git pre-commit hook runs the latest standard guards while preserving any custom checks.
+   - Ensure the git pre-commit hook runs the latest standard guards, then every project guard in `tools/guards/` (`*.js` with node, `*.py` with python3).
 
 ### Phase 3: Verification & Reporting
 1. Run `node tools/audit.js` or `python tools/audit.py` to verify harness health.

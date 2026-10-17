@@ -97,7 +97,7 @@ $ npx clckernel update
 11. check_skills        -> SKILL.md frontmatter: name + description, unique names
 12. check_links         -> Relative Markdown links resolve to files in the commit
 13. check_placeholders  -> Forgotten draft placeholders outside templates/
-14. check_domain_data   -> Content calendar only: pending posts keep null metrics`,
+14. check_data_files    -> Every changed .json file parses (any folder)`,
       },
       {
         id: "ast-examples",
@@ -142,9 +142,9 @@ custom_guards:
       {
         id: "authoring-guards",
         title: "Authoring a Custom Guard",
-        desc: "Create simple guard scripts directly in your project's native language (Ruby, Python, Go, Node, PHP) with zero foreign runtime bloat.",
+        desc: "Project guards live in tools/guards/: the pre-commit hook and the audit run every *.js file with node and every *.py file with python3, after the kernel guards. A non-zero exit blocks the commit.",
         code: `// tools/guards/my_custom_guard.js
-import { execSync } from 'node:child_process';
+const { execSync } = require('node:child_process');
 
 const diff = execSync('git diff --cached', { encoding: 'utf-8' });
 
@@ -229,13 +229,13 @@ $ claude
 # LAYER 2: DOMAIN AGENT WORKFLOWS (Runtime Operating Laws)
 # Governs runtime agents executing business playbooks and client tasks
 - Mandatory Human-in-the-Loop (HITL) checkpoints before external execution
-- Anti-Hallucination: Missing metrics must strictly default to null, never invented
+- Clean Creation State: never invent data; a field without a real value stays empty or null
 - Skills and playbooks declare their checkpoint with a HITL: marker`,
       },
       {
         id: "domain-safeguards-spec",
         title: "Domain Safeguards",
-        desc: "Zero-dependency guards for any agent repository (skills, playbooks, rules, prompts, templates). Content-calendar guards are added only when content-calendar/ exists.",
+        desc: "Zero-dependency guards for any agent repository (skills, playbooks, rules, prompts, templates). Domain rules belong to the project: guards in tools/guards/ run in the hook and the audit.",
         code: `// 1. check_hitl: changed skills and playbooks declare a human checkpoint
 $ node tools/check_hitl.js
 ✔ All changed skill(s)/playbook(s) declare a HITL checkpoint

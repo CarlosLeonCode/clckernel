@@ -120,15 +120,10 @@ const SAFEGUARD_CATALOG = [
     applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
     phase: 'audit', file: 'check_hitl.js', manifest: true, planned: false, lens: 'architecture' },
 
-  { name: 'check_domain_data', labels: ['check_domain_data', 'check_domain_data.js'],
-    checks: 'Content-calendar JSON: pending posts keep null metrics (no invented numbers); installed only with a content calendar', verify: ['verify_domain_data', 'verify_clean_state_metrics'],
-    applies_when: 'content-calendar', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
-    phase: 'audit', file: 'check_domain_data.js', manifest: true, planned: false, lens: 'architecture' },
-
-  { name: 'check_test_calendar_sync', labels: ['check_test_calendar_sync', 'check_test_calendar_sync.js'],
-    checks: 'Test calendar harness parity check (read-only; run standalone with `--fix` to sync); installed only with a content calendar', verify: ['verify_calendar_sync', 'verify_test_calendar_sync'],
-    applies_when: 'content-calendar', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
-    phase: 'audit', file: 'check_test_calendar_sync.js', manifest: true, planned: false, lens: 'performance' },
+  { name: 'check_data_files', labels: ['check_data_files', 'check_data_files.js'],
+    checks: 'Every changed .json file parses (snapshot content, any folder); reports the file and the parse error', verify: ['verify_data_files_parse'],
+    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
+    phase: 'audit', file: 'check_data_files.js', manifest: true, planned: false, lens: 'correctness' },
 
   { name: 'check_skills', labels: ['check_skills', 'check_skills.js'],
     checks: 'SKILL.md frontmatter: non-empty lowercase `name` unique in the repository, non-empty `description` of at most 1024 characters', verify: ['verify_skill_frontmatter'],
@@ -207,7 +202,7 @@ const VALID_PHASES = ['audit', 'test', 'review', 'handover'];
 const VALID_APPLIES_WHEN = [
   'always', 'frontend', 'backend', 'fastapi', 'django', 'django|sqlalchemy',
   'celery', 'redis', 'postgresql', 'docker', 'frontend,backend', 'backend,fastapi,django',
-  'agent-os', 'frontend,backend,agent-os', 'content-calendar',
+  'agent-os', 'frontend,backend,agent-os',
 ];
 
 /** The 4 RDD lenses guard results are grouped into */

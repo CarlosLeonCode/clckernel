@@ -2,8 +2,9 @@
  * CLC Kernel — Agent-OS & Domain Workflows Stack Adapter
  * Supports agent operating systems: repositories of skills, playbooks, rules,
  * prompts, templates and data that AI agents run to carry out tasks.
- * Generic guards apply to any Agent-OS; domain guards (content calendar) are
- * added only when their structure is present.
+ * The kernel holds no business-domain rules: the guards below hold for any
+ * Agent-OS, and domain checks live in the project (tools/guards/), which the
+ * pre-commit hook and the audit run like the kernel's own guards.
  */
 
 const fs = require('fs');
@@ -64,12 +65,6 @@ function hasMarkdown(dir, depth = MARKDOWN_SEARCH_DEPTH) {
     || (entry.isDirectory() && depth > 1 && hasMarkdown(path.join(dir, entry.name), depth - 1)));
 }
 
-/** True when the repository has a content calendar (the Marketing OS domain). */
-function hasContentCalendar(targetDir) {
-  return ['templates/content-calendar', 'content-calendar']
-    .some(rel => fs.existsSync(path.join(targetDir, rel)));
-}
-
 /** Layer folders present in targetDir, in LAYER_FOLDERS order. */
 function presentLayers(targetDir) {
   const managed = managedPaths(targetDir);
@@ -77,23 +72,6 @@ function presentLayers(targetDir) {
     ? hasUserSkill(targetDir, layer.folder, managed)
     : fs.existsSync(path.join(targetDir, layer.folder))));
 }
-
-const DOMAIN_TOOLS = [
-  {
-    name: 'check_domain_data',
-    language: 'js',
-    path: 'check_domain_data.js',
-    command: 'node tools/check_domain_data.js',
-    description: 'Content-calendar data: pending posts keep null metrics (no invented numbers)'
-  },
-  {
-    name: 'check_test_calendar_sync',
-    language: 'js',
-    path: 'check_test_calendar_sync.js',
-    command: 'node tools/check_test_calendar_sync.js',
-    description: 'Test calendar harness parity check (read-only; run standalone with --fix to sync)'
-  }
-];
 
 class AgentOSAdapter extends BaseAdapter {
   constructor() {
@@ -103,8 +81,9 @@ class AgentOSAdapter extends BaseAdapter {
   /**
    * An agent operating system: a SKILL.md in skills/<name>/, .agents/skills/<name>/
    * or .claude/skills/<name>/ (skills the harness installs excluded), a
-   * playbooks/ or rules/ folder with Markdown, or the package.json keywords
-   * kept for compatibility. A code stack that also matches wins (see detector).
+   * playbooks/ or rules/ folder with Markdown, or a generic package.json
+   * signal (`agent-os` in the name, description or keywords, or the
+   * `ai-agents` keyword). A code stack that also matches wins (see detector).
    */
   detect(targetDir) {
     const pkgPath = path.join(targetDir, 'package.json');
@@ -115,9 +94,8 @@ class AgentOSAdapter extends BaseAdapter {
         const desc = (pkg.description || '').toLowerCase();
         const keywords = Array.isArray(pkg.keywords) ? pkg.keywords.map(k => String(k).toLowerCase()) : [];
         if (
-          name.includes('agent-os') || name.includes('marketing-os') || name.includes('laila-mos') ||
-          desc.includes('agent-os') || desc.includes('marketing operating system') ||
-          keywords.includes('agent-os') || keywords.includes('marketing-os') || keywords.includes('ai-agents')
+          name.includes('agent-os') || desc.includes('agent-os') ||
+          keywords.includes('agent-os') || keywords.includes('ai-agents')
         ) {
           return true;
         }
@@ -129,17 +107,14 @@ class AgentOSAdapter extends BaseAdapter {
     return ['playbooks', 'rules'].some(folder => hasMarkdown(path.join(targetDir, folder)));
   }
 
-  /**
-   * @param {string} [targetDir] - Project root; adds the content-calendar
-   *   safeguard when that structure is present
-   */
-  getSafeguards(targetDir) {
-    const safeguards = [
+  getSafeguards() {
+    return [
       'Dual-Layer Architecture: Layer 1 (Engineering) & Layer 2 (Domain Runtime)',
       'Human-in-the-Loop (HITL) checkpoints: every changed skill and playbook declares a `HITL:` line or a `## Human checkpoint` section (check_hitl)',
       'Skill frontmatter: unique lowercase `name` and a `description` of at most 1024 characters in every changed SKILL.md (check_skills)',
       'Relative Markdown links resolve to files in the commit (check_links)',
       'No forgotten draft placeholders in changed Markdown, YAML and JSON (check_placeholders)',
+      'Changed JSON data files parse (check_data_files)',
       'Rule mirrors (CLAUDE.md, GEMINI.md, .cursorrules, .windsurfrules) point to AGENTS.md (check_symlinks)',
       'Project rules from .clckernel.yaml (check_custom)',
       'Secret Leak Guard (scan_secrets)',
@@ -147,19 +122,10 @@ class AgentOSAdapter extends BaseAdapter {
       'Local-only Spec Driven Development (sdds/)',
       'Red→Green TDD Verifier (runs changed tests with vitest / jest / node:test)'
     ];
-    if (targetDir && hasContentCalendar(targetDir)) {
-      safeguards.push('Content-calendar integrity: no invented metrics on pending posts (check_domain_data) & test calendar parity (check_test_calendar_sync)');
-    }
-    return safeguards;
   }
 
-  /**
-   * Guards for any Agent-OS; the content-calendar guards are added only when
-   * targetDir has templates/content-calendar/ or content-calendar/.
-   * @param {string} [targetDir] - Project root
-   */
-  getTools(targetDir) {
-    const domain = targetDir && hasContentCalendar(targetDir) ? DOMAIN_TOOLS : [];
+  /** Guards for any Agent-OS; domain checks belong in the project's tools/guards/. */
+  getTools() {
     return [
       {
         name: 'check_symlinks',
@@ -196,7 +162,13 @@ class AgentOSAdapter extends BaseAdapter {
         command: 'node tools/check_placeholders.js',
         description: 'Forgotten draft placeholders in changed Markdown, YAML and JSON (templates/ may keep slots)'
       },
-      ...domain,
+      {
+        name: 'check_data_files',
+        language: 'js',
+        path: 'check_data_files.js',
+        command: 'node tools/check_data_files.js',
+        description: 'Every changed .json file parses (snapshot content, any folder)'
+      },
       {
         name: 'scan_secrets',
         language: 'js',
@@ -265,7 +237,7 @@ When operating as domain agents for end-users and non-technical operators:
 2. **Mandatory Human-in-the-Loop (HITL) Checkpoints**: Always pause phase-by-phase during multi-step pipelines. Present draft output and WAIT for explicit user confirmation before executing irreversible steps. Every skill and playbook declares its checkpoint with a \`HITL:\` line or a \`## Human checkpoint\` section (checked by \`tools/check_hitl.js\`).
 3. **Skill Contract**: Every \`SKILL.md\` opens with a frontmatter holding a unique lowercase \`name\` and a \`description\` that says when to use the skill (checked by \`tools/check_skills.js\`).
 4. **SSOT Memory Primacy**: Read from and persist to the files this repository designates as its single source of truth; never keep operator data only in a conversation.
-5. **Clean Creation State (No Hallucinated Data)**: Never invent facts, metrics or results. A field you cannot fill stays empty / \`null\` until real data exists.
+5. **Clean Creation State (No Invented Data)**: Never invent data. A field without a real value stays empty or \`null\` until real data exists.
 6. **Finished Documents**: Deliverables follow the repository's templates and formats, keep no draft placeholders and link only to files that exist (checked by \`tools/check_placeholders.js\` and \`tools/check_links.js\`).
 
 ### Repository Map
@@ -291,11 +263,11 @@ When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`,
 ---
 
 ## 🛡️ Core AI Safeguards
-${this.getSafeguards(targetDir).map(s => `- ${s}`).join('\n')}
+${this.getSafeguards().map(s => `- ${s}`).join('\n')}
 `;
 
-    // Guard: never overwrite a project-customized AGENTS.md (e.g. a Laila MOS
-    // law file carrying domain invariants the template cannot know about).
+    // Guard: never overwrite a project-customized AGENTS.md (e.g. a law file
+    // carrying domain invariants the template cannot know about).
     const dualAgentsPath = path.join(targetDir, 'AGENTS.md');
     if (!fs.existsSync(dualAgentsPath)) {
       fs.writeFileSync(dualAgentsPath, dualLayerAgents, 'utf-8');

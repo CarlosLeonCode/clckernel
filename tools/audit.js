@@ -2,7 +2,8 @@
 /**
  * Modular Audit Orchestrator — JS
  * Discovers check_*.js, scan_*.js and verify_*.js guard scripts at runtime, runs each with graceful
- * degradation, groups results into 4 lenses,
+ * degradation, then runs the project guards in tools/guards/ (*.js with node,
+ * *.py with python3) as processes, groups results into 4 lenses,
  * and generates both an English audit report (05-audit-report.md) and
  * an immutable, machine-readable audit receipt (audit-receipt.json).
  * Self-contained: uses only Node.js built-ins.
@@ -10,8 +11,12 @@
 
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
+const LENSES = ['correctness', 'security', 'architecture', 'performance'];
+const PROJECT_GUARD_RUNNERS = { '.js': process.execPath, '.py': 'python3' };
+const MAX_BUFFER = 64 * 1024 * 1024;
 
 // ── Static name → lens mapping (4 RDD lenses) ──────────────────────────────────────────
 
@@ -29,6 +34,7 @@ const LENS_MAP = {
   check_skills: 'correctness',
   check_links: 'correctness',
   check_placeholders: 'correctness',
+  check_data_files: 'correctness',
   // Security
   scan_secrets: 'security',
   docker_guard: 'security',
@@ -41,7 +47,6 @@ const LENS_MAP = {
   check_ui_reuse: 'architecture',
   check_symlinks: 'architecture',
   check_hitl: 'architecture',
-  check_domain_data: 'architecture',
   check_migrations: 'architecture',
   graphify: 'architecture',
   gentle_ai_review: 'architecture',
@@ -51,7 +56,6 @@ const LENS_MAP = {
   check_seo: 'performance',
   check_responsive: 'performance',
   check_storybook: 'performance',
-  check_test_calendar_sync: 'performance',
   check_observability: 'performance',
 };
 
@@ -95,6 +99,86 @@ function discoverGuards(toolsDirParam) {
     .filter(f => (f.startsWith('check_') || f.startsWith('scan_') || f.startsWith('verify_')) && f.endsWith('.js') && f !== path.basename(__filename || 'audit.js'))
     .sort()
     .map(f => path.join(toolsDir, f));
+}
+
+/**
+ * Project guards (sdds/domain-agnostic, decision 3): every *.js and *.py file
+ * in tools/guards/, alphabetical. They are project code, run like the hook
+ * runs them.
+ * @param {string} toolsDir - The project's tools/ directory
+ * @returns {string[]} Absolute paths
+ */
+function discoverProjectGuards(toolsDir) {
+  const dir = path.join(toolsDir, 'guards');
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  return entries
+    .filter(entry => entry.isFile() && PROJECT_GUARD_RUNNERS[path.extname(entry.name)])
+    .map(entry => entry.name)
+    .sort()
+    .map(name => path.join(dir, name));
+}
+
+/** The guard's JSON result when its stdout (or its last line) is a JSON object. */
+function parseGuardJson(stdout) {
+  const text = String(stdout || '').trim();
+  const lines = text.split('\n');
+  for (const candidate of [text, lines[lines.length - 1]]) {
+    try {
+      const value = JSON.parse(candidate);
+      if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+    } catch {}
+  }
+  return null;
+}
+
+/** Last non-empty line of a process stream. */
+function lastLine(text) {
+  const lines = String(text || '').split('\n').map(l => l.trim()).filter(Boolean);
+  return lines.length > 0 ? lines[lines.length - 1] : '';
+}
+
+/**
+ * Runs one project guard as a process with cwd = targetDir, the way the hook
+ * does. The exit code decides (non-zero fails); a JSON result with the
+ * standard shape ({ name, skipped, data: { message, violations } }) is used
+ * for the report, plain output is reported by its last line. Lens:
+ * architecture unless the JSON names one of the four.
+ * @param {string} guardPath - Absolute path to the guard
+ * @param {string} targetDir - Project root
+ * @returns {object} Normalized result
+ */
+function runProjectGuard(guardPath, targetDir) {
+  const ext = path.extname(guardPath);
+  const fallbackName = path.basename(guardPath, ext);
+  const res = spawnSync(PROJECT_GUARD_RUNNERS[ext], [guardPath], { cwd: targetDir, encoding: 'utf-8', maxBuffer: MAX_BUFFER });
+  if (res.error) {
+    return {
+      exitCode: 1, skipped: false, name: fallbackName, lens: 'architecture',
+      data: { message: `Guard crashed: ${res.error.message}` },
+    };
+  }
+  const exitCode = typeof res.status === 'number' ? res.status : 1;
+  const json = parseGuardJson(res.stdout);
+  if (json) {
+    const data = json.data && typeof json.data === 'object' ? json.data : json;
+    return {
+      exitCode,
+      skipped: exitCode === 0 && Boolean(json.skipped),
+      name: typeof json.name === 'string' && json.name ? json.name : fallbackName,
+      lens: LENSES.includes(json.lens) ? json.lens : 'architecture',
+      data,
+    };
+  }
+  const line = exitCode === 0 ? lastLine(res.stdout) : (lastLine(res.stderr) || lastLine(res.stdout));
+  return {
+    exitCode, skipped: false, name: fallbackName, lens: 'architecture',
+    data: { message: line || (exitCode === 0 ? 'Passed' : `Exited with code ${exitCode}`) },
+  };
 }
 
 /**
@@ -337,18 +421,26 @@ async function main(targetDir) {
   const targetTools = path.join(dir, 'tools');
   const toolsDir = fs.existsSync(targetTools) ? targetTools : __dirname;
   const guardPaths = discoverGuards(toolsDir);
+  const projectGuards = discoverProjectGuards(toolsDir);
 
-  if (guardPaths.length === 0) {
+  if (guardPaths.length === 0 && projectGuards.length === 0) {
     console.log('No guard tools found in tools/. Nothing to audit.');
     return;
   }
 
-  console.log(`Discovered ${guardPaths.length} guard(s): ${guardPaths.map(p => path.basename(p, '.js')).join(', ')}\n`);
+  const names = [
+    ...guardPaths.map(p => path.basename(p, '.js')),
+    ...projectGuards.map(p => `guards/${path.basename(p)}`),
+  ];
+  console.log(`Discovered ${names.length} guard(s): ${names.join(', ')}\n`);
 
   const results = [];
   for (const guardPath of guardPaths) {
     const result = await runGuard(guardPath, dir);
     results.push(result);
+  }
+  for (const guardPath of projectGuards) {
+    results.push(runProjectGuard(guardPath, dir));
   }
 
   // Generate report
@@ -379,4 +471,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { main, getActiveSddDir, discoverGuards, runGuard, generateReceipt };
+module.exports = { main, getActiveSddDir, discoverGuards, discoverProjectGuards, runGuard, runProjectGuard, generateReceipt };

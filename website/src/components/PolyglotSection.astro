@@ -155,8 +155,8 @@ const stacks = isEs ? [
 // Motor de Auditoría: marcadores HITL, skills, links y placeholders
 ✔ Hook instalado: .githooks/pre-commit -> node tools/check_symlinks.js,
   check_hitl, check_skills, check_links, check_placeholders,
-  scan_secrets, verify_tdd, check_custom
-✔ Con content-calendar/: check_domain_data, check_test_calendar_sync`,
+  check_data_files, scan_secrets, verify_tdd, check_custom
+✔ Guards del proyecto: tools/guards/*.js y *.py`,
   },
 ] : [
   {
@@ -304,8 +304,8 @@ const stacks = isEs ? [
 // Audit Engine: HITL markers, skills, links & placeholders
 ✔ Hook installed: .githooks/pre-commit -> node tools/check_symlinks.js,
   check_hitl, check_skills, check_links, check_placeholders,
-  scan_secrets, verify_tdd, check_custom
-✔ With content-calendar/: check_domain_data, check_test_calendar_sync`,
+  check_data_files, scan_secrets, verify_tdd, check_custom
+✔ Project guards: tools/guards/*.js and *.py`,
   },
 ];
 

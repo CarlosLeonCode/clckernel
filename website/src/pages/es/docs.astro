@@ -97,7 +97,7 @@ $ npx clckernel update
 11. check_skills        -> Frontmatter de SKILL.md: name + description, nombres únicos
 12. check_links         -> Los links relativos de Markdown apuntan a archivos del commit
 13. check_placeholders  -> Placeholders de borrador olvidados fuera de templates/
-14. check_domain_data   -> Solo con calendario de contenido: posts pendientes con métricas null`,
+14. check_data_files    -> Todo archivo .json modificado parsea (en cualquier carpeta)`,
       },
       {
         id: "ast-examples",
@@ -142,9 +142,9 @@ custom_guards:
       {
         id: "authoring-guards",
         title: "Creación de una Salvaguarda Propia",
-        desc: "Crea scripts sencillos directamente en el lenguaje nativo de tu proyecto (Ruby, Python, Go, Node, PHP) sin requerir runtimes externos ni dependencias pesadas.",
+        desc: "Los guards del proyecto viven en tools/guards/: el hook de pre-commit y el audit ejecutan cada archivo *.js con node y cada *.py con python3, después de los guards del kernel. Un código de salida distinto de cero bloquea el commit.",
         code: `// tools/guards/mi_guard_personalizado.js
-import { execSync } from 'node:child_process';
+const { execSync } = require('node:child_process');
 
 const diff = execSync('git diff --cached', { encoding: 'utf-8' });
 
@@ -229,13 +229,13 @@ $ claude
 # CAPA 2: FLUJOS DE AGENTES DE DOMINIO (Leyes Operativas en Runtime)
 # Gobierna a los agentes que ejecutan tareas de negocio y playbooks
 - Compuertas Human-in-the-Loop (HITL) obligatorias antes de mutaciones externas
-- Anti-Alucinación: Las métricas faltantes deben ser estrictamente null, nunca inventadas
+- Estado de Creación Limpio: no inventes datos; un campo sin valor real queda vacío o null
 - Skills y playbooks declaran su checkpoint con un marcador HITL:`,
       },
       {
         id: "domain-safeguards-spec",
         title: "Salvaguardas de Dominio",
-        desc: "Guards de cero dependencias para cualquier repositorio de agentes (skills, playbooks, reglas, prompts, templates). Los guards de calendario de contenido se agregan solo cuando existe content-calendar/.",
+        desc: "Guards de cero dependencias para cualquier repositorio de agentes (skills, playbooks, reglas, prompts, templates). Las reglas de dominio pertenecen al proyecto: los guards de tools/guards/ se ejecutan en el hook y en el audit.",
         code: `// 1. check_hitl: skills y playbooks modificados declaran un checkpoint humano
 $ node tools/check_hitl.js
 ✔ All changed skill(s)/playbook(s) declare a HITL checkpoint

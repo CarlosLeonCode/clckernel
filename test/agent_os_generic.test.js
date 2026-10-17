@@ -1,8 +1,8 @@
 /**
  * sdds/agent-os-generic: a repository shaped like an agent operating system
  * (skills, playbooks, rules) is detected as Agent-OS and receives guards that
- * hold for any Agent-OS; domain guards are installed only when their
- * structure is present.
+ * hold for any Agent-OS. Domain checks are project guards (tools/guards/,
+ * see domain_agnostic.test.js).
  */
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
@@ -44,8 +44,8 @@ describe('Agent-OS detection (generic structure)', () => {
     });
   }
 
-  it('the package.json keywords still detect Agent-OS (compatibility)', () => {
-    const config = detect({ 'package.json': JSON.stringify({ name: 'laila-mos', keywords: ['marketing-os'] }) });
+  it('the generic package.json keywords still detect Agent-OS (compatibility)', () => {
+    const config = detect({ 'package.json': JSON.stringify({ name: 'acme', keywords: ['agent-os'] }) });
     assert.strictEqual(config.projectType, 'agent-os');
   });
 
@@ -95,18 +95,13 @@ function install(files) {
 describe('Agent-OS installation', () => {
   const GENERIC = { 'skills/research/SKILL.md': SKILL, 'playbooks/onboarding.md': PLAYBOOK, 'rules/style.md': '# Style\n' };
 
-  it('a generic Agent-OS gets the generic guards and check_custom, not the calendar guards', () => {
+  it('a generic Agent-OS gets the generic guards and check_custom', () => {
     const { dir, result, registry, hook } = install(GENERIC);
     try {
-      for (const guard of ['check_skills', 'check_links', 'check_placeholders', 'check_hitl', 'check_symlinks', 'check_custom', 'scan_secrets']) {
+      for (const guard of ['check_skills', 'check_links', 'check_placeholders', 'check_data_files', 'check_hitl', 'check_symlinks', 'check_custom', 'scan_secrets']) {
         assert.ok(result.installedGuards.includes(guard), `${guard} must be installed`);
         assert.ok(registry.includes(`tools/${guard}.js`), `${guard} must be in the registry`);
         assert.ok(hook.includes(`tools/${guard}.js`), `${guard} must run in the hook`);
-      }
-      for (const guard of ['check_domain_data', 'check_test_calendar_sync']) {
-        assert.ok(!result.installedGuards.includes(guard), `${guard} must not be installed`);
-        assert.ok(!fs.existsSync(path.join(dir, 'tools', `${guard}.js`)), `${guard}.js must not be copied`);
-        assert.ok(!hook.includes(guard), `${guard} must not run in the hook`);
       }
       assert.ok(registry.includes('tools/yaml.js'), 'check_custom ships its YAML parser');
       assert.ok(registry.includes('tools/_changes.js'), 'diff-based guards ship the snapshot helper');
@@ -115,28 +110,11 @@ describe('Agent-OS installation', () => {
     }
   });
 
-  for (const calendar of ['templates/content-calendar/index.html', 'content-calendar/calendar.json']) {
-    it(`with ${path.dirname(calendar)}/ the calendar guards are installed too`, () => {
-      const { dir, result, registry, hook } = install({ ...GENERIC, [calendar]: '{}\n' });
-      try {
-        for (const guard of ['check_domain_data', 'check_test_calendar_sync']) {
-          assert.ok(result.installedGuards.includes(guard), `${guard} must be installed`);
-          assert.ok(registry.includes(`tools/${guard}.js`), `${guard} must be in the registry`);
-          assert.ok(hook.includes(`tools/${guard}.js`), `${guard} must run in the hook`);
-        }
-        assert.ok(result.installedGuards.includes('check_custom'));
-      } finally {
-        teardown(dir);
-      }
-    });
-  }
-
-  it('getTools() without a directory lists only the generic guards', () => {
+  it('getTools() lists the generic guards', () => {
     const names = new AgentOSAdapter().getTools().map((t) => t.name);
     assert.ok(names.includes('check_skills'));
+    assert.ok(names.includes('check_data_files'));
     assert.ok(names.includes('check_custom'));
-    assert.ok(!names.includes('check_domain_data'));
-    assert.ok(!names.includes('check_test_calendar_sync'));
   });
 });
 

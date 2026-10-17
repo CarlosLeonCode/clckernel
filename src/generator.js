@@ -89,7 +89,7 @@ function writeManagedRegistry(targetDir, toolFiles) {
  * before check_custom, keeping the user-defined rules last; when the adapter
  * has no check_custom they are appended.
  * The adapter receives the project root, so an adapter may add guards whose
- * structure is present (e.g. Agent-OS content-calendar guards).
+ * structure is present.
  * @param {object} adapter - Adapter with getTools(targetDir?)
  * @param {Array} [techTools] - Tools for detected technologies
  * @param {string} [targetDir] - Project root
@@ -105,6 +105,23 @@ function buildToolManifest(adapter, techTools = [], targetDir) {
     ...frameworkTools.slice(checkCustomIdx),
   ];
 }
+
+/**
+ * Generic block every hook ends with (sdds/domain-agnostic, decision 3): each
+ * project guard in tools/guards/ runs after the kernel guards, *.js with node
+ * and *.py with python3, in alphabetical order. One glob, so adding a guard
+ * needs no `clckernel update`; with tools/guards/ absent or empty the glob
+ * stays literal, matches no case and nothing runs. POSIX sh-safe (no bash
+ * globbing options). A failing guard aborts the commit under `set -e`.
+ * The guards are project code: never in the managed registry.
+ */
+const PROJECT_GUARDS_BLOCK = [
+  '',
+  '# Project guards (tools/guards/): *.js with node, *.py with python3, alphabetical.',
+  'for g in tools/guards/*; do [ -f "$g" ] || continue; case "$g" in ' +
+    '*.js) echo "clckernel: project guard $g"; node "$g" ;; ' +
+    '*.py) echo "clckernel: project guard $g"; python3 "$g" ;; esac; done',
+];
 
 /** Value core.hooksPath takes when the harness owns the repo's hooks. */
 const GITHOOKS_DIR = '.githooks';
@@ -168,6 +185,7 @@ function huskyActive(targetDir) {
  * Writes the pre-commit hook where git will run it: .husky/pre-commit only when
  * Husky is active for a frontend project; otherwise .githooks/pre-commit, with
  * core.hooksPath set through configureHooksPath (and its safety checks).
+ * The kernel commands are followed by the project guards block.
  * @param {string} targetDir - Target project root
  * @param {boolean} isFront - Frontend project (may use Husky)
  * @param {string[]} commands - Hook body lines
@@ -196,6 +214,7 @@ function writeHook(targetDir, isFront, commands, banner) {
   lines.push(`echo "${banner}"`);
   lines.push('');
   lines.push(...commands);
+  lines.push(...PROJECT_GUARDS_BLOCK);
 
   fs.mkdirSync(hookDir, { recursive: true });
   fs.writeFileSync(hookFile, lines.join('\n') + '\n', 'utf-8');
@@ -768,8 +787,8 @@ ${isFront ? `- UI Component Reuse First (components/ui/ & semantic tokens)
 
 ${commandTable(testRunner)}`;
     // Guard: never overwrite an existing project-customized AGENTS.md.
-    // This prevents clckernel update from replacing Laila MOS invariants
-    // (carousel format, one-question-onboarding, dynamic calendar, immutability).
+    // This prevents clckernel update from replacing project-specific
+    // invariants the template cannot know about.
     if (!fs.existsSync(path.join(targetDir, 'AGENTS.md'))) {
       fs.writeFileSync(path.join(targetDir, 'AGENTS.md'), agentsContent, 'utf-8');
     }

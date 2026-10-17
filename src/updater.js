@@ -24,6 +24,11 @@ const LEGACY_CURSOR_RULE = '.cursor/rules/clc_forge_context.mdc';
 const LEGACY_RESOLVED_JSON = '.clc-forge.resolved.json';
 const BUNDLED_SKILL_DIR = path.join(__dirname, '..', SKILLS_REL, CURRENT_SKILL);
 
+// Domain guards that earlier releases installed into tools/ (sdds/domain-agnostic,
+// decision 4). The kernel no longer ships them; update hands them to the project.
+const LEGACY_DOMAIN_GUARDS = ['check_test_calendar_sync.js', 'check_domain_data.js'];
+const PROJECT_GUARDS_REL = 'tools/guards';
+
 /**
  * Read every regular file under `dir` into a map of relative path -> bytes.
  * Anything that is not a directory or a regular file (e.g. a symlink) is
@@ -128,6 +133,40 @@ function cleanupLegacyArtifacts(dir, previousSkill) {
   return { removed, kept };
 }
 
+/**
+ * Moves the domain guards earlier releases installed into tools/ to
+ * tools/guards/, where they become project guards (the hook and the audit run
+ * them). Nothing is deleted: when tools/guards/ already has a file with that
+ * name, both are left in place and reported. The moved files leave the managed
+ * registry because generateHarness rewrites it from what it installs.
+ * @param {string} dir - Project root
+ * @returns {{ moved: string[], kept: {path: string, reason: string}[] }}
+ */
+function migrateDomainGuards(dir) {
+  const moved = [];
+  const kept = [];
+  for (const file of LEGACY_DOMAIN_GUARDS) {
+    const from = path.join(dir, 'tools', file);
+    let stat;
+    try { stat = fs.lstatSync(from); } catch { continue; }
+    const fromRel = `tools/${file}`;
+    const toRel = `${PROJECT_GUARDS_REL}/${file}`;
+    if (!stat.isFile()) {
+      kept.push({ path: fromRel, reason: 'not a regular file' });
+      continue;
+    }
+    const to = path.join(dir, PROJECT_GUARDS_REL, file);
+    if (fs.existsSync(to)) {
+      kept.push({ path: fromRel, reason: `${toRel} already exists` });
+      continue;
+    }
+    fs.mkdirSync(path.dirname(to), { recursive: true });
+    fs.renameSync(from, to);
+    moved.push(toRel);
+  }
+  return { moved, kept };
+}
+
 function updateHarness(targetDir = process.cwd(), options = {}) {
   const resolvedDir = path.resolve(targetDir);
 
@@ -148,6 +187,7 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
   // 3. Run harness generation (refreshes tools, hooks, skills, and symlinks).
   // Snapshot the installed skill first: the legacy copy is compared against it.
   const previousSkill = snapshotFiles(path.join(resolvedDir, SKILLS_REL, CURRENT_SKILL)).files;
+  const guardMigration = migrateDomainGuards(resolvedDir);
   generateHarness(resolvedDir, detected);
   const legacyCleanup = cleanupLegacyArtifacts(resolvedDir, previousSkill);
   const { ensureGitignoreEntries } = require('./gitignore');
@@ -179,6 +219,7 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
     targetDir: resolvedDir,
     preserved,
     legacyCleanup,
+    guardMigration,
     refreshed: {
       tools: true,
       skills: true,
@@ -203,6 +244,13 @@ async function runUpdate(targetDir = process.cwd()) {
     console.log(`${colors.emerald}✔ Hooks de git sincronizados${colors.reset}`);
     for (const removedPath of result.legacyCleanup.removed) {
       console.log(`${colors.emerald}✔ Removed legacy artifact: ${removedPath}${colors.reset}`);
+    }
+    for (const movedPath of result.guardMigration.moved) {
+      const from = `tools/${path.basename(movedPath)}`;
+      console.log(`${colors.emerald}✔ Moved ${from} -> ${movedPath} (now a project guard; the kernel no longer ships it)${colors.reset}`);
+    }
+    for (const { path: keptPath, reason } of result.guardMigration.kept) {
+      console.log(`${colors.amber}⚠ Kept ${keptPath} (${reason}); move it to ${PROJECT_GUARDS_REL}/ manually to keep running it${colors.reset}`);
     }
     for (const { path: keptPath, reason } of result.legacyCleanup.kept) {
       console.log(`${colors.amber}⚠ Kept legacy artifact ${keptPath} (${reason}); review and remove it manually${colors.reset}`);

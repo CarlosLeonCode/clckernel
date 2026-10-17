@@ -1,7 +1,10 @@
 /**
  * sdds/fullstack-monorepo, decision 2 (TDD plan items 1 and 7): a repo with a
  * single code part installs byte for byte what it installed before
- * multi-part support. The golden file was captured with that earlier code.
+ * multi-part support. The golden file was captured with that earlier code,
+ * then regenerated deliberately for sdds/domain-agnostic: every hook gained
+ * the project guards block (tools/guards/), and Agent-OS gained
+ * check_data_files and the domain-neutral Clean Creation State rule.
  */
 const { describe, it } = require('node:test');
 const assert = require('node:assert');

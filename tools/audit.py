@@ -2,7 +2,8 @@
 """
 Modular Audit Orchestrator — Python
 Discovers check_*.py, scan_*.py, verify_*.py and *_guard.py guard scripts at runtime, runs each with
-graceful degradation, and generates an English audit report (05-audit-report.md).
+graceful degradation, then runs the project guards in tools/guards/ (*.py with
+python3, *.js with node) as processes, and generates an English audit report (05-audit-report.md).
 Self-contained: uses only Python stdlib.
 """
 from __future__ import annotations
@@ -16,6 +17,8 @@ import sys
 import traceback
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
+LENSES = ("correctness", "security", "architecture", "performance")
+PROJECT_GUARD_RUNNERS = {".py": sys.executable or "python3", ".js": "node"}
 
 # ── Static name → lens mapping (4 RDD lenses) ──────────────────────────────────────────
 
@@ -33,6 +36,7 @@ LENS_MAP = {
     "check_skills": "correctness",
     "check_links": "correctness",
     "check_placeholders": "correctness",
+    "check_data_files": "correctness",
     # Security
     "scan_secrets": "security",
     "docker_guard": "security",
@@ -45,7 +49,6 @@ LENS_MAP = {
     "check_ui_reuse": "architecture",
     "check_symlinks": "architecture",
     "check_hitl": "architecture",
-    "check_domain_data": "architecture",
     "check_migrations": "architecture",
     "graphify": "architecture",
     "gentle_ai_review": "architecture",
@@ -55,7 +58,6 @@ LENS_MAP = {
     "check_seo": "performance",
     "check_responsive": "performance",
     "check_storybook": "performance",
-    "check_test_calendar_sync": "performance",
     "check_observability": "performance",
 }
 
@@ -96,6 +98,77 @@ def discover_guards(tools_dir: pathlib.Path) -> list[pathlib.Path]:
         if name.startswith(("check_", "scan_", "verify_")) or name.endswith("_guard.py"):
             guards.append(f)
     return guards
+
+
+def discover_project_guards(tools_dir: pathlib.Path) -> list[pathlib.Path]:
+    """
+    Project guards (sdds/domain-agnostic, decision 3): every *.py and *.js
+    file in tools/guards/, alphabetical. They are project code, run the way
+    the pre-commit hook runs them.
+    """
+    guards_dir = tools_dir / "guards"
+    if not guards_dir.is_dir():
+        return []
+    return sorted(
+        (f for f in guards_dir.iterdir() if f.is_file() and f.suffix in PROJECT_GUARD_RUNNERS),
+        key=lambda f: f.name,
+    )
+
+
+def _parse_guard_json(stdout: str):
+    """The guard's JSON result when its stdout (or its last line) is a JSON object."""
+    text = (stdout or "").strip()
+    for candidate in (text, text.split("\n")[-1]):
+        try:
+            value = json.loads(candidate)
+        except ValueError:
+            continue
+        if isinstance(value, dict):
+            return value
+    return None
+
+
+def _last_line(text: str) -> str:
+    lines = [line.strip() for line in (text or "").split("\n") if line.strip()]
+    return lines[-1] if lines else ""
+
+
+def run_project_guard(guard_path: pathlib.Path, target_dir: str) -> dict:
+    """
+    Run one project guard as a process with cwd = target_dir. The exit code
+    decides (non-zero fails); a JSON result with the standard shape
+    ({name, skipped, data: {message, violations}}) is used for the report,
+    plain output is reported by its last line. Lens: architecture unless the
+    JSON names one of the four.
+    """
+    fallback_name = guard_path.stem
+    try:
+        proc = subprocess.run(
+            [PROJECT_GUARD_RUNNERS[guard_path.suffix], str(guard_path)],
+            cwd=target_dir, capture_output=True, text=True,
+        )
+    except OSError as exc:
+        return {
+            "exit_code": 1, "skipped": False, "name": fallback_name, "lens": "architecture",
+            "data": {"message": f"Guard crashed: {exc}"},
+        }
+    exit_code = proc.returncode
+    result = _parse_guard_json(proc.stdout)
+    if result is not None:
+        data = result.get("data") if isinstance(result.get("data"), dict) else result
+        name = result.get("name")
+        return {
+            "exit_code": exit_code,
+            "skipped": exit_code == 0 and bool(result.get("skipped", False)),
+            "name": name if isinstance(name, str) and name else fallback_name,
+            "lens": result.get("lens") if result.get("lens") in LENSES else "architecture",
+            "data": data,
+        }
+    line = _last_line(proc.stdout) if exit_code == 0 else (_last_line(proc.stderr) or _last_line(proc.stdout))
+    return {
+        "exit_code": exit_code, "skipped": False, "name": fallback_name, "lens": "architecture",
+        "data": {"message": line or ("Passed" if exit_code == 0 else f"Exited with code {exit_code}")},
+    }
 
 
 def run_guard(guard_path: pathlib.Path, target_dir: str) -> dict:
@@ -364,21 +437,21 @@ def main(target_dir: str | None = None) -> int:
     print(f"\nRunning CLC Kernel audit for: {sdd_dir.name}\n")
 
     guard_paths = discover_guards(tools_dir)
+    project_guards = discover_project_guards(tools_dir)
 
-    if not guard_paths:
+    if not guard_paths and not project_guards:
         print("No guard tools found in tools/. Nothing to audit.")
         return 0
 
-    print(
-        f"Discovered {len(guard_paths)} guard(s): "
-        + ", ".join(p.stem for p in guard_paths)
-        + "\n"
-    )
+    names = [p.stem for p in guard_paths] + [f"guards/{p.name}" for p in project_guards]
+    print(f"Discovered {len(names)} guard(s): " + ", ".join(names) + "\n")
 
     results: list[dict] = []
     for guard_path in guard_paths:
         result = run_guard(guard_path, dir_path)
         results.append(result)
+    for guard_path in project_guards:
+        results.append(run_project_guard(guard_path, dir_path))
 
     # Generate and write report
     report_content = generate_report(results, sdd_dir)

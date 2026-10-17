@@ -270,7 +270,9 @@ describe('project without stack signals (pom.xml only)', () => {
 
       const hook = fs.readFileSync(path.join(dir, '.githooks', 'pre-commit'), 'utf-8');
       assert.ok(hook.includes('node tools/scan_secrets.js'), hook);
-      assert.ok(!hook.includes('python'), 'generic hook must not require Python');
+      // Only the generic project guards line names python3, for tools/guards/*.py the project adds.
+      const kernelLines = hook.split('\n').filter((l) => !l.startsWith('for g in tools/guards/') && !l.startsWith('# Project guards'));
+      assert.ok(!kernelLines.join('\n').includes('python'), 'generic hook must not require Python');
       assert.ok(hook.split('\n').includes('set -e'));
       assert.ok(fs.existsSync(path.join(dir, 'tools', 'scan_secrets.js')));
       assert.ok(fs.existsSync(path.join(dir, 'tools', 'audit.js')));
