@@ -7,7 +7,25 @@
  * @param {string} targetDir - Directory to scan (defaults to cwd)
  * @returns {{ exitCode: number, skipped: boolean, name: string, data: object }}
  */
-const { changedFiles, readFile } = require('./_changes');
+const { changedFiles, readFile, nearestPackageDeps } = require('./_changes');
+
+/**
+ * Skip message when the root package.json (as of the snapshot) is missing or
+ * does not depend on next; null when the root is a Next.js project.
+ * @returns {string|null}
+ */
+function rootSkip(dir, mode) {
+  const pkgRaw = readFile(dir, 'package.json', mode);
+  if (pkgRaw === null) return 'No package.json found — skipping architecture check';
+  try {
+    const pkg = JSON.parse(pkgRaw);
+    const deps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
+    if (deps['next']) return null;
+  } catch {
+    // Malformed package.json: not a Next.js project.
+  }
+  return 'Not a Next.js project — skipping';
+}
 
 const check = async function checkArchitecture(targetDir) {
   const dir = targetDir || process.cwd();
@@ -15,23 +33,16 @@ const check = async function checkArchitecture(targetDir) {
   // The snapshot being verified: the index, or HEAD when nothing is staged.
   const { mode, files } = changedFiles(dir, { extensions: ['.tsx', '.jsx', '.ts', '.js'] });
 
-  // Verify this is a Next.js project (package.json as of the same snapshot)
-  const pkgRaw = readFile(dir, 'package.json', mode);
-  if (pkgRaw === null) {
-    return { exitCode: 0, skipped: true, name: 'check_architecture', data: { violations: {}, message: 'No package.json found — skipping architecture check' } };
-  }
+  // Each changed file belongs to the project of its nearest package.json (a
+  // monorepo part's own, else the root's), as of the same snapshot: only
+  // files of a Next.js project are checked.
+  const pkgCache = new Map();
+  const nextFiles = files.filter(f => Boolean((nearestPackageDeps(dir, f, mode, pkgCache) || {}).next));
 
-  let isNext;
-  try {
-    const pkg = JSON.parse(pkgRaw);
-    const deps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
-    isNext = Boolean(deps['next']);
-  } catch {
-    isNext = false;
-  }
-
-  if (!isNext) {
-    return { exitCode: 0, skipped: true, name: 'check_architecture', data: { violations: {}, message: 'Not a Next.js project — skipping' } };
+  // No changed file in a Next.js project: the root package.json decides.
+  if (nextFiles.length === 0) {
+    const skip = rootSkip(dir, mode);
+    if (skip) return { exitCode: 0, skipped: true, name: 'check_architecture', data: { violations: {}, message: skip } };
   }
 
   if (mode === null) {
@@ -44,7 +55,7 @@ const check = async function checkArchitecture(targetDir) {
 
   const violations = {};
 
-  for (const file of files) {
+  for (const file of nextFiles) {
     const content = readFile(dir, file, mode);
     if (content === null) continue;
 

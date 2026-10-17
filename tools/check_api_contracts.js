@@ -7,24 +7,13 @@
  * @param {string} targetDir - Directory to scan (defaults to cwd)
  * @returns {{ exitCode: number, skipped: boolean, name: string, data: object }}
  */
-const { changedFiles, readFile } = require('./_changes');
+const { changedFiles, readFile, nearestPackageDeps } = require('./_changes');
 
 const check = async function checkApiContracts(targetDir) {
   const dir = targetDir || process.cwd();
 
   // The snapshot being verified: the index, or HEAD when nothing is staged.
   const { mode, files } = changedFiles(dir, { extensions: ['.ts', '.js', '.tsx', '.jsx'] });
-
-  // Check if Zod is available (package.json as of the same snapshot)
-  let hasZod = false;
-  const pkgRaw = readFile(dir, 'package.json', mode);
-  if (pkgRaw !== null) {
-    try {
-      const pkg = JSON.parse(pkgRaw);
-      const deps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
-      hasZod = Boolean(deps['zod']);
-    } catch { /* skip */ }
-  }
 
   if (mode === null) {
     return { exitCode: 0, skipped: true, name: 'check_api_contracts', data: { violations: {}, message: 'No git diff available' } };
@@ -44,10 +33,15 @@ const check = async function checkApiContracts(targetDir) {
   }
 
   const violations = {};
+  const pkgCache = new Map();
 
   for (const file of apiFiles) {
     const content = readFile(dir, file, mode);
     if (content === null) continue;
+
+    // Zod available to this file: its nearest package.json (a monorepo part's
+    // own, else the root's), as of the same snapshot.
+    const hasZod = Boolean((nearestPackageDeps(dir, file, mode, pkgCache) || {}).zod);
 
     const fileViolations = [];
 

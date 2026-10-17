@@ -153,4 +153,43 @@ function listFiles(dir, mode) {
   return [...new Set(splitNul(out))].sort();
 }
 
-module.exports = { changedFiles, readFile, exists, listFiles };
+/**
+ * Dependencies of the nearest package.json of a repository path, read from the
+ * snapshot: the file's directory, then each parent up to the repository root
+ * (a monorepo part's own package.json wins over the root one). Results are
+ * memoized per directory in `cache` when one is passed.
+ * @param {string} dir - Directory inside the repository
+ * @param {string} file - Path relative to the repository root
+ * @param {'staged'|'last-commit'|null} mode - Snapshot (from changedFiles)
+ * @param {Map<string, object|null>} [cache] - Directory -> dependencies
+ * @returns {object|null} dependencies + devDependencies; null without a package.json
+ */
+function nearestPackageDeps(dir, file, mode, cache = new Map()) {
+  const visited = [];
+  let current = path.posix.dirname(file);
+  let deps = null;
+  for (;;) {
+    const key = current === '.' ? '' : current;
+    if (cache.has(key)) {
+      deps = cache.get(key);
+      break;
+    }
+    visited.push(key);
+    const raw = readFile(dir, key ? `${key}/package.json` : 'package.json', mode);
+    if (raw !== null) {
+      try {
+        const pkg = JSON.parse(raw);
+        deps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
+      } catch {
+        deps = {};
+      }
+      break;
+    }
+    if (!key) break;
+    current = path.posix.dirname(key);
+  }
+  for (const key of visited) cache.set(key, deps);
+  return deps;
+}
+
+module.exports = { changedFiles, readFile, exists, listFiles, nearestPackageDeps };
