@@ -193,6 +193,34 @@ clckernel update
 | 🚀 **Astro** | `astro.config` | Playwright | Tailwind v4 Tokens, Content Schema, A11y, Responsive, SEO |
 | 🤖 **Agent-OS** | `skills/<name>/SKILL.md` (also `.agents/skills/`, `.claude/skills/`), `playbooks/` or `rules/` with Markdown; a code stack in the same repo wins | Contract Tests | Dual-Layer AGENTS.md, HITL markers (`check_hitl`), Skills (`check_skills`), Links (`check_links`), Placeholders (`check_placeholders`), Mirrors (`check_symlinks`), Custom rules (`check_custom`); with `content-calendar/`: `check_domain_data`, `check_test_calendar_sync` |
 
+### 🧱 Full-stack & monorepos
+
+A repository can hold several code parts. `clckernel` looks for a stack in the root, in the directories
+declared as workspaces (`package.json#workspaces`, array or `{ packages }`, and `pnpm-workspace.yaml`
+`packages:`) and in the conventional directories `frontend`, `backend`, `web`, `api`, `server`, `client`,
+`apps/*`, `services/*` and `packages/*` (at most two levels deep; `node_modules`, `.git`, `vendor`, `dist` and
+`build` are skipped). Workspace patterns are read as literal directories or `dir/*`; other glob forms are
+ignored.
+
+- **One part at the root:** installed exactly as a single-stack repository.
+- **Several parts** (e.g. Next.js at the root + `backend/` FastAPI, or `apps/web` + `apps/api`): the project
+  type is `fullstack` (a part at the root) or `monorepo` (only subdirectories). Two stacks of the same
+  ecosystem in one directory (e.g. FastAPI and Django) stay one part, the first adapter winning as before.
+- **Guards:** the union of the parts' guards is installed once in the root `tools/`, with one audit
+  orchestrator per guard language, and runs once from the root.
+- **External tools** (ruff, pytest, tsc, …) run inside their part's directory; a missing one prints
+  `clckernel: <tool> (<dir>) not available, skipped`.
+- **Red→Green TDD Verifier:** each changed file belongs to its nearest project root (Python:
+  `pyproject.toml`, `requirements.txt`, `setup.cfg`, `setup.py`, `manage.py`; JS: `package.json`). Each group
+  runs in its root (`PYTHONPATH`, runner and `node_modules` of that root, or the repository root's
+  `node_modules` when hoisted). Code changed in a part without a changed test in that same part fails.
+- **AGENTS.md** lists every part (directory, stack, test runner) with each stack's rules; `clckernel update`
+  re-detects the parts.
+
+Not supported: Agent-OS as one part of a monorepo, nested git repositories or submodules, choosing parts by
+hand in the interactive prompt ("Choose another stack" installs a single stack), and Go/Cargo/Composer
+workspaces (their parts are found only through the conventional directories).
+
 ---
 
 <a id="architecture-symbiosis"></a>

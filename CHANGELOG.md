@@ -25,6 +25,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Full-stack and monorepo support.** The detector finds code parts at the root, in declared workspaces
+  (`package.json#workspaces`, `pnpm-workspace.yaml`) and in conventional directories (`frontend`, `backend`,
+  `web`, `api`, `server`, `client`, `apps/*`, `services/*`, `packages/*`). Several parts install the union of
+  their guards once, run each part's external tools inside its directory, list the parts in AGENTS.md and in
+  the install summary, and `update` re-detects them. `verify_tdd.py` and `verify_tdd.js` group the changed
+  files by their nearest project root and verify red→green per group; code changed in a part without a test
+  in that part fails. A repository with a single part at its root is installed exactly as before.
 - `tools/verify_tdd.py` now runs the changed tests with pytest and requires them to fail on the base tree and
   pass on the staged tree; it is installed for FastAPI and Django.
 - `tools/verify_tdd.js`, its twin for vitest, jest and node:test, installed for Next.js, Astro and Agent-OS.

@@ -193,6 +193,36 @@ clckernel update
 | 🚀 **Astro** | `astro.config` | Playwright | Tokens Tailwind v4, Esquemas de Colección, A11y, Responsive, SEO |
 | 🤖 **Agent-OS** | `skills/<nombre>/SKILL.md` (también `.agents/skills/`, `.claude/skills/`), `playbooks/` o `rules/` con Markdown; si el repo también tiene un stack de código, gana el stack de código | Tests de Contrato | AGENTS.md Dual-Layer, marcadores HITL (`check_hitl`), Skills (`check_skills`), Links (`check_links`), Placeholders (`check_placeholders`), Mirrors (`check_symlinks`), Reglas propias (`check_custom`); con `content-calendar/`: `check_domain_data`, `check_test_calendar_sync` |
 
+### 🧱 Full-stack y monorepos
+
+Un repositorio puede tener varias partes de código. `clckernel` busca un stack en la raíz, en los directorios
+declarados como workspaces (`package.json#workspaces`, como lista o `{ packages }`, y `packages:` de
+`pnpm-workspace.yaml`) y en los directorios convencionales `frontend`, `backend`, `web`, `api`, `server`,
+`client`, `apps/*`, `services/*` y `packages/*` (hasta dos niveles; se omiten `node_modules`, `.git`,
+`vendor`, `dist` y `build`). Los patrones de workspace se interpretan como directorios literales o `dir/*`;
+otras formas de glob se ignoran.
+
+- **Una parte en la raíz:** se instala exactamente igual que un repositorio de un solo stack.
+- **Varias partes** (p. ej. Next.js en la raíz + `backend/` FastAPI, o `apps/web` + `apps/api`): el tipo de
+  proyecto es `fullstack` (hay una parte en la raíz) o `monorepo` (solo subdirectorios). Dos stacks del mismo
+  ecosistema en un directorio (p. ej. FastAPI y Django) siguen siendo una parte, y gana el primer adapter,
+  como antes.
+- **Guards:** la unión de los guards de las partes se instala una vez en `tools/` de la raíz, con un
+  orquestador de auditoría por lenguaje, y se ejecuta una vez desde la raíz.
+- **Herramientas externas** (ruff, pytest, tsc, …) se ejecutan dentro del directorio de su parte; si una no
+  está disponible se imprime `clckernel: <herramienta> (<dir>) not available, skipped`.
+- **Verificador TDD Rojo→Verde:** cada archivo cambiado pertenece a su raíz de proyecto más cercana (Python:
+  `pyproject.toml`, `requirements.txt`, `setup.cfg`, `setup.py`, `manage.py`; JS: `package.json`). Cada grupo
+  se ejecuta en su raíz (`PYTHONPATH`, runner y `node_modules` de esa raíz, o los `node_modules` de la raíz
+  del repositorio si están elevados). El código cambiado en una parte sin un test cambiado en esa misma parte
+  falla.
+- **AGENTS.md** lista cada parte (directorio, stack, test runner) con las reglas de su stack; `clckernel
+  update` vuelve a detectar las partes.
+
+Fuera de alcance: Agent-OS como parte de un monorepo, repositorios git anidados o submódulos, elegir partes
+manualmente en el prompt interactivo ("Elegir otro stack" instala un solo stack) y los workspaces de
+Go/Cargo/Composer (sus partes solo se detectan por los directorios convencionales).
+
 ---
 
 <a id="arquitectura-simbiosis"></a>
