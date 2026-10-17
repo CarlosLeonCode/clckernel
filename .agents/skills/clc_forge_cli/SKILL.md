@@ -21,12 +21,12 @@ When the developer issues a \`clckernel <command>\` or \`/clckernel <command>\` 
 | `feature` | Lifecycle | Execute full AIUP cycle for a new feature (Spec -> HIT -> TDD -> Clean Code -> Audit) | [reference/feature.md](reference/feature.md) |
 | `fix` | Lifecycle | Reproduce root cause with failing test, execute surgical fix, and audit | [reference/fix.md](reference/fix.md) |
 | `test` | Verification | Run stack test runner and verify clean green exit code | [reference/test.md](reference/test.md) |
-| `audit` | Verification | Run mandatory educational audit gate & AST validation | [reference/audit.md](reference/audit.md) |
-| `doctor` | Diagnostics | Check configuration health, hook parity, symlinks & AST engine | [reference/doctor.md](reference/doctor.md) |
+| `audit` | Verification | Run mandatory educational audit gate & guard checks | [reference/audit.md](reference/audit.md) |
+| `doctor` | Diagnostics | Check configuration health, hook parity, symlinks & guard scripts | [reference/doctor.md](reference/doctor.md) |
 | `commit` | Version Control | Pre-flight audit, verify SDD scope, and commit with Conventional Commits | [reference/commit.md](reference/commit.md) |
 | `update` | Maintenance | Non-destructive update: refresh core tools, playbooks & symlinks (preserves SDDs & custom guards) | [reference/update.md](reference/update.md) |
 | `start` | Setup | Discover tech stack & initialize `.clckernel.yaml` | [reference/start.md](reference/start.md) |
-| `create_guard` | Safeguards | Scaffold a new AST/linter guard in native stack language | [reference/guard.md](reference/guard.md) |
+| `create_guard` | Safeguards | Scaffold a new pattern-based/linter guard in native stack language | [reference/guard.md](reference/guard.md) |
 | `remove_guard` | Safeguards | Safely remove an existing guard and clean up config | [reference/guard.md](reference/guard.md) |
 | `phase` | Lifecycle | Add or remove pipeline execution phases | [reference/phase.md](reference/phase.md) |
 

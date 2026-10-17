@@ -2,7 +2,7 @@
 /**
  * Modular Audit Orchestrator — JS
  * Discovers check_*.js guard scripts at runtime, runs each with graceful
- * degradation, categorizes results into the 4 Canonical RDD Lenses,
+ * degradation, groups results into 4 lenses,
  * and generates both an English audit report (05-audit-report.md) and
  * an immutable, machine-readable audit receipt (audit-receipt.json).
  * Self-contained: uses only Node.js built-ins.
@@ -13,7 +13,7 @@ const path = require('path');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 
-// ── 4 Canonical RDD Lenses Mapping ──────────────────────────────────────────
+// ── Static name → lens mapping (4 RDD lenses) ──────────────────────────────────────────
 
 const LENS_MAP = {
   // Correctness
@@ -190,7 +190,7 @@ function generateReport(results, sddDir) {
   sections.push(`# Code Audit Report: ${taskName}`);
   sections.push('');
   sections.push('> **Review-Driven Development (RDD) Report:**');
-  sections.push('> Segmented across the 4 Canonical Review Lenses (Correctness, Security, Architecture, Performance).');
+  sections.push('> Results grouped into 4 lenses (Correctness, Security, Architecture, Performance).');
   sections.push('');
   sections.push('---');
   sections.push('');

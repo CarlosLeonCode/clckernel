@@ -32,7 +32,7 @@ Guide the developer through implementing a new feature strictly governed by the 
 2. Maintain strict Clean Architecture boundaries (Domain -> Use Case -> Infrastructure).
 3. Re-run tests to confirm 100% green pass.
 
-### Step 6: Mandatory AST Audit Gate
+### Step 6: Mandatory Audit Gate
 1. Execute \`node tools/audit.js\` or \`python tools/audit.py\`.
 2. Output the Educational Summary table to stdout.
-3. Verify zero secrets, zero layer violations, and zero N+1 queries.
+3. Verify zero secret findings, zero layer violations, and zero N+1 heuristic findings.

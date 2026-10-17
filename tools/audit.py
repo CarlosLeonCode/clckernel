@@ -17,7 +17,7 @@ import traceback
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-# ── 4 Canonical RDD Lenses Mapping ──────────────────────────────────────────
+# ── Static name → lens mapping (4 RDD lenses) ──────────────────────────────────────────
 
 LENS_MAP = {
     # Correctness
@@ -214,7 +214,7 @@ def generate_report(results: list[dict], sdd_dir: pathlib.Path) -> str:
     sections.append(f"# Code Audit Report: {task_name}")
     sections.append("")
     sections.append("> **Review-Driven Development (RDD) Report:**")
-    sections.append("> Segmented across the 4 Canonical Review Lenses (Correctness, Security, Architecture, Performance).")
+    sections.append("> Results grouped into 4 lenses (Correctness, Security, Architecture, Performance).")
     sections.append("")
     sections.append("---")
     sections.append("")

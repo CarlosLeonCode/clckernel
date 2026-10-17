@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """
-Backend Database Efficiency & N+1 Performance Guard
-AST scanner detecting:
-1. Database queries executed inside loops (N+1 query pattern in SQLAlchemy, Django ORM, SQLModel)
-2. Blocking time.sleep() calls inside async route handlers/coroutines
-3. Unbounded .all() queries missing pagination/limits in API routes
-4. Missing eager loading patterns (select_related, prefetch_related, selectinload, joinedload)
+Backend Database Efficiency & N+1 Heuristic
+Python AST scanner detecting:
+1. ORM-like query calls inside loops/comprehensions (N+1 heuristic for SQLAlchemy, Django ORM, SQLModel)
+2. Blocking time.sleep() calls inside async functions
 
 Self-contained: uses only Python standard library (ast, subprocess, pathlib).
 """

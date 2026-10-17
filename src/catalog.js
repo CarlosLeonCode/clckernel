@@ -76,7 +76,7 @@ const SAFEGUARD_CATALOG = [
     phase: 'audit', file: 'check_api_contracts.js', manifest: true, planned: false, lens: 'correctness' },
 
   { name: 'check_migrations', labels: ['check_migrations', 'check_migrations.py'],
-    checks: 'Alembic/Django migration idempotency', verify: ['verify_migration_idempotency'],
+    checks: 'Alembic/Django migration reversibility (upgrade/downgrade, destructive operations)', verify: ['verify_migration_idempotency'],
     applies_when: 'backend,fastapi,django', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
     phase: 'audit', file: 'check_migrations.py', manifest: true, planned: false, lens: 'architecture' },
 
@@ -131,7 +131,7 @@ const SAFEGUARD_CATALOG = [
     phase: 'audit', file: 'check_test_calendar_sync.js', manifest: true, planned: false, lens: 'performance' },
 
   { name: 'ruff', labels: ['ruff'],
-    checks: 'Python AST linter (external CLI)', verify: ['verify_python_lint'],
+    checks: 'Python linter (external CLI)', verify: ['verify_python_lint'],
     applies_when: 'backend', severity: 'warning', gate_mode: 'advisory', config_keys: [],
     phase: 'test', file: null, manifest: true, planned: false, lens: 'correctness' },
 
@@ -166,7 +166,7 @@ const SAFEGUARD_CATALOG = [
     phase: 'audit', file: 'check_openapi_drift.py', manifest: true, planned: true, lens: 'correctness' },
 
   { name: 'check_db_efficiency', labels: ['check_db_efficiency', 'check_db_efficiency.py'],
-    checks: 'ORM N+1 / select_related / prefetch_related', verify: ['verify_db_efficiency', 'verify_no_n_plus_1'],
+    checks: 'N+1 heuristic: ORM-like calls inside loops (Python AST)', verify: ['verify_db_efficiency', 'verify_no_n_plus_1'],
     applies_when: 'django|sqlalchemy', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
     phase: 'audit', file: 'check_db_efficiency.py', manifest: true, planned: false, lens: 'performance' },
 
@@ -195,7 +195,7 @@ const VALID_APPLIES_WHEN = [
   'agent-os',
 ];
 
-/** Canonical 4 RDD Lenses */
+/** The 4 RDD lenses guard results are grouped into */
 const VALID_LENSES = ['correctness', 'security', 'architecture', 'performance'];
 
 /** Normalize an input label for catalog lookup. */
@@ -229,7 +229,7 @@ function gateFor(name) {
   return entry ? entry.gate_mode : null;
 }
 
-/** Canonical RDD review lens for a guard name/label; null when unknown. */
+/** RDD review lens a guard's results are grouped into; null when unknown. */
 function lensFor(name) {
   const entry = applyTo(name);
   return entry ? entry.lens : null;

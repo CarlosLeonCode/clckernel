@@ -16,7 +16,7 @@ Use this playbook when the user wants to update an existing project to the lates
 2. Inspect the active framework and test runner.
 
 ### Phase 2: Refresh Core Infrastructure
-1. Refresh bundled AST audit tools in `tools/`:
+1. Refresh bundled audit tools and guards in `tools/`:
    - `tools/audit.js` / `tools/audit.py`
    - Built-in guards (`scan_secrets.js`, `check_responsive.js`, `check_seo.js`, `check_db_efficiency.py`, `check_custom.js`, `docker_guard.py`, etc.)
 2. Refresh Agent Skills & Playbooks:

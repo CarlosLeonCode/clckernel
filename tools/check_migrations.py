@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Alembic / Django Migration Idempotency & Safety Guard
+Alembic / Django Migration Reversibility & Safety Guard
 Checks that database migration scripts follow safe practices:
   - Migrations have both upgrade() and downgrade()
   - No destructive operations without downgrade safeguards
   - Migration files are not empty
   - Django migrations reference existing model classes
-Self-contained: uses only Python stdlib (ast, pathlib, subprocess, json).
+Self-contained: uses only Python stdlib (regex-based checks; pathlib, subprocess, json).
 """
 from __future__ import annotations
 
@@ -147,7 +147,7 @@ def _check_django_migration(filepath: str, content: str) -> list[dict]:
 
 def check(target_dir: str | None = None) -> dict:
     """
-    Check migration files for idempotency and safety issues.
+    Check migration files for reversibility and safety issues.
 
     Returns:
         dict with keys: exit_code, skipped, name, data

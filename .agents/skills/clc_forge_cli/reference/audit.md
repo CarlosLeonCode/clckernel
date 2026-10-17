@@ -9,7 +9,7 @@ Use this playbook when auditing code quality, architecture compliance, or execut
    - `python tools/audit.py` (Python / Backend environment)
 2. **Execute Audit:** Run the tool within project workspace.
 3. **Educational Summary:** Output the educational audit summary highlighting:
-   - AST Architectural conformance
+   - Architectural conformance (layer-boundary guards)
    - TDD compliance & test coverage
    - Security & Secrets scan results
    - Performance / DB efficiency checks

@@ -13,7 +13,7 @@
 
 Los agentes de programación con IA (Cursor, Claude Code, Windsurf, Copilot) codifican a gran velocidad, pero sin límites introducen degradación arquitectónica, tests falsos positivos y fuga de credenciales.
 
-**CLC Kernel** es un arnés de desarrollo políglota que gobierna físicamente a los agentes mediante **linters AST deterministas (< 5ms)**, **especificaciones SDD locales** y el cumplimiento del **Proceso Unificado de IA (AIUP)**.
+**CLC Kernel** es un arnés de desarrollo políglota que gobierna a los agentes mediante **guards pre-commit deterministas** (verificaciones basadas en patrones, más guards con Python AST en stacks Python), **especificaciones SDD locales** y el cumplimiento del **Proceso Unificado de IA (AIUP)**.
 
 ---
 
@@ -37,10 +37,10 @@ Los agentes de programación con IA (Cursor, Claude Code, Windsurf, Copilot) cod
 
 | Caso de Uso | Problema que Resuelve | Cómo lo Resuelve CLC Kernel |
 |---|---|---|
-| **1. Gobernanza de Coding Agents**<br>*(Cursor, Claude Code, Copilot)* | Los agentes programan por intuición ("vibe coding"), se saltan pruebas y rompen capas de arquitectura en backend y frontend. | Impone la **Regla #0** (Investigación -> SDD -> TDD Rojo a Verde -> Auditoría AST) y bloquea commits no conformes mediante linters AST. |
+| **1. Gobernanza de Coding Agents**<br>*(Cursor, Claude Code, Copilot)* | Los agentes programan por intuición ("vibe coding"), se saltan pruebas y rompen capas de arquitectura en backend y frontend. | Impone la **Regla #0** (Investigación -> SDD -> TDD Rojo a Verde -> Auditoría) y bloquea commits no conformes mediante el hook pre-commit (`--no-verify` lo omite; CI actúa como respaldo). |
 | **2. Arquetipos Agent-OS y Flujos de Dominio**<br>*(Bots autónomos, OS de marketing/ventas)* | Runtimes de agentes ejecutan acciones sin supervisión, alucinan métricas o desincronizan reglas en diferentes IDEs. | Provee **Gobernanza Dual-Layer**, valida symlinks de reglas para IDEs, exige compuertas Human-in-the-Loop (`check_hitl`) y valida esquemas con null seguro (`check_domain_data`). |
-| **3. Refactorizaciones y Migraciones Críticas** | Los agentes modifican archivos fuera del alcance acordado, introduciendo regresiones silenciosas. | Delimita el trabajo en una especificación local `sdds/{cambio}/spec.md` y bloquea commits que toquen archivos no autorizados (`check_scope`). |
-| **4. Blindaje Pre-Commit y Shift-Left en CI/CD** | Fuga de credenciales, consultas N+1 en bucles y migraciones destructivas llegan a ramas remotas. | Ejecuta validaciones AST sin dependencias foráneas en el lenguaje nativo del stack en **< 5ms** antes de cada commit. |
+| **3. Refactorizaciones y Migraciones Críticas** | Los agentes modifican archivos fuera del alcance acordado, introduciendo regresiones silenciosas. | Delimita el trabajo en una especificación local `sdds/{cambio}/spec.md`; el alcance es un protocolo que aplica el agente (ningún guard lo verifica). |
+| **4. Blindaje Pre-Commit y Shift-Left en CI/CD** | Fuga de credenciales, consultas N+1 en bucles y migraciones destructivas llegan a ramas remotas. | Ejecuta validaciones sin dependencias foráneas en el lenguaje nativo del stack antes de cada commit: guards basados en patrones en todos los stacks y guards con Python AST (capas, heurística N+1) en stacks Python. |
 
 ---
 
@@ -51,16 +51,16 @@ Los agentes de programación con IA (Cursor, Claude Code, Windsurf, Copilot) cod
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                       AI UNIFIED PROCESS (AIUP)                             │
 ├─────────────┬─────────────┬─────────────┬──────────────────┬────────────────┤
-│   1. SDD    │   2. HIT    │   3. TDD    │     4. AST       │   5. MIRROR    │
-│ Spec-Driven │ Human-in-the│ Transición  │ Linters de Capas │ Single Source  │
-│ Development │    Loop     │ Rojo-a-Verde│  Determinísticos │ of Truth Sync  │
+│   1. SDD    │   2. HIT    │   3. TDD    │    4. GUARDS     │   5. MIRROR    │
+│ Spec-Driven │ Human-in-the│ Transición  │ Hook pre-commit  │ Single Source  │
+│ Development │    Loop     │ Rojo-a-Verde│  determinista    │ of Truth Sync  │
 └─────────────┴─────────────┴─────────────┴──────────────────┴────────────────┘
 ```
 
 1. **SDD (Spec-Driven Development):** El agente debe redactar una especificación técnica local gitignorada (`sdds/{feature}/spec.md`) antes de tocar código de producción.
 2. **HIT (Human-in-the-Loop):** El ingeniero revisa y aprueba los contratos y escenarios de prueba antes del inicio de la implementación.
 3. **TDD (Rojo a Verde):** El agente debe demostrar un test de regresión fallido (Fase Roja) antes de escribir la solución en producción (Fase Verde).
-4. **AST (Salvaguardas Deterministas):** Parsers nativos del stack (Python `ast`, Go `ast`, RuboCop, TypeScript AST) inspeccionan el diff y bloquean físicamente commits no conformes.
+4. **Guards (Salvaguardas Deterministas):** Scripts basados en patrones (y parsers Python `ast` en stacks Python) inspeccionan el diff preparado; el hook pre-commit bloquea los commits no conformes (`--no-verify` lo omite; CI actúa como respaldo).
 5. **SSOT (Única Fuente de Verdad):** `AGENTS.md` se define una sola vez y se proyecta mediante symlinks hacia `CLAUDE.md`, `GEMINI.md`, `.cursorrules` y Copilot.
 
 ---
@@ -68,14 +68,14 @@ Los agentes de programación con IA (Cursor, Claude Code, Windsurf, Copilot) cod
 <a id="rdd-y-lentes"></a>
 ## 🔍 Desarrollo Guiado por Revisión (RDD) y los 4 Lentes
 
-CLC Kernel estructura todas sus compuertas de auditoría bajo los principios de **Review-Driven Development (RDD)**, organizando cada salvaguarda en torno a los **4 Lentes Canónicos de Revisión**:
+CLC Kernel estructura todas sus compuertas de auditoría bajo los principios de **Review-Driven Development (RDD)**, con los resultados de los guards agrupados en **4 lentes** mediante una tabla estática nombre → lente:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                       LOS 4 LENTES CANÓNICOS DE REVISIÓN                    │
+│                       RESULTADOS AGRUPADOS EN 4 LENTES                      │
 ├─────────────────────┬───────────────────┬───────────────────┬───────────────┤
 │    🎯 CORRECTITUD   │    🛡️ SEGURIDAD   │  🏛️ ARQUITECTURA  │ ⚡ RENDIMIENTO│
-│ Bugs funcionales,   │ Fuga de secretos, │ Violación capas,  │ N+1 queries,  │
+│ Bugs funcionales,   │ Fuga de secretos, │ Violación capas,  │ Heurística N+1│
 │ scope drift, TDD,   │ bypass permisos,  │ límites de dominio│ tamaño bundle,│
 │ contratos API       │ eval peligroso    │ deps circulares   │ memory leaks  │
 └─────────────────────┴───────────────────┴───────────────────┴───────────────┘
@@ -93,14 +93,14 @@ Al ejecutar `clckernel audit` (o `node tools/audit.js`), CLC Kernel genera:
 ```
 [1. Terminal]           [2. Chat del LLM]            [3. Bucle TDD]                [4. Git Commit]
 npx clckernel   ───►   clckernel start   ───►   "Feature X con harness"   ───►   Hooks Pre-commit
-(Bootstrap)            (Setup Interactivo)          (SDD -> HIT -> Tests)         (Guardián AST & Secretos)
+(Bootstrap)            (Setup Interactivo)          (SDD -> HIT -> Tests)         (Guards & Secretos)
 ```
 
 ### 1️⃣ Paso 1: Inicializar el Repositorio (Terminal)
 ```bash
 npx clckernel start
 ```
-Detecta el framework, genera `AGENTS.md`, crea symlinks dinámicos para todos los IDEs (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`), provisiona hooks pre-commit e instala verificadores AST en `tools/`.
+Detecta el framework, genera `AGENTS.md`, crea symlinks dinámicos para todos los IDEs (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`), provisiona hooks pre-commit e instala scripts de guards nativos en `tools/`.
 
 ### 2️⃣ Paso 2: Inicializar en el Chat del IDE (CLI Conversacional)
 Abrí Cursor, Claude Code, Gemini CLI, Windsurf o Copilot y escribí:
@@ -118,14 +118,14 @@ El agente ejecutará de forma autónoma el ciclo AIUP completo:
 3. **Revisión HIT:** Solicita tu revisión y aprobación de los contratos propuestos.
 4. **Fase Roja TDD:** Escribe un test de regresión que falle demostrando el requerimiento.
 5. **Implementación Verde:** Escribe el código mínimo necesario respetando el aislamiento de capas.
-6. **Compuerta de Auditoría AST:** Ejecuta `node tools/audit.js` y emite el resumen de verificación.
+6. **Compuerta de Auditoría:** Ejecuta `node tools/audit.js` y emite el resumen de verificación.
 
 ### 4️⃣ Paso 4: Verificación Determinística de Guards (Git Commit)
 ```bash
 git add .
 git commit -m "feat(auth): add user authentication endpoint"
 ```
-Los hooks pre-commit ejecutan automáticamente los escáneres AST (Clean Architecture, Fuga de Secretos, Scope Guard, Idempotencia de Migraciones). Cualquier violación **bloquea físicamente** el commit.
+Los hooks pre-commit ejecutan automáticamente los guards instalados (por ejemplo Clean Architecture, Fuga de Secretos o Reversibilidad de Migraciones, según el stack). Cualquier violación queda **bloqueada por el hook pre-commit** (`--no-verify` lo omite; CI actúa como respaldo).
 
 ### 5️⃣ Paso 5: Auditar la Salud del Repositorio en Cualquier Momento (Doctor)
 ```bash
@@ -146,9 +146,9 @@ CLC Kernel provee una gramática de comandos determinista soportada de forma nat
 | `clckernel fix <descripción>` | Corrección | Análisis de causa raíz (sin editar código) -> Test de regresión que falle -> Corrección quirúrgica limpia -> Compuerta de auditoría. |
 | `clckernel test` | Verificación | Ejecuta la suite de pruebas en el runner nativo del stack y confirma estado verde limpio. |
 | `clckernel audit` | Verificación | Ejecuta `node tools/audit.js` o `python tools/audit.py` y emite el Resumen Educativo. |
-| `clckernel doctor` | Diagnóstico | Valida hooks pre-commit de Git, symlinks espejo para IDEs e integridad del motor AST. |
+| `clckernel doctor` | Diagnóstico | Valida hooks pre-commit de Git, symlinks espejo para IDEs e integridad de los scripts de guards. |
 | `clckernel commit <mensaje>` | Control de Versiones | Auditoría pre-flight, verificación de scope diff vs SDD y commit con Conventional Commits (cero atribución de IA). |
-| `clckernel guard create <nombre>` | Salvaguardas | Genera el scaffold de un nuevo script de guard AST en el lenguaje nativo del stack en `tools/guards/`. |
+| `clckernel guard create <nombre>` | Salvaguardas | Genera el scaffold de un nuevo script de guard en el lenguaje nativo del stack en `tools/guards/`. |
 | `clckernel update` | Mantenimiento | Actualización no destructiva: refresca herramientas core, skills y symlinks de IDEs sin sobreescribir SDDs, guards personalizados ni `.clckernel.yaml`. |
 | `clckernel start` | Configuración | Detecta el stack automáticamente, propone el ciclo de vida AIUP y genera `.clckernel.yaml`. |
 
@@ -157,7 +157,7 @@ CLC Kernel provee una gramática de comandos determinista soportada de forma nat
 <a id="actualizacion-de-proyectos-existentes"></a>
 ## 🔄 Actualización de Proyectos Existentes (No Destructiva)
 
-Cuando se publican nuevas versiones de CLC Kernel con nuevos guards AST, playbooks actualizados o reglas optimizadas para IDEs, podés actualizar tu repositorio de forma segura sin perder tu trabajo:
+Cuando se publican nuevas versiones de CLC Kernel con nuevos guards, playbooks actualizados o reglas optimizadas para IDEs, podés actualizar tu repositorio de forma segura sin perder tu trabajo:
 
 ```bash
 npx clckernel update
@@ -168,10 +168,10 @@ clckernel update
 ```
 
 ### 🔒 La Garantía de Actualización No Destructiva:
-- **Refresca y Actualiza:** Orquestadores centrales (`tools/audit.js`, `tools/audit.py`), guards AST nativos, Skills de agentes (`.agents/skills/`) y symlinks de IDEs (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`, Copilot, Antigravity).
+- **Refresca y Actualiza:** Orquestadores centrales (`tools/audit.js`, `tools/audit.py`), guards nativos, Skills de agentes (`.agents/skills/`) y symlinks de IDEs (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`, Copilot, Antigravity).
 - **100% Preservado:**
   - `sdds/`: Todas las especificaciones locales, planes y recibos de verificación permanecen intactos.
-  - `tools/guards/`: Todos los guards AST personalizados creados por el equipo se conservan sin modificaciones.
+  - `tools/guards/`: Todos los guards personalizados creados por el equipo se conservan sin modificaciones.
   - `.clckernel.yaml`: Todas las configuraciones y umbrales personalizados se mantienen.
   - El código fuente de la aplicación y modelos de dominio jamás se tocan.
 
@@ -183,12 +183,12 @@ clckernel update
 | Ecosistema | Firma de Detección | Test Runner | Salvaguardas Nativas |
 |---|---|---|---|
 | ⚛️ **Next.js** | `next` | Vitest / Jest | Clean Architecture, Reutilización de UI, Tokens Semánticos, RSC, A11y, Responsive, SEO |
-| ⚡ **FastAPI** | `fastapi` | Pytest | Pydantic V2, Idempotencia Alembic, AST Clean Architecture, Eficiencia DB (N+1) |
-| 💎 **Rails** | `Gemfile` | RSpec | AST RuboCop, Seguridad Brakeman, Idempotencia de Migraciones |
-| 🐹 **Golang** | `go.mod` | `go test` | AST `golangci-lint`, Aislamiento de Capas Dominio/Casos de Uso |
-| 🦀 **Rust** | `Cargo.toml` | `cargo test` | AST `cargo clippy`, `cargo audit`, Seguridad Estricta de Memoria |
-| 🐘 **Laravel** | `artisan` | Pest / PHPUnit | AST PHPStan, Detección de Consultas N+1 en Eloquent, Migraciones |
-| 🎸 **Django** | `manage.py` | `pytest-django` | Idempotencia ORM Django, AST Ruff, Scope Guard, Eficiencia DB (N+1) |
+| ⚡ **FastAPI** | `fastapi` | Pytest | Pydantic V2, Reversibilidad de Migraciones Alembic, Clean Architecture (Python AST), Heurística N+1 (Python AST), Verificador TDD Rojo→Verde (pytest) |
+| 💎 **Rails** | `Gemfile` | RSpec | RuboCop, Seguridad Brakeman |
+| 🐹 **Golang** | `go.mod` | `go test` | `golangci-lint`, Aislamiento de Capas Dominio/Casos de Uso |
+| 🦀 **Rust** | `Cargo.toml` | `cargo test` | `cargo clippy`, `cargo audit`, Seguridad Estricta de Memoria |
+| 🐘 **Laravel** | `artisan` | Pest / PHPUnit | Análisis estático PHPStan |
+| 🎸 **Django** | `manage.py` | `pytest-django` | Ruff, Clean Architecture (Python AST), Heurística N+1 (Python AST), Verificador TDD Rojo→Verde (pytest) |
 | 🚀 **Astro** | `astro.config` | Playwright | Tokens Tailwind v4, Esquemas de Colección, A11y, Responsive, SEO |
 | 🤖 **Agent-OS** | `skills/`, `brand/`, `templates/` | Tests de Contrato | AGENTS.md Dual-Layer, Compuertas HITL (`check_hitl`), Symlinks (`check_symlinks`), Integridad de Datos (`check_domain_data`) |
 
@@ -210,17 +210,17 @@ flowchart TD
   subgraph CORE["🤖 CLC KERNEL (Motor Central de Gobernanza)"]
     SSOT["1. Ley SSOT<br/>(AGENTS.md y Symlinks para IDEs)"]
     AIUP["2. Arnés AIUP<br/>(SDD + HITL + TDD Rojo-a-Verde)"]
-    AST["3. Linters AST &lt;5ms<br/>(Reglas de Capas, Secretos y Migraciones)"]
+    GUARDS["3. Guards pre-commit<br/>(Reglas de Capas, Secretos y Migraciones)"]
     RECEIPT["4. Motor de Auditoría 4-Lentes<br/>(Genera audit-receipt.json)"]
-    SSOT --> AIUP --> AST --> RECEIPT
+    SSOT --> AIUP --> GUARDS --> RECEIPT
   end
 
   RECEIPT -->|audit-receipt.json| MODES{Modo de Ejecución}
 
   subgraph MODE1["🟢 MODO 1: STANDALONE (100% Local y Desconectado)"]
     M1_1["• Cero dependencias externas"]
-    M1_2["• Ejecución nativa AST en &lt; 5ms"]
-    M1_3["• Hook Git pre-commit bloquea físicamente commits inválidos"]
+    M1_2["• Guards en el lenguaje nativo del stack"]
+    M1_3["• El hook Git pre-commit bloquea commits inválidos (--no-verify lo omite; CI actúa como respaldo)"]
     M1_4["• Reporte autosuficiente 05-audit-report.md"]
   end
 
@@ -254,10 +254,10 @@ CLC Kernel se enfoca estrictamente en gobernanza y opera con **cero dependencias
 |---|---|
 | **SDD** *(Spec-Driven Development)* | Metodología orientada a especificaciones previas donde los contratos técnicos, esquemas, criterios de aceptación y escenarios de prueba se redactan en specs locales gitignoradas (`sdds/{cambio}/spec.md`) antes de modificar código fuente. |
 | **RDD** *(Review-Driven Development)* | Metodología de verificación adversarial y estructurada donde los cambios se auditan a través de cuatro lentes ortogonales (Correctitud, Seguridad, Arquitectura y Rendimiento) para garantizar compuertas sistemáticas de calidad antes del merge o commit. |
-| **AIUP** *(AI Unified Process)* | El ciclo de vida gobernado de punta a punta implementado por CLC Kernel: Investigación $\rightarrow$ SDD local $\rightarrow$ Aprobación Human-in-the-Loop (HITL) $\rightarrow$ TDD Rojo a Verde $\rightarrow$ Compuerta de Auditoría AST $\rightarrow$ Conventional Commit. |
+| **AIUP** *(AI Unified Process)* | El ciclo de vida gobernado de punta a punta implementado por CLC Kernel: Investigación $\rightarrow$ SDD local $\rightarrow$ Aprobación Human-in-the-Loop (HITL) $\rightarrow$ TDD Rojo a Verde $\rightarrow$ Compuerta de Auditoría de Guards $\rightarrow$ Conventional Commit. |
 | **HIT / HITL** *(Human-in-the-Loop)* | Compuerta obligatoria de aprobación donde un ingeniero humano valida contratos, decisiones arquitectónicas y pruebas propuestas antes de que un agente autónomo edite código de producción. |
 | **TDD** *(Test-Driven Development)* | Práctica de ingeniería de reproducir bugs o especificar nuevas funcionalidades mediante un test automatizado que falle (Fase Roja) antes de escribir el código mínimo de producción para que pase (Fase Verde). |
-| **Guard AST** *(Salvaguarda de Árbol de Sintaxis Abstracta)* | Script liviano de análisis estático sin dependencias foráneas escrito en el lenguaje nativo del stack (Python `ast`, TypeScript Compiler API, Go `go/parser`, RuboCop, etc.) que se ejecuta en menos de 5ms para bloquear físicamente violaciones antes del commit. |
+| **Guard** *(Script de salvaguarda)* | Verificación liviana sin dependencias foráneas escrita en el lenguaje nativo del stack y ejecutada por el hook pre-commit. La mayoría de los guards se basan en patrones (regex); en stacks Python, los guards de capas, N+1 y Celery/Redis/Postgres analizan el código con Python `ast`. El hook bloquea las violaciones antes del commit (`--no-verify` lo omite; CI actúa como respaldo). |
 | **SSOT** *(Single Source of Truth / Única Fuente de Verdad)* | Principio de gobernanza centralizada donde `AGENTS.md` funciona como la ley única, proyectándose automáticamente a todos los entornos de agentes (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`, Copilot) mediante symlinks del sistema de archivos. |
 | **Recibo de Auditoría** *(Audit Receipt)* | Artefacto JSON inmutable y legible por máquina (`audit-receipt.json`) producido por el motor de auditoría con la marca de tiempo, hash del commit, veredictos por cada lente y metadatos de compatibilidad RDD para Gentle AI. |
 | **ADR** *(Architectural Decision Record)* | Documento estandarizado bajo `docs/Journal/` que captura decisiones arquitectónicas clave, contexto histórico, alternativas evaluadas y consecuencias. |

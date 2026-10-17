@@ -7,7 +7,7 @@ Use this playbook when adding, modifying, or removing lifecycle phases in the AI
 1. **Understand Phase Purpose:**
    - Pre-implementation (e.g. Research, SDD spec, RFC alignment)
    - Implementation (e.g. TDD Red/Green, Layer Check)
-   - Verification / Audit (e.g. AST Audit, E2E, Smoke test)
+   - Verification / Audit (e.g. Guard Audit, E2E, Smoke test)
    - Delivery (e.g. Git pre-commit, PR generation)
 
 2. **Update `.clckernel.yaml`:**

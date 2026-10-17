@@ -282,7 +282,7 @@ describe('generateHarness', () => {
         const agents = fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8');
         assert.ok(agents.includes('FastAPI'), 'AGENTS.md should include framework name');
         assert.ok(agents.includes('BACKEND'), 'AGENTS.md should include project type');
-        assert.ok(agents.includes('Scope Guardrail'), 'should include backend safeguard');
+        assert.ok(agents.includes('Scope protocol (agent-enforced; not checked by a guard)'), 'should include backend safeguard');
         assert.ok(!agents.includes('UI Component Reuse First'), 'should not include frontend safeguards');
       } finally {
         teardown(dir);
@@ -304,7 +304,7 @@ describe('generateHarness', () => {
         const agents = fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8');
         assert.ok(agents.includes('UI Component Reuse First'), 'should include frontend safeguards');
         assert.ok(agents.includes('Accessibility & ARIA Guard'), 'should include a11y guard');
-        assert.ok(!agents.includes('Scope Guardrail'), 'should not include backend safeguards');
+        assert.ok(!agents.includes('Scope protocol'), 'should not include backend safeguards');
       } finally {
         teardown(dir);
       }

@@ -4,7 +4,7 @@ Safely commit changes after verifying all pre-flight quality and architecture ga
 
 ## Mandatory Execution Protocol
 
-### Step 1: Pre-Flight AST Audit
+### Step 1: Pre-Flight Guard Audit
 1. Run \`node tools/audit.js\` or \`python tools/audit.py\`.
 2. Ensure 100% of discovered guards pass with 0 errors and 0 secret leaks.
 

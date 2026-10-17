@@ -1,6 +1,6 @@
 /**
  * CLC Kernel — PHP / Laravel Stack Adapter
- * Supports Laravel, Pest / PHPUnit, PHPStan AST, and Eloquent migration idempotency.
+ * Supports Laravel, Pest / PHPUnit, and PHPStan static analysis.
  */
 
 const fs = require('fs');
@@ -20,9 +20,9 @@ class LaravelAdapter extends BaseAdapter {
 
   getSafeguards() {
     return [
-      'PHPStan / PHP_CodeSniffer AST Code Quality Linter',
-      'Laravel Migration Idempotency & Schema Guard',
-      'Pest / PHPUnit Red-to-Green TDD Validator',
+      'PHPStan Static Analysis (external CLI)',
+      'Laravel Migration Reversibility protocol (agent-enforced; no migration guard installed for this stack)',
+      'TDD protocol (agent-enforced; no verifier installed for this stack)',
       'Secret & Private Key Leak Scanner',
       'Educational Audit Gate (05-audit-report.md)',
       'Memory Guard (Engram / Graphify ADR Sync)'

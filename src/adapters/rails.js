@@ -1,6 +1,6 @@
 /**
  * CLC Kernel — Ruby on Rails Stack Adapter
- * Supports Rails, RSpec, RuboCop AST, Brakeman Security, and migration idempotency.
+ * Supports Rails, RSpec, RuboCop, and Brakeman security scanning.
  */
 
 const fs = require('fs');
@@ -20,10 +20,10 @@ class RailsAdapter extends BaseAdapter {
 
   getSafeguards() {
     return [
-      'RuboCop Code Style & AST Security Guard',
+      'RuboCop Code Style Linter (external CLI)',
       'Brakeman Rails Vulnerability Scanner',
-      'Rails Migration Idempotency Guard (schema drift protection)',
-      'RSpec / Minitest Red-to-Green TDD Validator',
+      'Rails Migration Reversibility protocol (agent-enforced; no migration guard installed for this stack)',
+      'TDD protocol (agent-enforced; no verifier installed for this stack)',
       'Secret & Private Credential Leak Scanner',
       'Educational Audit Gate (05-audit-report.md)',
       'Memory Guard (Engram / Graphify ADR Sync)'

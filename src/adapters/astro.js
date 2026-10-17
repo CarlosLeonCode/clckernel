@@ -34,7 +34,7 @@ class AstroAdapter extends BaseAdapter {
       'SEO, GEO & Web Performance Guard (metadata, OpenGraph, Core Web Vitals)',
       'Secret & API Key Leak Scanner',
       'Content Collection Schema Validation Guard',
-      'Vitest / Playwright Red-to-Green TDD Validator',
+      'TDD protocol (agent-enforced; no verifier installed for this stack)',
       'Educational Audit Gate (05-audit-report.md)',
       'Memory Guard (Engram / Graphify ADR Sync)'
     ];

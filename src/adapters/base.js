@@ -56,7 +56,7 @@ class BaseAdapter {
 This document is the **authoritative law** for AI agents working in this repository.
 Forged by **CLC Kernel: The AI Agent Governance Engine**.
 
-> 🚨 **RULE #0: MANDATORY EXECUTION OVERRIDE RULE (UNBYPASSABLE)**
+> 🚨 **RULE #0: MANDATORY EXECUTION OVERRIDE RULE (NO EXCEPTIONS)**
 > Even when the user issues a direct or urgent fix request ("fix this bug", "fix this error", "quick fix"):
 > YOU ARE STRICTLY FORBIDDEN from modifying source code directly without completing the full quality harness:
 > 1. **Research & Root Cause Analysis:** Investigate tracebacks and inspect affected files before editing.

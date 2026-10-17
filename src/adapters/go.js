@@ -1,6 +1,6 @@
 /**
  * CLC Kernel — Go Stack Adapter
- * Supports Golang apps, `go test`, golangci-lint AST, and Domain/UseCase Clean Architecture.
+ * Supports Golang apps, `go test`, golangci-lint, and Domain/UseCase Clean Architecture.
  */
 
 const fs = require('fs');
@@ -18,9 +18,9 @@ class GoAdapter extends BaseAdapter {
 
   getSafeguards() {
     return [
-      'golangci-lint Code Quality & AST Linter',
+      'golangci-lint Code Quality Linter (external CLI)',
       'Go Clean Architecture Guard (Domain -> UseCase -> Handler)',
-      'go test Red-to-Green TDD Validator',
+      'TDD protocol (agent-enforced; no verifier installed for this stack)',
       'Secret & Private Key Leak Scanner',
       'Educational Audit Gate (05-audit-report.md)',
       'Memory Guard (Engram / Graphify ADR Sync)'

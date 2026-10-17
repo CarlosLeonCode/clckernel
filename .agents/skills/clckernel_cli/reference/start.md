@@ -17,7 +17,7 @@ Use this playbook when the user wants to initialize, start, or set up governance
 
 ### Phase 2: Interactive Alignment
 Present detected stack and proposal clearly:
-1. Summarize detected architecture and auto-provisioned safeguards (e.g., TDD Red/Green, AST architecture guard, DB efficiency, secrets scan, tech-specific guards).
+1. Summarize detected architecture and auto-provisioned safeguards (e.g., Red→Green TDD verifier on FastAPI/Django, architecture guard, N+1 heuristic, secrets scan, tech-specific guards).
 2. Ask one clear question:
    - *"¿Activamos estas fases y salvaguardas estándar, o querés personalizar alguna regla o fase?"*
 3. **STOP.** Wait for the user's response.

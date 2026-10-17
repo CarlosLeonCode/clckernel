@@ -1,9 +1,9 @@
 /**
  * CLC Kernel — Non-Destructive Harness Updater
- * Safely updates core AST tools, skills, playbooks, and IDE symlinks in an existing
+ * Safely updates core guard tools, skills, playbooks, and IDE symlinks in an existing
  * project while guaranteeing 100% preservation of:
  * - Local specifications (sdds/)
- * - Custom AST guards (tools/guards/)
+ * - Custom guards (tools/guards/)
  * - Project configuration and custom thresholds (.clckernel.yaml / .clc-forge.yaml)
  * - Application source code and domain models
  */

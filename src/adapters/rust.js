@@ -18,9 +18,9 @@ class RustAdapter extends BaseAdapter {
 
   getSafeguards() {
     return [
-      'cargo clippy AST Code Quality Linter',
+      'cargo clippy Linter (external CLI)',
       'cargo audit Security Vulnerability Scanner',
-      'cargo test Red-to-Green TDD Validator',
+      'TDD protocol (agent-enforced; no verifier installed for this stack)',
       'Secret & Private Key Leak Scanner',
       'Educational Audit Gate (05-audit-report.md)',
       'Memory Guard (Engram / Graphify ADR Sync)'

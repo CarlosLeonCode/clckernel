@@ -4,7 +4,7 @@ Use this playbook when the user wants to add, modify, or delete custom architect
 
 ## 🛠️ Create Guard
 
-1. **Clarify Objective:** If not specified, ask what AST node, pattern, or security risk to intercept. **STOP.** Wait for details.
+1. **Clarify Objective:** If not specified, ask what code pattern, syntax construct (Python AST for Python stacks), or security risk to intercept. **STOP.** Wait for details.
 2. **Native Language Implementation:** Write the guard script in the native stack language:
    - Python projects -> Python `ast` script in `tools/guards/<name>_guard.py`
    - Node / TS projects -> JS/TS script in `tools/guards/<name>_guard.js`
