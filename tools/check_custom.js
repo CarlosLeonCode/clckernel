@@ -1,31 +1,52 @@
 #!/usr/bin/env node
 /**
  * Custom Rules Guard
- * Reads .clc-forge.yml and executes user-defined regex rules against changed files.
+ * Reads .clckernel.yaml and executes user-defined regex rules against changed files.
  * Self-contained: uses only Node.js built-ins (inline YAML parser, no npm deps).
  *
  * @param {string} targetDir - Directory to scan (defaults to cwd)
  * @returns {{ exitCode: number, skipped: boolean, name: string, data: object }}
  */
 const { parseYaml, globToRegex } = require('./yaml.js');
+
+// Lookup order: the canonical name first, then older names kept for compatibility.
+const CONFIG_NAMES = ['.clckernel.yaml', '.clckernel.yml', '.clc-forge.yaml', '.clc-forge.yml'];
+const CANONICAL_CONFIG = CONFIG_NAMES[0];
+const DEPRECATED_PREFIX = '.clc-forge.';
+
 const check = async function checkCustom(targetDir) {
   const fs = require('fs');
   const path = require('path');
-  const { execSync } = require('child_process');
 
   const dir = targetDir || process.cwd();
 
   // ── 1. Load config ──────────────────────────────────────────────────
-  const candidates = ['.clckernel.yml', '.clckernel.yaml', '.clc-forge.yml', '.clc-forge.yaml'];
-  const configPath = candidates.map(c => path.join(dir, c)).find(p => fs.existsSync(p));
+  const configPath = CONFIG_NAMES.map(c => path.join(dir, c)).find(p => fs.existsSync(p));
   if (!configPath) {
     return {
       exitCode: 0, skipped: true, name: 'check_custom',
-      data: { violations: {}, message: 'No .clckernel.yml or .clc-forge.yml found' },
+      data: { violations: {}, message: `No ${CANONICAL_CONFIG} found` },
     };
   }
 
   const configName = path.basename(configPath);
+  const result = runRules(dir, configPath, configName);
+  if (configName.startsWith(DEPRECATED_PREFIX)) {
+    result.data.warnings = [`${configName}: deprecated config name, rename to ${CANONICAL_CONFIG}`];
+  }
+  return result;
+};
+module.exports = check;
+
+/**
+ * Validate the rules in one config file and run them against changed files.
+ * @returns {{ exitCode: number, skipped: boolean, name: string, data: object }}
+ */
+function runRules(dir, configPath, configName) {
+  const fs = require('fs');
+  const path = require('path');
+  const { execSync } = require('child_process');
+
   const configError = (message) => ({
     exitCode: 1, skipped: false, name: 'check_custom',
     data: { violations: {}, message: `Config error in ${configName}: ${message}` },
@@ -165,8 +186,7 @@ const check = async function checkCustom(targetDir) {
         : 'No custom rule violations',
     },
   };
-};
-module.exports = check;
+}
 
 /**
  * Shape problems of one rule (empty list when valid).
@@ -191,6 +211,7 @@ function validateRule(rule) {
 
 if (require.main === module) {
   check(process.argv[2]).then(result => {
+    for (const warning of result.data.warnings || []) console.error(`[check_custom] warning: ${warning}`);
     console.log(JSON.stringify(result, null, 2));
     process.exit(result.exitCode);
   });

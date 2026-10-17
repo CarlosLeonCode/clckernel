@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Custom Rules Guard — Python
-Reads .clc-forge.yml and executes user-defined regex rules against changed files.
+Reads .clckernel.yaml and executes user-defined regex rules against changed files.
 Self-contained: uses only Python stdlib + optional pyyaml.
 """
 
@@ -497,15 +497,20 @@ def _glob_to_regex(glob_pattern: str) -> re.Pattern:
 # Main Guard Contract
 # ═══════════════════════════════════════════════════════════════════════
 
+# Lookup order: the canonical name first, then older names kept for compatibility.
+CONFIG_NAMES = ['.clckernel.yaml', '.clckernel.yml', '.clc-forge.yaml', '.clc-forge.yml']
+CANONICAL_CONFIG = CONFIG_NAMES[0]
+DEPRECATED_PREFIX = '.clc-forge.'
+
+
 def check(target_dir: Optional[str] = None) -> dict:
     """
     Custom rules guard entry point.
-    Reads .clc-forge.yml and executes user-defined regex rules.
-    Returns: {exit_code, skipped, name, data: {violations, message}}
+    Reads .clckernel.yaml and executes user-defined regex rules.
+    Returns: {exit_code, skipped, name, data: {violations, message[, warnings]}}
     """
     dir_path = pathlib.Path(target_dir or os.getcwd())
-    candidates = ['.clckernel.yml', '.clckernel.yaml', '.clc-forge.yml', '.clc-forge.yaml']
-    config_path = next((dir_path / c for c in candidates if (dir_path / c).exists()), None)
+    config_path = next((dir_path / c for c in CONFIG_NAMES if (dir_path / c).exists()), None)
 
     # ── 1. Load config ──────────────────────────────────────────────
     if not config_path:
@@ -513,10 +518,18 @@ def check(target_dir: Optional[str] = None) -> dict:
             "exit_code": 0,
             "skipped": True,
             "name": "check_custom",
-            "data": {"violations": {}, "message": "No .clckernel.yml or .clc-forge.yml found"},
+            "data": {"violations": {}, "message": f"No {CANONICAL_CONFIG} found"},
         }
 
     config_name = config_path.name
+    result = _run_rules(dir_path, config_path, config_name)
+    if config_name.startswith(DEPRECATED_PREFIX):
+        result["data"]["warnings"] = [f"{config_name}: deprecated config name, rename to {CANONICAL_CONFIG}"]
+    return result
+
+
+def _run_rules(dir_path: pathlib.Path, config_path: pathlib.Path, config_name: str) -> dict:
+    """Validate the rules in one config file and run them against changed files."""
 
     def config_error(message: str) -> dict:
         return {
@@ -690,5 +703,7 @@ def _get_changed_files(dir_path: str) -> Optional[list[str]]:
 if __name__ == '__main__':
     target = sys.argv[1] if len(sys.argv) > 1 else None
     result = check(target)
+    for warning in result["data"].get("warnings", []):
+        print(f"[check_custom] warning: {warning}", file=sys.stderr)
     print(json.dumps(result, indent=2))
     sys.exit(result["exit_code"])

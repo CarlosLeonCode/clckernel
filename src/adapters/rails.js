@@ -37,7 +37,7 @@ class RailsAdapter extends BaseAdapter {
    */
   getTools() {
     const baseTools = [
-      { name: 'check_custom', language: 'js',       path: 'check_custom.js', command: 'node tools/check_custom.js', description: 'Runs user-defined custom rules from .clc-forge.yml' },
+      { name: 'check_custom', language: 'js',       path: 'check_custom.js', command: 'node tools/check_custom.js', description: 'Runs user-defined custom rules from .clckernel.yaml' },
       { name: 'rubocop',  language: 'external', path: '', command: 'bundle exec rubocop --parallel', description: 'Ruby linter', extCLI: 'rubocop' },
       { name: 'brakeman', language: 'external', path: '', command: 'bundle exec brakeman -q',        description: 'Rails vulnerability scanner', extCLI: 'brakeman' },
       { name: 'rspec',    language: 'external', path: '', command: 'bundle exec rspec',               description: 'Test runner', extCLI: 'rspec' },

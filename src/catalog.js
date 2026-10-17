@@ -14,7 +14,7 @@
  *   applies_when{string}        applicability predicate key (stack/project conditions)
  *   severity    {string}        'error' | 'warning' | 'advisory' (catalog default)
  *   gate_mode   {string}        'hard' | 'advisory' (catalog default)
- *   config_keys {string[]}      .clc-forge.yml keys this safeguard consumes
+ *   config_keys {string[]}      .clckernel.yaml keys this safeguard consumes
  *   phase       {string}        10-phase harness phase: 'audit' | 'test' | 'review' | 'handover'
  *   file        {string|null}   bundled tools/ file(s), '+' separated; null = external CLI
  *   manifest    {boolean}       true = declared by >=1 adapter manifest (design §1.2)
@@ -36,7 +36,7 @@ const SAFEGUARD_CATALOG = [
     phase: 'audit', file: 'check_architecture.js+check_architecture.py', manifest: true, planned: false, lens: 'architecture' },
 
   { name: 'check_custom', labels: ['check_custom', 'check_custom.js', 'check_custom.py'],
-    checks: 'User-defined regex rules from `.clc-forge.yml`', verify: ['verify_custom_rules', 'verify_user_defined_regex_rules'],
+    checks: 'User-defined regex rules from `.clckernel.yaml`', verify: ['verify_custom_rules', 'verify_user_defined_regex_rules'],
     applies_when: 'always', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
     phase: 'audit', file: 'check_custom.js+check_custom.py', manifest: true, planned: false, lens: 'architecture' },
 

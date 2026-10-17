@@ -34,7 +34,7 @@ class RustAdapter extends BaseAdapter {
    */
   getTools() {
     const baseTools = [
-      { name: 'check_custom',  language: 'js',       path: 'check_custom.js', command: 'node tools/check_custom.js', description: 'Runs user-defined custom rules from .clc-forge.yml' },
+      { name: 'check_custom',  language: 'js',       path: 'check_custom.js', command: 'node tools/check_custom.js', description: 'Runs user-defined custom rules from .clckernel.yaml' },
       { name: 'cargo_clippy',  language: 'external', path: '', command: 'cargo clippy -- -D warnings', description: 'Rust linter and static analysis', extCLI: 'clippy' },
       { name: 'cargo_audit',   language: 'external', path: '', command: 'cargo audit',                description: 'Security vulnerability scanner', extCLI: 'cargo-audit' },
       { name: 'cargo_test',    language: 'external', path: '', command: 'cargo test',                  description: 'Rust test runner', extCLI: 'cargo' },

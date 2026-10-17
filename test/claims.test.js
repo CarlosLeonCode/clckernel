@@ -148,7 +148,6 @@ describe('honest claims — shipped docs', () => {
     path.join(ROOT, 'README.es.md'),
     path.join(ROOT, 'AGENTS.md'),
     ...listMarkdown(path.join(ROOT, '.agents', 'skills', 'clckernel_cli')),
-    ...listMarkdown(path.join(ROOT, '.agents', 'skills', 'clc_forge_cli')),
   ];
 
   for (const doc of docs) {
@@ -191,5 +190,46 @@ describe('honest claims — catalog and tool docstrings', () => {
         return findForbidden(text).map((phrase) => `${f}: ${phrase}`);
       });
     assert.deepStrictEqual(offenders, []);
+  });
+});
+
+// Canonical config name is `.clckernel.yaml`. The other spellings may appear
+// only in a compatibility list, i.e. a line naming all four supported names.
+const CONFIG_NAMES = ['.clckernel.yaml', '.clckernel.yml', '.clc-forge.yaml', '.clc-forge.yml'];
+const NON_CANONICAL_CONFIG_RE = /\.clc-forge\.ya?ml|\.clckernel\.yml(?![a-z])/;
+
+function listTextFiles(dir) {
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) return entry.name === '__pycache__' ? [] : listTextFiles(full);
+    return /\.(js|py|sh|md)$/.test(entry.name) ? [full] : [];
+  });
+}
+
+describe('honest claims — config file name', () => {
+  it('src/, tools/, bin/, READMEs and the skill name only .clckernel.yaml outside compatibility lists', () => {
+    const files = [
+      ...listTextFiles(path.join(ROOT, 'src')),
+      ...listTextFiles(path.join(ROOT, 'tools')),
+      ...listTextFiles(path.join(ROOT, 'bin')),
+      ...listTextFiles(path.join(ROOT, '.agents', 'skills', 'clckernel_cli')),
+      path.join(ROOT, 'README.md'),
+      path.join(ROOT, 'README.es.md'),
+    ];
+    const offenders = [];
+    for (const file of files) {
+      fs.readFileSync(file, 'utf-8').split('\n').forEach((line, i) => {
+        if (!NON_CANONICAL_CONFIG_RE.test(line)) return;
+        if (CONFIG_NAMES.every((name) => line.includes(`'${name}'`))) return;
+        offenders.push(`${path.relative(ROOT, file)}:${i + 1}: ${line.trim()}`);
+      });
+    }
+    assert.deepStrictEqual(offenders, []);
+  });
+
+  it('safeguard descriptions installed by adapters name .clckernel.yaml', () => {
+    const text = CATALOG.map((entry) => entry.checks).join('\n');
+    assert.doesNotMatch(text, NON_CANONICAL_CONFIG_RE);
   });
 });

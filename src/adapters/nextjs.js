@@ -56,7 +56,7 @@ class NextjsAdapter extends BaseAdapter {
       { name: 'check_ui_reuse',     language: 'js',       path: 'check_ui_reuse.js',     command: 'node tools/check_ui_reuse.js',     description: 'Enforces UI primitive reuse from components/ui/' },
       { name: 'check_architecture', language: 'js',       path: 'check_architecture.js', command: 'node tools/check_architecture.js', description: 'Validates Next.js Server Component boundaries' },
       { name: 'check_performance',  language: 'js',       path: 'check_performance.js',  command: 'node tools/check_performance.js',  description: 'Checks next/image and bundle optimization' },
-      { name: 'check_custom',        language: 'js',       path: 'check_custom.js',       command: 'node tools/check_custom.js',       description: 'Runs user-defined custom rules from .clc-forge.yml' },
+      { name: 'check_custom',        language: 'js',       path: 'check_custom.js',       command: 'node tools/check_custom.js',       description: 'Runs user-defined custom rules from .clckernel.yaml' },
       { name: 'tsc',                language: 'external', path: '', command: 'npx tsc --noEmit',        description: 'TypeScript type checking', extCLI: 'tsc' },
       { name: 'lint',               language: 'external', path: '', command: 'npx lint-staged',         description: 'Lint staged files', extCLI: 'lint-staged' },
     ];

@@ -36,7 +36,7 @@ class LaravelAdapter extends BaseAdapter {
    */
   getTools() {
     const baseTools = [
-      { name: 'check_custom', language: 'python',   path: 'check_custom.py', command: 'python3 tools/check_custom.py', description: 'Runs user-defined custom rules from .clc-forge.yml' },
+      { name: 'check_custom', language: 'python',   path: 'check_custom.py', command: 'python3 tools/check_custom.py', description: 'Runs user-defined custom rules from .clckernel.yaml' },
       { name: 'phpstan',  language: 'external', path: '', command: './vendor/bin/phpstan analyse', description: 'PHP static analysis', extCLI: 'phpstan' },
       { name: 'artisan',  language: 'external', path: '', command: 'php artisan test',            description: 'Laravel test runner', extCLI: 'artisan' },
     ];

@@ -1,5 +1,5 @@
 /**
- * CLC Forge — Universal Provisioning Engine
+ * CLC Kernel — Universal Provisioning Engine
  * Manifest-driven tool installation and dynamic pre-commit hook generation.
  */
 
@@ -346,8 +346,8 @@ function isExtendedConfig(config) {
 /**
  * Config-driven path (Slice A, minimal A-03 integration): resolve the raw
  * config (or reuse an already-resolved one marked by index.js/A-05) and emit
- * the resolved harness metadata to `.clckernel.resolved.json` and
- * `.clc-forge.resolved.json` (deterministic: stable key order, 2-space JSON).
+ * the resolved harness metadata to `.clckernel.resolved.json`
+ * (deterministic: stable key order, 2-space JSON).
  * Full layout/tools/hook materialization is the A-04 work unit; here only
  * the metadata flows out.
  * @param {string} targetDir - Target project root
@@ -357,7 +357,7 @@ function isExtendedConfig(config) {
 function generateConfigPathHarness(targetDir, configOrNull) {
   const alreadyResolved =
     configOrNull.__clcKernelConfigPath === true ||
-    configOrNull.__clcForgeConfigPath === true ||
+    configOrNull.__clcForgeConfigPath === true || // legacy marker, still honored
     Array.isArray(configOrNull.__catalog);
   const resolved = alreadyResolved ? configOrNull : resolveConfig(configOrNull, {});
 
@@ -379,11 +379,6 @@ function generateConfigPathHarness(targetDir, configOrNull) {
   fs.mkdirSync(targetDir, { recursive: true });
   fs.writeFileSync(
     path.join(targetDir, '.clckernel.resolved.json'),
-    JSON.stringify(metadata, null, 2) + '\n',
-    'utf-8'
-  );
-  fs.writeFileSync(
-    path.join(targetDir, '.clc-forge.resolved.json'),
     JSON.stringify(metadata, null, 2) + '\n',
     'utf-8'
   );
@@ -525,11 +520,8 @@ When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`,
 function installAgenticCLI(targetDir) {
   // 1. Crear el Directorio de Skills
   const skillDir = path.join(targetDir, '.agents', 'skills', 'clckernel_cli');
-  const legacySkillDir = path.join(targetDir, '.agents', 'skills', 'clc_forge_cli');
   const skillRefDir = path.join(skillDir, 'reference');
-  const legacySkillRefDir = path.join(legacySkillDir, 'reference');
   fs.mkdirSync(skillRefDir, { recursive: true });
-  fs.mkdirSync(legacySkillRefDir, { recursive: true });
 
   // 2. Inyectar el SKILL.md Maestro y Playbooks de Referencia
   const bundledSkillDir = path.join(__dirname, '..', '.agents', 'skills', 'clckernel_cli');
@@ -538,7 +530,6 @@ function installAgenticCLI(targetDir) {
 
   if (fs.existsSync(bundledSkillFile)) {
     fs.copyFileSync(bundledSkillFile, path.join(skillDir, 'SKILL.md'));
-    fs.copyFileSync(bundledSkillFile, path.join(legacySkillDir, 'SKILL.md'));
   }
 
   if (fs.existsSync(bundledRefDir)) {
@@ -547,7 +538,6 @@ function installAgenticCLI(targetDir) {
       const srcPb = path.join(bundledRefDir, pb);
       if (fs.statSync(srcPb).isFile()) {
         fs.copyFileSync(srcPb, path.join(skillRefDir, pb));
-        fs.copyFileSync(srcPb, path.join(legacySkillRefDir, pb));
       }
     }
   }
@@ -559,7 +549,6 @@ function installAgenticCLI(targetDir) {
     'GEMINI.md',                               // Gemini / Project IDX
     '.cursorrules',                            // Cursor legacy
     '.cursor/rules/clckernel_context.mdc',     // Cursor modern (MDC)
-    '.cursor/rules/clc_forge_context.mdc',     // Cursor backward compat
     '.github/copilot-instructions.md',         // GitHub Copilot
     '.antigravity/rules.md'                    // Antigravity (Local Agent)
   ];

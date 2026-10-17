@@ -51,7 +51,7 @@ class AstroAdapter extends BaseAdapter {
       { name: 'check_a11y',       language: 'js',       path: 'check_a11y.js',       command: 'node tools/check_a11y.js',       description: 'Validates ARIA and accessibility rules' },
       { name: 'check_responsive', language: 'js',       path: 'check_responsive.js', command: 'node tools/check_responsive.js', description: 'Audits mobile-first responsiveness and fixed-width overflows' },
       { name: 'check_seo',        language: 'js',       path: 'check_seo.js',        command: 'node tools/check_seo.js',        description: 'Validates SEO metadata, OpenGraph, GEO tags, and LCP priority' },
-      { name: 'check_custom',     language: 'js',       path: 'check_custom.js',     command: 'node tools/check_custom.js',     description: 'Runs user-defined custom rules from .clc-forge.yml' },
+      { name: 'check_custom',     language: 'js',       path: 'check_custom.js',     command: 'node tools/check_custom.js',     description: 'Runs user-defined custom rules from .clckernel.yaml' },
       { name: 'astro_check',      language: 'external', path: '', command: 'npx astro check', description: 'Astro type checking', extCLI: 'astro' },
       { name: 'vitest',           language: 'external', path: '', command: 'npx vitest run',  description: 'Test runner', extCLI: 'vitest' },
     ];

@@ -1,5 +1,5 @@
 /**
- * CLC Forge — Shared Guard Utilities
+ * CLC Kernel — Shared Guard Utilities
  * Common file-reading and result-formatting helpers for technology guards.
  */
 

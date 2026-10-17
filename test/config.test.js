@@ -447,11 +447,11 @@ describe('config A-03: resolveConfig', () => {
 });
 
 describe('config A-03: generateHarness integration', () => {
-  it('generateHarness(config) writes .clc-forge.resolved.json metadata', () => {
+  it('generateHarness(config) writes .clckernel.resolved.json metadata (no legacy copy)', () => {
     const dir = createTmpProject({});
     try {
       const resolved = generateHarness(dir, loadConfig(FULL_VALID_YAML));
-      const meta = JSON.parse(fs.readFileSync(path.join(dir, '.clc-forge.resolved.json'), 'utf-8'));
+      const meta = JSON.parse(fs.readFileSync(path.join(dir, '.clckernel.resolved.json'), 'utf-8'));
       assert.deepStrictEqual(meta.activeGuards, ['check_custom', 'scan_secrets']);
       assert.strictEqual(meta.gateMode, 'advisory');
       assert.deepStrictEqual(meta.phases, HARNESS_PHASES);
@@ -461,6 +461,7 @@ describe('config A-03: generateHarness integration', () => {
       assert.strictEqual(meta.framework, 'unknown');
       assert.strictEqual(meta.__catalog.length, 2);
       assert.deepStrictEqual(resolved.activeGuards, meta.activeGuards);
+      assert.strictEqual(fs.existsSync(path.join(dir, '.clc-forge.resolved.json')), false, 'no legacy copy');
     } finally {
       teardown(dir);
     }
@@ -472,7 +473,7 @@ describe('config A-03: generateHarness integration', () => {
       const resolved = resolveConfig(loadConfig(FULL_VALID_YAML), { ...DETECTED });
       resolved.__clcForgeConfigPath = true;
       generateHarness(dir, resolved);
-      const meta = JSON.parse(fs.readFileSync(path.join(dir, '.clc-forge.resolved.json'), 'utf-8'));
+      const meta = JSON.parse(fs.readFileSync(path.join(dir, '.clckernel.resolved.json'), 'utf-8'));
       assert.strictEqual(meta.framework, 'FastAPI', 'detected metadata preserved (no re-resolve)');
     } finally {
       teardown(dir);
@@ -485,7 +486,7 @@ describe('config A-03: generateHarness integration', () => {
       generateHarness(dir, null);
       assert.ok(fs.existsSync(path.join(dir, 'AGENTS.md')), 'AGENTS.md still written');
       assert.ok(fs.existsSync(path.join(dir, 'tools', 'scan_secrets.py')), 'fallback tools still installed');
-      assert.strictEqual(fs.existsSync(path.join(dir, '.clc-forge.resolved.json')), false, 'no metadata for the legacy/null path');
+      assert.strictEqual(fs.existsSync(path.join(dir, '.clckernel.resolved.json')), false, 'no metadata for the legacy/null path');
     } finally {
       teardown(dir);
     }
@@ -494,9 +495,9 @@ describe('config A-03: generateHarness integration', () => {
     try {
       const { autoDetectStack } = require('../src/detector');
       generateHarness(dir2, autoDetectStack(dir2));
-      assert.strictEqual(fs.existsSync(path.join(dir2, '.clc-forge.resolved.json')), false, 'adapter-detected config does not emit metadata');
+      assert.strictEqual(fs.existsSync(path.join(dir2, '.clckernel.resolved.json')), false, 'adapter-detected config does not emit metadata');
       generateHarness(dir2, undefined);
-      assert.strictEqual(fs.existsSync(path.join(dir2, '.clc-forge.resolved.json')), false);
+      assert.strictEqual(fs.existsSync(path.join(dir2, '.clckernel.resolved.json')), false);
     } finally {
       teardown(dir2);
     }
@@ -506,7 +507,7 @@ describe('config A-03: generateHarness integration', () => {
     const dir = createTmpProject({});
     try {
       assertConfigError(() => generateHarness(dir, { active_guards: ['not_a_guard'] }), /active_guards\[0\]/);
-      assert.strictEqual(fs.existsSync(path.join(dir, '.clc-forge.resolved.json')), false);
+      assert.strictEqual(fs.existsSync(path.join(dir, '.clckernel.resolved.json')), false);
     } finally {
       teardown(dir);
     }

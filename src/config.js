@@ -1,5 +1,5 @@
 /**
- * CLC Kernel - extended .clckernel.yml / .clc-forge.yml loader / validator / resolver.
+ * CLC Kernel - extended .clckernel.yaml loader / validator / resolver.
  * Backbone = src/catalog.js. Invalid config -> actionable ConfigError;
  * never a silent fallback.
  */
@@ -24,14 +24,15 @@ const HARNESS_PHASES = [
 ];
 
 const ENV_SEVERITIES = 'CLCKERNEL_SEVERITIES';
-const LEGACY_ENV_SEVERITIES = 'CLC_FORGE_SEVERITIES';
+// Older spellings, still read so existing setups keep working.
+const LEGACY_ENV_NAMES = ['CLC_KERNEL_SEVERITIES', 'CLC_FORGE_SEVERITIES'];
 const DEFAULT_SCOPE = '.';
 
 class ConfigError extends Error {
   constructor(path, message, allowed) {
     const list = Array.isArray(allowed) ? allowed : allowed != null ? [allowed] : [];
     super(
-      `Invalid .clckernel.yml: key "${path}" — ${message}` +
+      `Invalid .clckernel.yaml: key "${path}" — ${message}` +
         (list.length ? ` (allowed: ${list.join(', ')})` : '')
     );
     this.name = 'ConfigError';
@@ -139,10 +140,9 @@ const loadConfig = (yamlString) => {
 
 /** Env override map (tolerant: malformed JSON/non-object ignored). */
 function envSeverities() {
-  const raw =
-    process.env[ENV_SEVERITIES] ||
-    process.env.CLC_KERNEL_SEVERITIES ||
-    process.env[LEGACY_ENV_SEVERITIES];
+  const raw = [ENV_SEVERITIES, ...LEGACY_ENV_NAMES]
+    .map((name) => process.env[name])
+    .find(Boolean);
   if (!raw) return {};
   try {
     const parsed = JSON.parse(raw);
@@ -183,7 +183,7 @@ function rowApplies(row, detected, detectedTools) {
 }
 
 /**
- * Generation-time severity precedence: env CLC_FORGE_SEVERITIES > config
+ * Generation-time severity precedence: env CLCKERNEL_SEVERITIES > config
  * severities > catalog default > 'error'. (Guard-result still wins at runtime
  * audit — slice C.)
  */

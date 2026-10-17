@@ -54,7 +54,7 @@ class FastApiAdapter extends BaseAdapter {
       { name: 'check_db_efficiency',  language: 'py',       path: 'check_db_efficiency.py',  command: 'python3 tools/check_db_efficiency.py',  description: 'Flags ORM-like calls inside loops (N+1 heuristic)' },
       { name: 'check_migrations',     language: 'py',       path: 'check_migrations.py',     command: 'python3 tools/check_migrations.py',     description: 'Checks Alembic migration reversibility (upgrade/downgrade, destructive operations)' },
       { name: 'verify_tdd',           language: 'py',       path: 'verify_tdd.py',           command: 'python3 tools/verify_tdd.py',           description: 'Runs changed tests against HEAD (must fail) and staged code (must pass)' },
-      { name: 'check_custom',          language: 'python',   path: 'check_custom.py',         command: 'python3 tools/check_custom.py',       description: 'Runs user-defined custom rules from .clc-forge.yml' },
+      { name: 'check_custom',          language: 'python',   path: 'check_custom.py',         command: 'python3 tools/check_custom.py',       description: 'Runs user-defined custom rules from .clckernel.yaml' },
       { name: 'ruff',                 language: 'external', path: '', command: 'python3 -m ruff check .', description: 'Python linter', extCLI: 'ruff' },
       { name: 'pytest',               language: 'external', path: '', command: 'pytest',                   description: 'Test runner', extCLI: 'pytest' },
     ];

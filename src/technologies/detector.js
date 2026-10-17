@@ -1,5 +1,5 @@
 /**
- * CLC Forge — TechnologyDetector
+ * CLC Kernel — TechnologyDetector
  * Detects Phase-1 technologies (Celery, Redis, PostgreSQL, Docker) via file signatures.
  */
 

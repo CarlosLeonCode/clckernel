@@ -1,5 +1,5 @@
 /**
- * CLC Forge — Universal Auto-Discovery Engine
+ * CLC Kernel — Universal Auto-Discovery Engine
  * Inspects repository signatures to auto-match the right polyglot Stack Adapter
  * (Next.js, FastAPI, Django, Astro, Rails, Go, Rust, Laravel).
  */

@@ -6,7 +6,7 @@ Use this playbook when the user wants to update an existing project to the lates
 
 1. **NEVER DELETE OR OVERWRITE `sdds/`:** All local specifications (`sdds/*/spec.md`, `plan.md`) must stay 100% intact.
 2. **NEVER TOUCH CUSTOM GUARDS:** Any user-defined scripts under `tools/guards/` are preserved without alteration.
-3. **NEVER OVERWRITE CONFIGURATION:** Existing `.clckernel.yaml` or `.clc-forge.yaml` settings and custom thresholds remain intact.
+3. **NEVER OVERWRITE CONFIGURATION:** Existing `.clckernel.yaml` settings (or a config under an older name) and custom thresholds remain intact.
 4. **NEVER MODIFY APPLICATION CODE:** Source files, domain layers, and application tests are never touched.
 
 ## Update Sequence
