@@ -94,7 +94,7 @@ def discover_guards(tools_dir: pathlib.Path) -> list[pathlib.Path]:
 def run_guard(guard_path: pathlib.Path, target_dir: str) -> dict:
     """
     Run a single guard module by dynamic import and call its check() function.
-    Returns a normalized result dict on success, or a skip result on failure.
+    Returns a normalized result dict on success, or a FAILED result if it cannot run.
     """
     guard_name = guard_path.stem  # e.g. "check_scope"
 
@@ -102,8 +102,9 @@ def run_guard(guard_path: pathlib.Path, target_dir: str) -> dict:
         spec = importlib.util.spec_from_file_location(guard_name, str(guard_path))
         if spec is None or spec.loader is None:
             return {
-                "exit_code": 0, "skipped": True, "name": guard_name,
-                "data": {"message": f"Cannot load module spec for {guard_name}"},
+                "exit_code": 1, "skipped": False, "name": guard_name,
+                "lens": get_lens(guard_name),
+                "data": {"message": f"Guard crashed: cannot load module spec for {guard_name}"},
             }
 
         mod = importlib.util.module_from_spec(spec)
@@ -112,8 +113,9 @@ def run_guard(guard_path: pathlib.Path, target_dir: str) -> dict:
         fn = getattr(mod, "check", None)
         if fn is None or not callable(fn):
             return {
-                "exit_code": 0, "skipped": True, "name": guard_name,
-                "data": {"message": f"Guard {guard_name} does not export a check() function"},
+                "exit_code": 1, "skipped": False, "name": guard_name,
+                "lens": get_lens(guard_name),
+                "data": {"message": f"Guard crashed: {guard_name} does not export a check() function"},
             }
 
         result = fn(target_dir)
@@ -121,8 +123,9 @@ def run_guard(guard_path: pathlib.Path, target_dir: str) -> dict:
         # Normalize result shape
         if not isinstance(result, dict):
             return {
-                "exit_code": 0, "skipped": True, "name": guard_name,
-                "data": {"message": f"Guard {guard_name} returned non-dict: {type(result).__name__}"},
+                "exit_code": 1, "skipped": False, "name": guard_name,
+                "lens": get_lens(guard_name),
+                "data": {"message": f"Guard crashed: {guard_name} returned non-dict: {type(result).__name__}"},
             }
 
         return {
@@ -134,10 +137,11 @@ def run_guard(guard_path: pathlib.Path, target_dir: str) -> dict:
         }
 
     except Exception as exc:
+        # A guard that cannot run must never approve a commit (fail closed).
         return {
-            "exit_code": 0, "skipped": True, "name": guard_name,
+            "exit_code": 1, "skipped": False, "name": guard_name,
             "lens": get_lens(guard_name),
-            "data": {"message": f"Guard unavailable: {exc}"},
+            "data": {"message": f"Guard crashed: {exc}"},
         }
 
 

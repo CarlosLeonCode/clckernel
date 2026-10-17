@@ -58,9 +58,12 @@ function generateHookFromManifest(adapter, targetDir) {
     if (useHuskyBootstrap) {
       lines.push('. "$(dirname -- "$0")/_/husky.sh"');
     }
+    // Fail closed: any failing guard aborts the commit, not just the last one.
+    lines.push('set -e');
     lines.push('');
   } else {
     lines.push('#!/usr/bin/env bash');
+    lines.push('set -e');
     lines.push(`echo "Running CLC Kernel ${adapter.name} Safeguards..."`);
     lines.push('');
   }
@@ -213,8 +216,8 @@ function generateFallbackHook(targetDir, projectType) {
       ? '. "$(dirname -- "$0")/_/husky.sh"\n'
       : '';
     fs.writeFileSync(hookFile, `#!/usr/bin/env sh
-${bootstrap}
-node tools/scan_secrets.js || true
+${bootstrap}set -e
+node tools/scan_secrets.js
 `, 'utf-8');
     try { fs.chmodSync(hookFile, '755'); } catch (e) {}
   } else {
@@ -222,8 +225,9 @@ node tools/scan_secrets.js || true
     fs.mkdirSync(hookDir, { recursive: true });
     const hookFile = path.join(hookDir, 'pre-commit');
     fs.writeFileSync(hookFile, `#!/usr/bin/env bash
+set -e
 echo "Running CLC Kernel Safeguards..."
-python3 tools/scan_secrets.py || true
+python3 tools/scan_secrets.py
 `, 'utf-8');
     try { fs.chmodSync(hookFile, '755'); } catch (e) {}
     try {

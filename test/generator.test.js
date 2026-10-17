@@ -140,9 +140,9 @@ describe('generateHookFromManifest', () => {
 
         const hookFile = path.join(dir, '.githooks', 'pre-commit');
         const content = fs.readFileSync(hookFile, 'utf-8');
-        // Should only have shebang + echo + blank line, no empty command
+        // Should only have shebang + set -e + echo + blank line, no empty command
         const lines = content.split('\n').filter(l => l.trim().length > 0);
-        assert.strictEqual(lines.length, 2, 'should only have shebang and echo line');
+        assert.strictEqual(lines.length, 3, 'should only have shebang, set -e and echo line');
       } finally {
         teardown(dir);
       }
@@ -443,4 +443,71 @@ describe('generateHarness', () => {
       }
     });
   });
+});
+
+describe('fail-closed pre-commit hooks', () => {
+  const { spawnSync } = require('child_process');
+
+  function readHook(dir, projectType) {
+    const rel = projectType === 'frontend' ? '.husky/pre-commit' : '.githooks/pre-commit';
+    return fs.readFileSync(path.join(dir, rel), 'utf-8');
+  }
+
+  function assertFailClosed(content) {
+    const lines = content.split('\n');
+    assert.ok(lines.includes('set -e'), 'hook must enable set -e');
+    assert.ok(!content.includes('|| true'), 'hook must not swallow exit codes with || true');
+    const setEIndex = lines.indexOf('set -e');
+    const firstCommand = lines.findIndex((l, i) => i > 0 && l.trim() && !l.startsWith('#') && !l.startsWith('. ') && l !== 'set -e');
+    assert.ok(firstCommand === -1 || setEIndex < firstCommand, 'set -e must come before any command');
+  }
+
+  for (const projectType of ['frontend', 'backend']) {
+    it(`manifest hook for ${projectType} enables set -e and has no || true`, () => {
+      const adapter = {
+        projectType,
+        name: 'Test Adapter',
+        getTools: () => [{ name: 'scan', command: 'node tools/scan_secrets.js', language: 'js', path: 'scan_secrets.js' }],
+      };
+      const dir = createTmpProject({});
+      try {
+        generateHookFromManifest(adapter, dir);
+        assertFailClosed(readHook(dir, projectType));
+      } finally {
+        teardown(dir);
+      }
+    });
+
+    it(`fallback hook for ${projectType} enables set -e and has no || true`, () => {
+      const dir = createTmpProject({});
+      try {
+        generateHarness(dir, { projectType, framework: 'X', testRunner: 'Y', adapter: null });
+        assertFailClosed(readHook(dir, projectType));
+      } finally {
+        teardown(dir);
+      }
+    });
+
+    it(`manifest hook for ${projectType} exits non-zero when a middle command fails`, () => {
+      const adapter = {
+        projectType,
+        name: 'Test Adapter',
+        getTools: () => [
+          { name: 'a', command: 'true', language: 'js', path: 'a.js' },
+          { name: 'b', command: 'false', language: 'js', path: 'b.js' },
+          { name: 'c', command: 'true', language: 'js', path: 'c.js' },
+        ],
+      };
+      const dir = createTmpProject({});
+      try {
+        generateHookFromManifest(adapter, dir);
+        const rel = projectType === 'frontend' ? '.husky/pre-commit' : '.githooks/pre-commit';
+        const shell = projectType === 'frontend' ? 'sh' : 'bash';
+        const res = spawnSync(shell, [path.join(dir, rel)], { cwd: dir, encoding: 'utf-8' });
+        assert.notStrictEqual(res.status, 0, 'a failing middle command must fail the hook');
+      } finally {
+        teardown(dir);
+      }
+    });
+  }
 });

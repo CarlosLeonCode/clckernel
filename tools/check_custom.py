@@ -362,9 +362,10 @@ def check(target_dir: Optional[str] = None) -> dict:
 
 def _get_changed_files(dir_path: str) -> Optional[list[str]]:
     """Get list of changed files via git diff. Returns None if no diff available."""
+    # Staged changes first (what is being committed); HEAD~1 only when nothing is staged.
     try:
         result = subprocess.run(
-            ['git', 'diff', '--name-only', 'HEAD~1'],
+            ['git', 'diff', '--cached', '--name-only', '--diff-filter=ACMR'],
             cwd=dir_path, capture_output=True, text=True, timeout=10,
         )
         files = [f for f in result.stdout.split('\n') if f.strip()]
@@ -375,7 +376,7 @@ def _get_changed_files(dir_path: str) -> Optional[list[str]]:
 
     try:
         result = subprocess.run(
-            ['git', 'diff', '--name-only', '--cached'],
+            ['git', 'diff', '--name-only', '--diff-filter=ACMR', 'HEAD~1'],
             cwd=dir_path, capture_output=True, text=True, timeout=10,
         )
         files = [f for f in result.stdout.split('\n') if f.strip()]

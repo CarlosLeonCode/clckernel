@@ -80,3 +80,85 @@ describe('Audit Orchestrator & 4-Lens RDD Receipt', () => {
     }
   });
 });
+
+describe('Audit orchestrator fails closed on broken guards', () => {
+  const { spawnSync } = require('child_process');
+  const auditJs = path.resolve(__dirname, '..', 'tools', 'audit.js');
+  const auditPy = path.resolve(__dirname, '..', 'tools', 'audit.py');
+
+  function readReceipt(dir) {
+    const sddsDir = path.join(dir, 'sdds');
+    const sub = fs.readdirSync(sddsDir).filter(f => fs.statSync(path.join(sddsDir, f)).isDirectory())[0];
+    return JSON.parse(fs.readFileSync(path.join(sddsDir, sub, 'audit-receipt.json'), 'utf-8'));
+  }
+
+  describe('audit.js', () => {
+    const { runGuard } = require('../tools/audit.js');
+
+    it('reports a guard that throws as FAILED, not skipped', async () => {
+      const dir = createTmpProject({ 'tools/check_boom.js': `module.exports = async () => { throw new Error('kaboom'); };` });
+      try {
+        const result = await runGuard(path.join(dir, 'tools', 'check_boom.js'), dir);
+        assert.strictEqual(result.exitCode, 1);
+        assert.strictEqual(result.skipped, false);
+        assert.match(result.data.message, /Guard crashed: kaboom/);
+
+        const res = spawnSync('node', [auditJs, dir], { encoding: 'utf-8' });
+        assert.notStrictEqual(res.status, 0, 'audit must exit non-zero when a guard crashes');
+        assert.strictEqual(readReceipt(dir).verdict, 'FAILED');
+      } finally {
+        teardown(dir);
+      }
+    });
+
+    it('reports a guard that exports no function as FAILED', async () => {
+      const dir = createTmpProject({ 'tools/check_empty.js': `module.exports = { notAFunction: 42 };` });
+      try {
+        const result = await runGuard(path.join(dir, 'tools', 'check_empty.js'), dir);
+        assert.strictEqual(result.exitCode, 1);
+        assert.strictEqual(result.skipped, false);
+
+        const res = spawnSync('node', [auditJs, dir], { encoding: 'utf-8' });
+        assert.notStrictEqual(res.status, 0, 'audit must exit non-zero when a guard is not callable');
+        assert.strictEqual(readReceipt(dir).verdict, 'FAILED');
+      } finally {
+        teardown(dir);
+      }
+    });
+  });
+
+  describe('audit.py', () => {
+    // audit.py discovers guards next to itself and writes reports under its
+    // parent's sdds/, so it is copied into a temp tools/ directory.
+    function runPyAudit(guardSource) {
+      const dir = createTmpProject({
+        'tools/audit.py': fs.readFileSync(auditPy, 'utf-8'),
+        'tools/check_broken.py': guardSource,
+      });
+      const res = spawnSync('python3', [path.join(dir, 'tools', 'audit.py'), dir], { cwd: dir, encoding: 'utf-8' });
+      return { dir, res };
+    }
+
+    it('reports a guard that raises as FAILED and exits non-zero', () => {
+      const { dir, res } = runPyAudit('def check(target_dir=None):\n    raise RuntimeError("kaboom")\n');
+      try {
+        assert.notStrictEqual(res.status, 0, `audit.py must exit non-zero: ${res.stdout}${res.stderr}`);
+        const receipt = readReceipt(dir);
+        assert.strictEqual(receipt.verdict, 'FAILED');
+        assert.match(res.stdout, /Guard crashed: kaboom/);
+      } finally {
+        teardown(dir);
+      }
+    });
+
+    it('reports a guard that returns a non-dict as FAILED and exits non-zero', () => {
+      const { dir, res } = runPyAudit('def check(target_dir=None):\n    return "ok"\n');
+      try {
+        assert.notStrictEqual(res.status, 0, `audit.py must exit non-zero: ${res.stdout}${res.stderr}`);
+        assert.strictEqual(readReceipt(dir).verdict, 'FAILED');
+      } finally {
+        teardown(dir);
+      }
+    });
+  });
+});

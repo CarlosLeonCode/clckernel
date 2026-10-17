@@ -26,13 +26,19 @@ const check = async function checkStorybook(targetDir) {
   // Collect changed component files
   let files;
   try {
-    const out = execSync('git diff --name-only HEAD~1', {
+    // Staged changes first (what is being committed); HEAD~1 only when nothing is staged.
+    let out = execSync('git diff --cached --name-only --diff-filter=ACMR', {
       cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe']
     });
+    if (!out.trim()) {
+      out = execSync('git diff --name-only --diff-filter=ACMR HEAD~1', {
+        cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe']
+      });
+    }
     files = out.split('\n').filter(f => /\.(tsx|jsx)$/.test(f.trim()));
   } catch {
     try {
-      const out = execSync('git diff --name-only --cached', {
+      const out = execSync('git diff --cached --name-only --diff-filter=ACMR', {
         cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe']
       });
       files = out.split('\n').filter(f => /\.(tsx|jsx)$/.test(f.trim()));

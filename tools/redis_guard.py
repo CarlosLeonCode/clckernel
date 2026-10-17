@@ -16,13 +16,10 @@ from pathlib import Path
 
 def _get_changed_files(target_dir: str) -> list[str] | None:
     """Return list of changed Python files from git diff, or None on failure."""
-    for ref in ("HEAD~1", "--cached"):
+    # Staged changes first (what is being committed); HEAD~1 only when nothing is staged.
+    for ref in ("--cached", "HEAD~1"):
         try:
-            args = ["git", "diff", "--name-only"]
-            if ref == "--cached":
-                args.append("--cached")
-            else:
-                args.append(ref)
+            args = ["git", "diff", "--name-only", "--diff-filter=ACMR", ref]
             out = subprocess.check_output(
                 args, cwd=target_dir,
                 stderr=subprocess.DEVNULL, text=True,
@@ -31,7 +28,7 @@ def _get_changed_files(target_dir: str) -> list[str] | None:
                 f.strip() for f in out.splitlines()
                 if f.strip().endswith('.py')
             ]
-            if files:
+            if files or (ref == "--cached" and out.strip()):
                 return files
         except (subprocess.CalledProcessError, FileNotFoundError):
             continue

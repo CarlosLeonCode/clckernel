@@ -118,17 +118,25 @@ def check(target_dir: str | None = None) -> dict:
     # Get changed python files
     files: list[str] = []
     try:
+        # Staged changes first (what is being committed); HEAD~1 only when nothing is staged.
         out = subprocess.check_output(
-            ["git", "diff", "--name-only", "HEAD~1"],
+            ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
             cwd=dir_path,
             stderr=subprocess.PIPE,
             text=True
         )
+        if not out.strip():
+            out = subprocess.check_output(
+                ["git", "diff", "--name-only", "--diff-filter=ACMR", "HEAD~1"],
+                cwd=dir_path,
+                stderr=subprocess.PIPE,
+                text=True
+            )
         files = [f.strip() for f in out.splitlines() if f.strip().endswith(".py")]
     except Exception:
         try:
             out = subprocess.check_output(
-                ["git", "diff", "--name-only", "--cached"],
+                ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
                 cwd=dir_path,
                 stderr=subprocess.PIPE,
                 text=True

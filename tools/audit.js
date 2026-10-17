@@ -98,7 +98,7 @@ function discoverGuards(toolsDirParam) {
  * Run a single guard module with try/catch.
  * @param {string} guardPath - Absolute path to the guard script
  * @param {string} targetDir - Directory to scan
- * @returns {object} Result from the guard, or a skip result on failure
+ * @returns {object} Result from the guard, or a FAILED result if it cannot run
  */
 async function runGuard(guardPath, targetDir) {
   const guardName = path.basename(guardPath, '.js');
@@ -108,8 +108,8 @@ async function runGuard(guardPath, targetDir) {
     const fn = typeof mod === 'function' ? mod : Object.values(mod)[0];
     if (typeof fn !== 'function') {
       return {
-        exitCode: 0, skipped: true, name: guardName, lens,
-        data: { message: `Guard ${guardName} does not export a function` },
+        exitCode: 1, skipped: false, name: guardName, lens,
+        data: { message: `Guard crashed: ${guardName} does not export a function` },
       };
     }
     const result = await fn(targetDir);
@@ -122,9 +122,10 @@ async function runGuard(guardPath, targetDir) {
       data: result.data || result,
     };
   } catch (e) {
+    // A guard that cannot run must never approve a commit (fail closed).
     return {
-      exitCode: 0, skipped: true, name: guardName, lens,
-      data: { message: `Guard unavailable: ${e.message}` },
+      exitCode: 1, skipped: false, name: guardName, lens,
+      data: { message: `Guard crashed: ${e.message}` },
     };
   }
 }

@@ -1,3 +1,5 @@
 #!/usr/bin/env bash
+set -e
 echo "Running CLC Kernel Safeguards..."
-python3 tools/scan_secrets.py || true
+node tools/scan_secrets.js
+npm test
