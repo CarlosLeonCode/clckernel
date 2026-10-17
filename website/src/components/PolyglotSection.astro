@@ -22,7 +22,9 @@ const stacks = isEs ? [
     snippet: `// Detected: Next.js App Router (TypeScript)
 // Initialized: .cursorrules, CLAUDE.md, AGY rules
 // Audit Engine: Node.js pattern-based guards
-✔ Hook installed: .husky/pre-commit -> node tools/audit.js
+✔ Hook installed: .husky/pre-commit -> node tools/scan_secrets.js,
+  check_a11y, check_responsive, check_seo, check_ui_reuse,
+  check_architecture, check_performance, check_custom
 ✔ Enforcing: Mobile-first CSS & Clean Layer Isolation`,
   },
   {
@@ -37,7 +39,9 @@ const stacks = isEs ? [
     snippet: `# Detected: FastAPI Backend (Python 3.11+)
 # Initialized: GEMINI.md, CLAUDE.md, .cursorrules
 # Audit Engine: Python Native ast Module
-✔ Hook installed: .git/hooks/pre-commit -> python tools/audit.py
+✔ Hook installed: .githooks/pre-commit -> python3 tools/scan_secrets.py,
+  check_architecture, check_db_efficiency, check_migrations,
+  verify_tdd, check_custom
 ✔ Enforcing: Red→Green TDD Verifier & N+1 Heuristic`,
   },
   {
@@ -52,7 +56,8 @@ const stacks = isEs ? [
     snippet: `# Detected: Django Enterprise Stack
 # Initialized: CLAUDE.md, .antigravity/rules.md
 # Audit Engine: Python Native ast Module
-✔ Hook installed: pre-commit -> python tools/audit.py
+✔ Hook installed: .githooks/pre-commit -> python3 tools/scan_secrets.py,
+  check_architecture, check_db_efficiency, verify_tdd, check_custom
 ✔ Enforcing: Red→Green TDD Verifier & N+1 Heuristic`,
   },
   {
@@ -77,13 +82,15 @@ const stacks = isEs ? [
     icon: "💎",
     detection: "Gemfile (rails)",
     runner: "bundle exec rspec",
-    gate: "ruby tools/audit.rb",
-    rules: "Schema Integrity + Secret Leak Scanner",
+    gate: ".githooks/pre-commit",
+    rules: "Custom Rules + RuboCop / Brakeman (when installed)",
     snippet: `# Detected: Ruby on Rails Application (Ruby 3.2+)
 # Initialized: .cursorrules, CLAUDE.md, .antigravity/rules.md
 # Audit Engine: RuboCop + Brakeman (external CLIs)
-✔ Hook installed: .git/hooks/pre-commit -> ruby tools/audit.rb
-✔ Enforcing: TDD protocol (agent-enforced) & No Leaked Keys`,
+✔ Hook installed: .githooks/pre-commit -> node tools/check_custom.js
+✔ Added when installed: bundle exec rubocop --parallel,
+  bundle exec brakeman -q, bundle exec rspec
+✔ Enforcing: Custom rules (.clckernel.yaml) & TDD protocol (agent-enforced)`,
   },
   {
     id: "golang",
@@ -91,14 +98,15 @@ const stacks = isEs ? [
     lang: "Go",
     icon: "🔷",
     detection: "go.mod",
-    runner: "go test -v ./...",
-    gate: "go run tools/audit.go",
-    rules: "Architecture Boundaries + Docker Security",
+    runner: "go test ./...",
+    gate: ".githooks/pre-commit",
+    rules: "Custom Rules + golangci-lint (when installed)",
     snippet: `// Detected: Go Microservices Suite (Go 1.22+)
 // Initialized: CLAUDE.md, .antigravity/rules.md
 // Audit Engine: golangci-lint (external CLI)
-✔ Hook installed: .git/hooks/pre-commit -> go run tools/audit.go
-✔ Enforcing: Rootless Dockerfiles & Clean Layer Isolation`,
+✔ Hook installed: .githooks/pre-commit -> node tools/check_custom.js
+✔ Added when installed: golangci-lint run, go test ./...
+✔ Enforcing: Custom rules (.clckernel.yaml) & Scope protocol (agent-enforced)`,
   },
   {
     id: "rust",
@@ -107,13 +115,15 @@ const stacks = isEs ? [
     icon: "🦀",
     detection: "Cargo.toml",
     runner: "cargo test",
-    gate: "cargo run --bin audit",
-    rules: "Clippy Lints + cargo audit",
+    gate: ".githooks/pre-commit",
+    rules: "Custom Rules + Clippy / cargo audit (when installed)",
     snippet: `// Detected: Rust High-Performance Engine (Cargo)
 // Initialized: .cursorrules, CLAUDE.md
 // Audit Engine: cargo clippy + cargo audit (external CLIs)
-✔ Hook installed: .git/hooks/pre-commit -> cargo run --bin audit
-✔ Enforcing: Scope protocol (agent-enforced) & Automated Test Pass`,
+✔ Hook installed: .githooks/pre-commit -> node tools/check_custom.js
+✔ Added when installed: cargo clippy -- -D warnings, cargo audit,
+  cargo test
+✔ Enforcing: Custom rules (.clckernel.yaml) & Scope protocol (agent-enforced)`,
   },
   {
     id: "laravel",
@@ -122,13 +132,14 @@ const stacks = isEs ? [
     icon: "🐘",
     detection: "composer.json (laravel/framework)",
     runner: "php artisan test",
-    gate: "php tools/audit.php",
-    rules: "Migration Safety + Layer Isolation",
+    gate: ".githooks/pre-commit",
+    rules: "Custom Rules + PHPStan (when installed)",
     snippet: `// Detected: Laravel Application (PHP 8.2+)
 // Initialized: .cursorrules, CLAUDE.md
 // Audit Engine: PHPStan (external CLI)
-✔ Hook installed: .git/hooks/pre-commit -> php tools/audit.php
-✔ Enforcing: Static Analysis & TDD protocol (agent-enforced)`,
+✔ Hook installed: .githooks/pre-commit -> python3 tools/check_custom.py
+✔ Added when installed: ./vendor/bin/phpstan analyse, php artisan test
+✔ Enforcing: Custom rules (.clckernel.yaml) & TDD protocol (agent-enforced)`,
   },
   {
     id: "agent-os",
@@ -142,7 +153,8 @@ const stacks = isEs ? [
     snippet: `// Detectado: Agent-OS & Domain Workflows
 // Inicializado: AGENTS.md Dual (Ingeniería + Dominio)
 // Motor de Auditoría: Checkpoints HITL & Symlinks
-✔ Hook instalado: .githooks/pre-commit -> node tools/audit.js
+✔ Hook instalado: .githooks/pre-commit -> node tools/check_symlinks.js,
+  check_hitl, check_domain_data, check_test_calendar_sync, scan_secrets
 ✔ Aplicando: Human-in-the-Loop & Métricas Limpias`,
   },
 ] : [
@@ -158,7 +170,9 @@ const stacks = isEs ? [
     snippet: `// Detected: Next.js App Router (TypeScript)
 // Initialized: .cursorrules, CLAUDE.md, AGY rules
 // Audit Engine: Node.js pattern-based guards
-✔ Hook installed: .husky/pre-commit -> node tools/audit.js
+✔ Hook installed: .husky/pre-commit -> node tools/scan_secrets.js,
+  check_a11y, check_responsive, check_seo, check_ui_reuse,
+  check_architecture, check_performance, check_custom
 ✔ Enforcing: Mobile-first CSS & Clean Layer Isolation`,
   },
   {
@@ -173,7 +187,9 @@ const stacks = isEs ? [
     snippet: `# Detected: FastAPI Backend (Python 3.11+)
 # Initialized: GEMINI.md, CLAUDE.md, .cursorrules
 # Audit Engine: Python Native ast Module
-✔ Hook installed: .git/hooks/pre-commit -> python tools/audit.py
+✔ Hook installed: .githooks/pre-commit -> python3 tools/scan_secrets.py,
+  check_architecture, check_db_efficiency, check_migrations,
+  verify_tdd, check_custom
 ✔ Enforcing: Red→Green TDD Verifier & N+1 Heuristic`,
   },
   {
@@ -188,7 +204,8 @@ const stacks = isEs ? [
     snippet: `# Detected: Django Enterprise Stack
 # Initialized: CLAUDE.md, .antigravity/rules.md
 # Audit Engine: Python Native ast Module
-✔ Hook installed: pre-commit -> python tools/audit.py
+✔ Hook installed: .githooks/pre-commit -> python3 tools/scan_secrets.py,
+  check_architecture, check_db_efficiency, verify_tdd, check_custom
 ✔ Enforcing: Red→Green TDD Verifier & N+1 Heuristic`,
   },
   {
@@ -213,13 +230,15 @@ const stacks = isEs ? [
     icon: "💎",
     detection: "Gemfile (rails)",
     runner: "bundle exec rspec",
-    gate: "ruby tools/audit.rb",
-    rules: "Schema Integrity + Secret Leak Scanner",
+    gate: ".githooks/pre-commit",
+    rules: "Custom Rules + RuboCop / Brakeman (when installed)",
     snippet: `# Detected: Ruby on Rails Application (Ruby 3.2+)
 # Initialized: .cursorrules, CLAUDE.md, .antigravity/rules.md
 # Audit Engine: RuboCop + Brakeman (external CLIs)
-✔ Hook installed: .git/hooks/pre-commit -> ruby tools/audit.rb
-✔ Enforcing: TDD protocol (agent-enforced) & No Leaked Keys`,
+✔ Hook installed: .githooks/pre-commit -> node tools/check_custom.js
+✔ Added when installed: bundle exec rubocop --parallel,
+  bundle exec brakeman -q, bundle exec rspec
+✔ Enforcing: Custom rules (.clckernel.yaml) & TDD protocol (agent-enforced)`,
   },
   {
     id: "golang",
@@ -227,14 +246,15 @@ const stacks = isEs ? [
     lang: "Go",
     icon: "🔷",
     detection: "go.mod",
-    runner: "go test -v ./...",
-    gate: "go run tools/audit.go",
-    rules: "Architecture Boundaries + Docker Security",
+    runner: "go test ./...",
+    gate: ".githooks/pre-commit",
+    rules: "Custom Rules + golangci-lint (when installed)",
     snippet: `// Detected: Go Microservices Suite (Go 1.22+)
 // Initialized: CLAUDE.md, .antigravity/rules.md
 // Audit Engine: golangci-lint (external CLI)
-✔ Hook installed: .git/hooks/pre-commit -> go run tools/audit.go
-✔ Enforcing: Rootless Dockerfiles & Clean Layer Isolation`,
+✔ Hook installed: .githooks/pre-commit -> node tools/check_custom.js
+✔ Added when installed: golangci-lint run, go test ./...
+✔ Enforcing: Custom rules (.clckernel.yaml) & Scope protocol (agent-enforced)`,
   },
   {
     id: "rust",
@@ -243,13 +263,15 @@ const stacks = isEs ? [
     icon: "🦀",
     detection: "Cargo.toml",
     runner: "cargo test",
-    gate: "cargo run --bin audit",
-    rules: "Clippy Lints + cargo audit",
+    gate: ".githooks/pre-commit",
+    rules: "Custom Rules + Clippy / cargo audit (when installed)",
     snippet: `// Detected: Rust High-Performance Engine (Cargo)
 // Initialized: .cursorrules, CLAUDE.md
 // Audit Engine: cargo clippy + cargo audit (external CLIs)
-✔ Hook installed: .git/hooks/pre-commit -> cargo run --bin audit
-✔ Enforcing: Scope protocol (agent-enforced) & Automated Test Pass`,
+✔ Hook installed: .githooks/pre-commit -> node tools/check_custom.js
+✔ Added when installed: cargo clippy -- -D warnings, cargo audit,
+  cargo test
+✔ Enforcing: Custom rules (.clckernel.yaml) & Scope protocol (agent-enforced)`,
   },
   {
     id: "laravel",
@@ -258,13 +280,14 @@ const stacks = isEs ? [
     icon: "🐘",
     detection: "composer.json (laravel/framework)",
     runner: "php artisan test",
-    gate: "php tools/audit.php",
-    rules: "Migration Safety + Layer Isolation",
+    gate: ".githooks/pre-commit",
+    rules: "Custom Rules + PHPStan (when installed)",
     snippet: `// Detected: Laravel Application (PHP 8.2+)
 // Initialized: .cursorrules, CLAUDE.md
 // Audit Engine: PHPStan (external CLI)
-✔ Hook installed: .git/hooks/pre-commit -> php tools/audit.php
-✔ Enforcing: Static Analysis & TDD protocol (agent-enforced)`,
+✔ Hook installed: .githooks/pre-commit -> python3 tools/check_custom.py
+✔ Added when installed: ./vendor/bin/phpstan analyse, php artisan test
+✔ Enforcing: Custom rules (.clckernel.yaml) & TDD protocol (agent-enforced)`,
   },
   {
     id: "agent-os",
@@ -278,7 +301,8 @@ const stacks = isEs ? [
     snippet: `// Detected: Agent-OS & Domain Workflows
 // Initialized: Dual-Layer AGENTS.md (Dev + Domain)
 // Audit Engine: HITL Checkpoints & Symlinks
-✔ Hook installed: .githooks/pre-commit -> node tools/audit.js
+✔ Hook installed: .githooks/pre-commit -> node tools/check_symlinks.js,
+  check_hitl, check_domain_data, check_test_calendar_sync, scan_secrets
 ✔ Enforcing: Human-in-the-Loop & Clean State Metrics`,
   },
 ];

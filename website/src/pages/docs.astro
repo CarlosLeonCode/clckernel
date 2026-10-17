@@ -82,9 +82,9 @@ $ npx clckernel update
       {
         id: "core-safeguards",
         title: "Adaptive Out-of-the-Box Layers",
-        desc: "CLC Kernel automatically provisions safeguards in your project's native runtime (Ruby, Python, Go, Node, PHP) running in < 5ms with zero foreign dependencies.",
+        desc: "CLC Kernel automatically provisions safeguards in your project's native runtime (Ruby, Python, Go, Node, PHP) with zero foreign dependencies.",
         code: `// Built-in Safeguards Catalog:
-1. scan_secrets         -> Blocks AWS/Stripe keys & JWT tokens (0 false positives)
+1. scan_secrets         -> Blocks AWS/Stripe keys & JWT tokens (regex patterns)
 2. check_architecture   -> Enforces Clean Arch layer isolation (Domain -> Use Case -> Infra)
 3. check_db_efficiency  -> N+1 heuristic: flags ORM-like calls inside loops (Python AST)
 4. check_responsive     -> Audits mobile-first CSS & 44x44px touch targets
@@ -231,7 +231,7 @@ $ claude
       },
       {
         id: "domain-safeguards-spec",
-        title: "Domain Safeguards (< 5ms)",
+        title: "Domain Safeguards",
         desc: "Dedicated zero-dependency guards protecting IDE configuration parity, agent workflow safety gates, and data payload integrity.",
         code: `// 1. check_symlinks: Validates symlinks for IDE rule mirrors
 $ node tools/check_symlinks.js

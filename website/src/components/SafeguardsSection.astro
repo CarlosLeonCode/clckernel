@@ -14,7 +14,7 @@ const items = isEs ? [
     id: "secrets",
     icon: "🛡️",
     title: "Anti-Fuga de Secretos",
-    keyPoint: "Bloquea llaves de AWS/Stripe, JWTs y passwords en el diff con 0 falsos positivos.",
+    keyPoint: "Bloquea llaves de AWS/Stripe, JWTs y passwords en el diff mediante patrones regex.",
     tag: "scan_secrets (Regex)",
     accent: "rose",
   },
@@ -55,7 +55,7 @@ const items = isEs ? [
     id: "secrets",
     icon: "🛡️",
     title: "Anti-Secret Leaks",
-    keyPoint: "Blocks AWS/Stripe keys, JWT tokens, and DB passwords in diffs with 0 false positives.",
+    keyPoint: "Blocks AWS/Stripe keys, JWT tokens, and DB passwords in diffs using regex patterns.",
     tag: "scan_secrets (Regex)",
     accent: "rose",
   },
@@ -136,7 +136,7 @@ const items = isEs ? [
         <span class="w-2 h-2 rounded-full bg-cyan-600 animate-ping"></span>
         <div>
           <div class="text-[10px] font-mono uppercase text-cyan-800 font-bold">{isEs ? "Guards Nativos" : "Native Guards"}</div>
-          <div class="text-xs font-bold text-slate-900">{isEs ? "0 Dependencias (< 5ms)" : "0 Dependencies (< 5ms)"}</div>
+          <div class="text-xs font-bold text-slate-900">{isEs ? "0 Dependencias" : "0 Dependencies"}</div>
         </div>
       </div>
 

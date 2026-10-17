@@ -124,8 +124,8 @@ if (isDomainFile(filePath) && importsInfra) {
     badgeColor: 'bg-rose-50 border-rose-200 text-rose-900',
     type: 'JavaScript • Security Guard',
     desc: isEs
-      ? 'Escanea credenciales hardcodeadas (API keys, tokens JWT, private keys) en el diff antes del commit con 0 falsos positivos.'
-      : 'Scans staged diffs for hardcoded API keys, JWT tokens, and credentials before commit with 0 false positives.',
+      ? 'Escanea credenciales hardcodeadas (API keys, tokens JWT, private keys) en el diff antes del commit mediante patrones regex (pueden darse falsos positivos).'
+      : 'Scans staged diffs for hardcoded API keys, JWT tokens, and credentials before commit using regex patterns (false positives are possible).',
     codeTitle: 'tools/scan_secrets.js',
     codeLang: 'javascript',
     code: `const diff = execSync('git diff --cached', { encoding: 'utf8' });
@@ -158,15 +158,15 @@ if (leaks.length > 0) {
     badgeColor: 'bg-cyan-50 border-cyan-200 text-cyan-900',
     type: 'JavaScript • Master Gate',
     desc: isEs
-      ? 'Orquestador maestro que ejecuta todas las compuertas activas en pre-commit (<5ms) y emite el resumen educativo al agente y al desarrollador.'
-      : 'Master orchestrator running all active safeguard layers at pre-commit (<5ms) and emitting the educational summary to agent and developer.',
+      ? 'Orquestador maestro que ejecuta cada guard check_*/scan_* de tools/ y emite el resumen educativo al agente y al desarrollador.'
+      : 'Master orchestrator running every check_*/scan_* guard in tools/ and emitting the educational summary to agent and developer.',
     codeTitle: 'tools/audit.js',
     codeLang: 'bash',
     code: `$ node tools/audit.js
-✔ scan_secrets: PASS (0.8ms)
-✔ check_architecture: PASS (1.2ms)
-✔ check_db_efficiency: PASS (1.4ms)
-🚀 Audit Gate: 0 Violations (<5ms) • Ready for commit`
+✔ scan_secrets: PASS
+✔ check_architecture: PASS
+✔ check_db_efficiency: PASS
+🚀 Audit Gate: 0 Violations • Ready for commit`
   },
   'husky_precommit': {
     path: '.husky/pre-commit',
