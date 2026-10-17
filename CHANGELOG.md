@@ -18,6 +18,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Legacy `clc-forge` artifacts.** Installs no longer create the `clc_forge_cli` skill, the
   `clc_forge_context.mdc` Cursor rule or `.clc-forge.resolved.json`, and `clckernel update` removes them when
   they are provably harness-generated (it reports anything it keeps).
+- **`check_hitl` requires an explicit marker.** A changed skill or playbook must contain a `HITL:` line or a
+  `## Human checkpoint` / `## HITL` section; words such as "review" or "confirm" no longer pass. The guard now
+  also covers `playbooks/` and evaluates the files changed in the commit. Existing Agent-OS repositories may
+  start failing when they touch a skill or playbook without a marker.
 
 ### Added
 
@@ -30,6 +34,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `tools/.clckernel-managed.json` registry, so guards and both TDD verifiers skip the harness's own files and
   the first commit after an install passes the real hook.
 - `scan_secrets` detects Stripe `sk_`/`rk_` live and test keys.
+- Generic Agent-OS detection: `SKILL.md` in `skills/<name>/`, `.agents/skills/<name>/` or
+  `.claude/skills/<name>/`, or a `playbooks/` / `rules/` folder with Markdown (the `package.json` keywords
+  still work). The harness's own skill is ignored, and a code stack in the same repository wins.
+- Agent-OS guards `check_skills` (SKILL.md frontmatter: `name`, `description`, unique names),
+  `check_links` (relative Markdown links resolve in the commit) and `check_placeholders` (forgotten draft
+  markers outside `templates/`); `check_custom` is now installed for Agent-OS.
+- `listFiles` / `list_files` in `tools/_changes.*`: every file of the snapshot being verified.
 - CI on Node 18/20/22 and Python 3.9/3.13 (without PyYAML), plus a shared YAML conformance suite and
   regression tests for documentation claims and repository hygiene.
 
@@ -40,6 +51,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Hooks run each stack's external tools (ruff, pytest, rubocop, rspec, phpstan, golangci-lint, go test, cargo)
   when available and print "not available, skipped" otherwise; Rails, Go, Laravel and Rust run the secret scan.
 - Choosing another stack in the prompt selects a real adapter instead of only changing the project type.
+- Agent-OS: `check_domain_data` and `check_test_calendar_sync` are installed only when the repository has
+  `templates/content-calendar/` or `content-calendar/`; `check_symlinks` also fails a rule mirror that does not
+  point to `AGENTS.md` (symlink or identical copy); the generated `AGENTS.md` describes only the folders the
+  repository has.
 - The CLI refuses missing targets and reserved words as directories, sets `core.hooksPath` only at the
   repository root when unset or already `.githooks`, and `doctor` exits 1 when a check fails.
 - `scan_secrets` redacts detected secrets in its output.

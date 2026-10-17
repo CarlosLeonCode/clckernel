@@ -46,8 +46,8 @@ const items = isEs ? [
     id: "domain",
     icon: "🤖",
     title: "Gobernanza Agent-OS & Dominio",
-    keyPoint: "Supervisa symlinks de IDEs, compuertas Human-in-the-Loop y esquemas JSON limpios.",
-    tag: "check_hitl / symlinks (Domain)",
+    keyPoint: "Exige marcadores Human-in-the-Loop explícitos, valida el frontmatter de las skills, los links relativos, los placeholders olvidados y los mirrors de AGENTS.md.",
+    tag: "check_hitl / check_skills / check_links",
     accent: "cyan",
   },
 ] : [
@@ -87,8 +87,8 @@ const items = isEs ? [
     id: "domain",
     icon: "🤖",
     title: "Agent-OS & Domain Governance",
-    keyPoint: "Validates IDE mirror symlinks, Human-in-the-Loop gates, and clean JSON schemas.",
-    tag: "check_hitl / symlinks (Domain)",
+    keyPoint: "Requires explicit Human-in-the-Loop markers and checks skill frontmatter, relative links, forgotten placeholders and AGENTS.md mirrors.",
+    tag: "check_hitl / check_skills / check_links",
     accent: "cyan",
   },
 ];

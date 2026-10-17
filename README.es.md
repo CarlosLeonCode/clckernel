@@ -39,7 +39,7 @@ Los agentes de programación con IA (Cursor, Claude Code, Windsurf, Copilot) cod
 | Caso de Uso | Problema que Resuelve | Cómo lo Resuelve CLC Kernel |
 |---|---|---|
 | **1. Gobernanza de Coding Agents**<br>*(Cursor, Claude Code, Copilot)* | Los agentes programan por intuición ("vibe coding"), se saltan pruebas y rompen capas de arquitectura en backend y frontend. | Impone la **Regla #0** (Investigación -> SDD -> TDD Rojo a Verde -> Auditoría) y bloquea commits no conformes mediante el hook pre-commit (`--no-verify` lo omite; CI actúa como respaldo). |
-| **2. Arquetipos Agent-OS y Flujos de Dominio**<br>*(Bots autónomos, OS de marketing/ventas)* | Runtimes de agentes ejecutan acciones sin supervisión, alucinan métricas o desincronizan reglas en diferentes IDEs. | Provee **Gobernanza Dual-Layer**, valida symlinks de reglas para IDEs, exige compuertas Human-in-the-Loop (`check_hitl`) y valida esquemas con null seguro (`check_domain_data`). |
+| **2. Arquetipos Agent-OS y Flujos de Dominio**<br>*(Bots autónomos, OS de marketing/ventas)* | Runtimes de agentes ejecutan acciones sin supervisión, alucinan métricas o desincronizan reglas en diferentes IDEs. | Provee **Gobernanza Dual-Layer** y guards para cualquier repositorio de agentes: marcadores Human-in-the-Loop explícitos en skills y playbooks (`check_hitl`), frontmatter de SKILL.md (`check_skills`), links relativos (`check_links`), placeholders olvidados (`check_placeholders`) y mirrors de reglas que apuntan a AGENTS.md (`check_symlinks`). Los guards de calendario de contenido (`check_domain_data`, `check_test_calendar_sync`) se agregan solo cuando existe `content-calendar/`. |
 | **3. Refactorizaciones y Migraciones Críticas** | Los agentes modifican archivos fuera del alcance acordado, introduciendo regresiones silenciosas. | Delimita el trabajo en una especificación local `sdds/{cambio}/spec.md`; el alcance es un protocolo que aplica el agente (ningún guard lo verifica). |
 | **4. Blindaje Pre-Commit y Shift-Left en CI/CD** | Fuga de credenciales, consultas N+1 en bucles y migraciones destructivas llegan a ramas remotas. | Ejecuta validaciones sin dependencias foráneas en el lenguaje nativo del stack antes de cada commit: guards basados en patrones en todos los stacks y guards con Python AST (capas, heurística N+1) en stacks Python. |
 
@@ -191,7 +191,7 @@ clckernel update
 | 🐘 **Laravel** | `artisan` | Pest / PHPUnit | Análisis estático PHPStan |
 | 🎸 **Django** | `manage.py` | `pytest-django` | Ruff, Clean Architecture (Python AST), Heurística N+1 (Python AST), Verificador TDD Rojo→Verde (pytest) |
 | 🚀 **Astro** | `astro.config` | Playwright | Tokens Tailwind v4, Esquemas de Colección, A11y, Responsive, SEO |
-| 🤖 **Agent-OS** | `skills/`, `brand/`, `templates/` | Tests de Contrato | AGENTS.md Dual-Layer, Compuertas HITL (`check_hitl`), Symlinks (`check_symlinks`), Integridad de Datos (`check_domain_data`) |
+| 🤖 **Agent-OS** | `skills/<nombre>/SKILL.md` (también `.agents/skills/`, `.claude/skills/`), `playbooks/` o `rules/` con Markdown; si el repo también tiene un stack de código, gana el stack de código | Tests de Contrato | AGENTS.md Dual-Layer, marcadores HITL (`check_hitl`), Skills (`check_skills`), Links (`check_links`), Placeholders (`check_placeholders`), Mirrors (`check_symlinks`), Reglas propias (`check_custom`); con `content-calendar/`: `check_domain_data`, `check_test_calendar_sync` |
 
 ---
 
@@ -262,7 +262,7 @@ CLC Kernel se enfoca estrictamente en gobernanza y opera con **cero dependencias
 | **SSOT** *(Single Source of Truth / Única Fuente de Verdad)* | Principio de gobernanza centralizada donde `AGENTS.md` funciona como la ley única, proyectándose automáticamente a todos los entornos de agentes (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`, Copilot) mediante symlinks del sistema de archivos. |
 | **Recibo de Auditoría** *(Audit Receipt)* | Artefacto JSON inmutable y legible por máquina (`audit-receipt.json`) producido por el motor de auditoría con la marca de tiempo, hash del commit, veredictos por cada lente y metadatos de compatibilidad RDD para Gentle AI. |
 | **ADR** *(Architectural Decision Record)* | Documento estandarizado bajo `docs/Journal/` que captura decisiones arquitectónicas clave, contexto histórico, alternativas evaluadas y consecuencias. |
-| **Agent-OS** | Arquetipo de sistema operativo para flujos de agentes y dominios no técnicos (por ejemplo: Marketing OS, Content Ops, Research OS) gobernado por arquitectura de dos capas, validación estricta de esquemas y compuertas HITL. |
+| **Agent-OS** | Arquetipo de sistema operativo para flujos de agentes y dominios no técnicos (por ejemplo: Marketing OS, Content Ops, Research OS) compuesto por skills, playbooks, reglas, prompts y templates, gobernado por un AGENTS.md de dos capas, checkpoints HITL explícitos y guards de documentos (frontmatter de skills, links, placeholders). |
 
 ---
 

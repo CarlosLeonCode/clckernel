@@ -146,16 +146,17 @@ const stacks = isEs ? [
     name: "Agent-OS (Domain)",
     lang: "Markdown / JSON",
     icon: "🤖",
-    detection: "skills/ / brand/ / agent-os",
+    detection: "skills/*/SKILL.md / playbooks/ / rules/",
     runner: "Playbook / Contract Test",
     gate: "node tools/audit.js",
-    rules: "HITL Gate + Symlinks Sync + Clean State",
+    rules: "HITL Markers + Skills + Links + Placeholders",
     snippet: `// Detectado: Agent-OS & Domain Workflows
 // Inicializado: AGENTS.md Dual (Ingeniería + Dominio)
-// Motor de Auditoría: Checkpoints HITL & Symlinks
+// Motor de Auditoría: marcadores HITL, skills, links y placeholders
 ✔ Hook instalado: .githooks/pre-commit -> node tools/check_symlinks.js,
-  check_hitl, check_domain_data, check_test_calendar_sync, scan_secrets
-✔ Aplicando: Human-in-the-Loop & Métricas Limpias`,
+  check_hitl, check_skills, check_links, check_placeholders,
+  scan_secrets, verify_tdd, check_custom
+✔ Con content-calendar/: check_domain_data, check_test_calendar_sync`,
   },
 ] : [
   {
@@ -294,16 +295,17 @@ const stacks = isEs ? [
     name: "Agent-OS (Domain)",
     lang: "Markdown / JSON",
     icon: "🤖",
-    detection: "skills/ / brand/ / agent-os",
+    detection: "skills/*/SKILL.md / playbooks/ / rules/",
     runner: "Playbook / Contract Test",
     gate: "node tools/audit.js",
-    rules: "HITL Gate + Symlinks Sync + Clean State",
+    rules: "HITL Markers + Skills + Links + Placeholders",
     snippet: `// Detected: Agent-OS & Domain Workflows
 // Initialized: Dual-Layer AGENTS.md (Dev + Domain)
-// Audit Engine: HITL Checkpoints & Symlinks
+// Audit Engine: HITL markers, skills, links & placeholders
 ✔ Hook installed: .githooks/pre-commit -> node tools/check_symlinks.js,
-  check_hitl, check_domain_data, check_test_calendar_sync, scan_secrets
-✔ Enforcing: Human-in-the-Loop & Clean State Metrics`,
+  check_hitl, check_skills, check_links, check_placeholders,
+  scan_secrets, verify_tdd, check_custom
+✔ With content-calendar/: check_domain_data, check_test_calendar_sync`,
   },
 ];
 

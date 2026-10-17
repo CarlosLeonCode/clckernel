@@ -39,6 +39,9 @@ const RESIDUAL_FORBIDDEN = [
   '100% compliance',
   '100% de cumplimiento',
   '100% of the CLC Kernel standard',
+  // sdds/agent-os-generic: no guard validates data files against a schema.
+  /strict schema validation/i,
+  /validación estricta de esquemas/i,
 ];
 
 // Case-sensitive phrases that overstate what a guard does.

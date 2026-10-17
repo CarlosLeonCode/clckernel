@@ -92,9 +92,12 @@ $ npx clckernel update
 6. check_migrations     -> Reversibilidad de migraciones: upgrade/downgrade y operaciones destructivas (Alembic)
 7. docker_guard         -> Exige contenedores rootless y bloquea secretos en ENV
 8. Protocolo de alcance -> Lo aplica el agente; ningún guard lo verifica (check_scope no se instala)
-9. check_symlinks       -> Valida symlinks de reglas para IDEs (CLAUDE.md, GEMINI.md, etc.)
-10. check_hitl          -> Exige compuertas Human-in-the-Loop en playbooks autónomos
-11. check_domain_data   -> Valida esquemas JSON y garantiza null por defecto ante métricas inventadas`,
+9. check_symlinks       -> Los mirrors de reglas (CLAUDE.md, GEMINI.md, etc.) apuntan a AGENTS.md
+10. check_hitl          -> Marcador HITL: o "## Human checkpoint" en skills y playbooks modificados
+11. check_skills        -> Frontmatter de SKILL.md: name + description, nombres únicos
+12. check_links         -> Los links relativos de Markdown apuntan a archivos del commit
+13. check_placeholders  -> Placeholders de borrador olvidados fuera de templates/
+14. check_domain_data   -> Solo con calendario de contenido: posts pendientes con métricas null`,
       },
       {
         id: "ast-examples",
@@ -227,23 +230,27 @@ $ claude
 # Gobierna a los agentes que ejecutan tareas de negocio y playbooks
 - Compuertas Human-in-the-Loop (HITL) obligatorias antes de mutaciones externas
 - Anti-Alucinación: Las métricas faltantes deben ser estrictamente null, nunca inventadas
-- Voz de Marca inmutable y directrices de seguridad de contenido`,
+- Skills y playbooks declaran su checkpoint con un marcador HITL:`,
       },
       {
         id: "domain-safeguards-spec",
         title: "Salvaguardas de Dominio",
-        desc: "Validadores especializados de cero dependencias que protegen la paridad de reglas en IDEs, compuertas de seguridad en playbooks y consistencia en esquemas de datos.",
-        code: `// 1. check_symlinks: Valida symlinks de reglas para todos los IDEs
-$ node tools/check_symlinks.js
-✔ Los 5 archivos de reglas de IDE son symlinks válidos hacia AGENTS.md
-
-// 2. check_hitl: Garantiza que los playbooks autónomos incluyan revisión humana
+        desc: "Guards de cero dependencias para cualquier repositorio de agentes (skills, playbooks, reglas, prompts, templates). Los guards de calendario de contenido se agregan solo cuando existe content-calendar/.",
+        code: `// 1. check_hitl: skills y playbooks modificados declaran un checkpoint humano
 $ node tools/check_hitl.js
-✔ Todas las skills definen puntos de control Human-in-the-Loop (HITL) explícitos
+✔ All changed skill(s)/playbook(s) declare a HITL checkpoint
 
-// 3. check_domain_data: Protege contra métricas alucinadas y esquemas rotos
-$ node tools/check_domain_data.js
-✔ Datasets JSON validados contra esquemas (0 claves faltantes, nulls limpios)`,
+// 2. check_skills: frontmatter de SKILL.md (name, description, nombres únicos)
+$ node tools/check_skills.js
+✔ Changed SKILL.md file(s) have valid frontmatter
+
+// 3. check_links + check_placeholders: documentos terminados
+$ node tools/check_links.js && node tools/check_placeholders.js
+✔ Relative links resolve, no forgotten placeholders
+
+// 4. check_symlinks: los mirrors de reglas apuntan a AGENTS.md
+$ node tools/check_symlinks.js
+✔ All existing AI IDE rule mirrors point to AGENTS.md`,
       }
     ]
   }

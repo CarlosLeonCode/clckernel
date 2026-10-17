@@ -92,9 +92,12 @@ $ npx clckernel update
 6. check_migrations     -> Migration reversibility: upgrade/downgrade & destructive ops (Alembic)
 7. docker_guard         -> Enforces rootless containers & blocks ENV secrets
 8. Scope protocol       -> Agent-enforced; not checked by a guard (check_scope is not installed)
-9. check_symlinks       -> Validates IDE rule symlinks (CLAUDE.md, GEMINI.md, etc.)
-10. check_hitl          -> Enforces Human-in-the-Loop review gates in autonomous playbooks
-11. check_domain_data   -> Validates JSON schemas & guarantees null defaults over hallucinated metrics`,
+9. check_symlinks       -> Rule mirrors (CLAUDE.md, GEMINI.md, etc.) point to AGENTS.md
+10. check_hitl          -> Explicit HITL: marker or "## Human checkpoint" in changed skills & playbooks
+11. check_skills        -> SKILL.md frontmatter: name + description, unique names
+12. check_links         -> Relative Markdown links resolve to files in the commit
+13. check_placeholders  -> Forgotten draft placeholders outside templates/
+14. check_domain_data   -> Content calendar only: pending posts keep null metrics`,
       },
       {
         id: "ast-examples",
@@ -227,23 +230,27 @@ $ claude
 # Governs runtime agents executing business playbooks and client tasks
 - Mandatory Human-in-the-Loop (HITL) checkpoints before external execution
 - Anti-Hallucination: Missing metrics must strictly default to null, never invented
-- Immutable Brand Voice & Content Safety guidelines`,
+- Skills and playbooks declare their checkpoint with a HITL: marker`,
       },
       {
         id: "domain-safeguards-spec",
         title: "Domain Safeguards",
-        desc: "Dedicated zero-dependency guards protecting IDE configuration parity, agent workflow safety gates, and data payload integrity.",
-        code: `// 1. check_symlinks: Validates symlinks for IDE rule mirrors
-$ node tools/check_symlinks.js
-✔ All 5 IDE rule files are valid symlinks to AGENTS.md
-
-// 2. check_hitl: Ensures autonomous playbooks have human verification
+        desc: "Zero-dependency guards for any agent repository (skills, playbooks, rules, prompts, templates). Content-calendar guards are added only when content-calendar/ exists.",
+        code: `// 1. check_hitl: changed skills and playbooks declare a human checkpoint
 $ node tools/check_hitl.js
-✔ All skills define explicit Human-in-the-Loop (HITL) checkpoints
+✔ All changed skill(s)/playbook(s) declare a HITL checkpoint
 
-// 3. check_domain_data: Protects against hallucinated metrics and broken schemas
-$ node tools/check_domain_data.js
-✔ JSON datasets validated against schemas (0 missing keys, clean nulls)`,
+// 2. check_skills: SKILL.md frontmatter (name, description, unique names)
+$ node tools/check_skills.js
+✔ Changed SKILL.md file(s) have valid frontmatter
+
+// 3. check_links + check_placeholders: finished documents
+$ node tools/check_links.js && node tools/check_placeholders.js
+✔ Relative links resolve, no forgotten placeholders
+
+// 4. check_symlinks: rule mirrors point to AGENTS.md
+$ node tools/check_symlinks.js
+✔ All existing AI IDE rule mirrors point to AGENTS.md`,
       }
     ]
   }

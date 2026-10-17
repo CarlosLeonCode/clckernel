@@ -39,7 +39,7 @@ AI coding agents (Cursor, Claude Code, Windsurf, Copilot) code fast, but without
 | Use Case | Problem It Solves | How CLC Kernel Solves It |
 |---|---|---|
 | **1. Coding Agent Governance**<br>*(Cursor, Claude Code, Copilot)* | Agents "vibe code", bypass tests, and violate layer boundaries in backend/frontend apps. | Enforces **Rule #0** (Research -> SDD -> TDD Red-to-Green -> Audit) and blocks commits via the pre-commit hook (`--no-verify` skips it; CI is the backstop). |
-| **2. Agent-OS & Domain Workflows**<br>*(Autonomous bots, marketing/sales OS)* | Agent runtimes execute actions without review, hallucinate metrics, or drift across IDE configs. | Provides **Dual-Layer Governance**, validates IDE mirror symlinks, checks Human-in-the-Loop (`check_hitl`), and enforces null-safe schemas (`check_domain_data`). |
+| **2. Agent-OS & Domain Workflows**<br>*(Autonomous bots, marketing/sales OS)* | Agent runtimes execute actions without review, hallucinate metrics, or drift across IDE configs. | Provides **Dual-Layer Governance** and guards for any agent repository: explicit Human-in-the-Loop markers in skills and playbooks (`check_hitl`), SKILL.md frontmatter (`check_skills`), relative links (`check_links`), forgotten placeholders (`check_placeholders`) and rule mirrors pointing to AGENTS.md (`check_symlinks`). Content-calendar guards (`check_domain_data`, `check_test_calendar_sync`) are added only when `content-calendar/` exists. |
 | **3. Complex Refactors & Migrations** | Agents modify files outside the agreed feature scope, causing silent regressions. | Anchors work to a local `sdds/{change}/spec.md`; scope is an agent-enforced protocol (not checked by a guard). |
 | **4. Shift-Left CI/CD & Pre-commit** | Secret leaks, N+1 query loops, and broken database migrations reach remote branches. | Runs zero-dependency checks in your stack's native language before Git commit: pattern-based guards everywhere, Python AST guards (layers, N+1 heuristic) on Python stacks. |
 
@@ -191,7 +191,7 @@ clckernel update
 | 🐘 **Laravel** | `artisan` | Pest / PHPUnit | PHPStan static analysis |
 | 🎸 **Django** | `manage.py` | `pytest-django` | Ruff, Clean Arch (Python AST), N+1 Heuristic (Python AST), Red→Green TDD Verifier (pytest) |
 | 🚀 **Astro** | `astro.config` | Playwright | Tailwind v4 Tokens, Content Schema, A11y, Responsive, SEO |
-| 🤖 **Agent-OS** | `skills/`, `brand/`, `templates/` | Contract Tests | Dual-Layer AGENTS.md, HITL Gates (`check_hitl`), Symlinks (`check_symlinks`), Domain Data (`check_domain_data`) |
+| 🤖 **Agent-OS** | `skills/<name>/SKILL.md` (also `.agents/skills/`, `.claude/skills/`), `playbooks/` or `rules/` with Markdown; a code stack in the same repo wins | Contract Tests | Dual-Layer AGENTS.md, HITL markers (`check_hitl`), Skills (`check_skills`), Links (`check_links`), Placeholders (`check_placeholders`), Mirrors (`check_symlinks`), Custom rules (`check_custom`); with `content-calendar/`: `check_domain_data`, `check_test_calendar_sync` |
 
 ---
 
@@ -262,7 +262,7 @@ CLC Kernel focuses strictly on governance and runs with **zero foreign dependenc
 | **SSOT** *(Single Source of Truth)* | The centralized governance principle where `AGENTS.md` acts as the single source of truth, mirrored automatically to all AI IDE config files (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`, Copilot) via filesystem symlinks. |
 | **Audit Receipt** | An immutable, machine-readable JSON artifact (`audit-receipt.json`) produced by the audit engine containing the timestamp, commit hash, per-lens verdicts, and Gentle AI RDD compatibility metadata. |
 | **ADR** *(Architectural Decision Record)* | A standardized document in `docs/Journal/` capturing significant architectural decisions, context, evaluated alternatives, and consequences. |
-| **Agent-OS** | An operating system archetype for non-tech domain workflows (e.g. Marketing OS, Content Ops, Research OS) governed by dual-layer architecture, strict schema validation, and HITL checkpoints. |
+| **Agent-OS** | An operating system archetype for non-tech domain workflows (e.g. Marketing OS, Content Ops, Research OS) made of skills, playbooks, rules, prompts and templates, governed by a dual-layer AGENTS.md, explicit HITL checkpoints and document guards (skill frontmatter, links, placeholders). |
 
 ---
 
