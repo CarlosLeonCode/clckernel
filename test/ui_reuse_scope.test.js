@@ -46,6 +46,37 @@ describe('check_ui_reuse only audits project UI code', () => {
     }
   });
 
+  for (const testFile of [
+    'test/ui_reuse_scope.test.js',
+    'tests/save.js',
+    'src/__tests__/Save.jsx',
+    'src/Save.test.tsx',
+    'src/Save.spec.jsx',
+  ]) {
+    it(`ignores test file ${testFile}`, async () => {
+      const dir = createRepo();
+      try {
+        stage(dir, testFile, RAW_BUTTON_COMPONENT);
+        const result = await checkUiReuse(dir);
+        assert.strictEqual(result.exitCode, 0, JSON.stringify(result.data));
+        assert.deepStrictEqual(result.data.violations, {});
+      } finally {
+        teardown(dir);
+      }
+    });
+  }
+
+  it('still flags a component whose name only contains "test"', async () => {
+    const dir = createRepo();
+    try {
+      stage(dir, 'src/TestimonialCard.jsx', RAW_BUTTON_COMPONENT);
+      const result = await checkUiReuse(dir);
+      assert.deepStrictEqual(Object.keys(result.data.violations), ['src/TestimonialCard.jsx']);
+    } finally {
+      teardown(dir);
+    }
+  });
+
   it('still flags a raw <button> in a project component', async () => {
     const dir = createRepo();
     try {
