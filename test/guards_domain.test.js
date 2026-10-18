@@ -139,13 +139,22 @@ describe('Agent-OS Safeguards', () => {
       assert.strictEqual(res.exitCode, 1);
     });
 
-    it('ignores skill reference files, READMEs and harness skills', async () => {
+    it('ignores skill reference files, READMEs, the retired kernel skill and vendored plugin skills', async () => {
       const res = await runHitl({}, {
         'skills/research/reference/notes.md': '# Notes\n',
         'playbooks/README.md': '# Index of playbooks\n',
-        '.agents/skills/clckernel_cli/SKILL.md': '# harness skill\n'
+        '.agents/skills/clc_forge_cli/SKILL.md': '# retired kernel skill\n',
+        '.agents/skills/impeccable/SKILL.md': '# vendored plugin skill\n'
       });
       assert.strictEqual(res.exitCode, 0, JSON.stringify(res.data));
+    });
+
+    it('checks the kernel skill (clckernel_cli) like any other skill', async () => {
+      const res = await runHitl({}, {
+        '.agents/skills/clckernel_cli/SKILL.md': '# kernel skill without a checkpoint\n'
+      });
+      assert.strictEqual(res.exitCode, 1, JSON.stringify(res.data));
+      assert.strictEqual(res.data.violations[0].file, '.agents/skills/clckernel_cli/SKILL.md');
     });
 
     it('reads the snapshot, not the working copy', async () => {

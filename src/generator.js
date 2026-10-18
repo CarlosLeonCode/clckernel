@@ -110,6 +110,66 @@ function buildToolManifest(adapter, techTools = [], targetDir) {
   ];
 }
 
+/** A guard is a manifest entry the kernel copies into tools/ (not an external CLI). */
+function isGuard(tool) {
+  return tool.language !== 'external' && !!tool.path;
+}
+
+/**
+ * The manifest an install or update works with (sdds/update-no-additions,
+ * decision 1). A fresh install keeps every guard. An update keeps only the
+ * guards the project has: those in the hashed registry plus those present in
+ * tools/ (a protected or project-owned file with a kernel guard's name is
+ * still installed); an old path-list registry, or none, means present files
+ * only. `addGuards` (names, or 'all') opts more in. Every other guard is
+ * recorded as available. Non-guard entries (external CLIs) are kept.
+ * @param {object} io - Active io session
+ * @param {Array} tools - Tool manifest
+ * @param {string[]|'all'} [addGuards] - Guards to add on update
+ * @returns {Array} The manifest to install and run in the hook
+ */
+function selectGuards(io, tools, addGuards) {
+  if (io.mode !== 'update') return tools;
+  const addAll = addGuards === 'all';
+  const add = new Set(Array.isArray(addGuards) ? addGuards : []);
+  const registered = new Set(io.registry.format === 'hashed' ? io.registry.paths : []);
+  return tools.filter(tool => {
+    if (!isGuard(tool)) return true;
+    const rel = `tools/${tool.path}`;
+    if (addAll || add.has(tool.name) || registered.has(rel) || io.exists(rel)) return true;
+    io.noteAvailable(tool.name);
+    return false;
+  });
+}
+
+/** Fallback files as guard descriptors (audit orchestrators excluded). */
+function fallbackGuards(projectType) {
+  const files = projectType === 'unknown' ? GENERIC_FALLBACK_FILES : LEGACY_FALLBACK_FILES;
+  return files
+    .filter(file => !/^audit\./.test(file))
+    .map(file => ({ name: path.basename(file, path.extname(file)), language: path.extname(file).slice(1), path: file }));
+}
+
+/**
+ * Names of the guards the stack's manifest offers (what --add-guards
+ * accepts), in manifest order, once each.
+ * @param {string} targetDir - Project root
+ * @param {object} config - Detected config
+ * @returns {string[]}
+ */
+function manifestGuardNames(targetDir, config) {
+  const cfg = config || {};
+  let guards;
+  if (Array.isArray(cfg.parts) && cfg.parts.length > 0) {
+    guards = buildPartsManifest(cfg.parts, cfg.techTools || [], targetDir).guards.filter(isGuard);
+  } else if (cfg.adapter) {
+    guards = buildToolManifest(cfg.adapter, cfg.techTools || [], targetDir).filter(isGuard);
+  } else {
+    guards = fallbackGuards(cfg.projectType);
+  }
+  return [...new Set(guards.map(tool => tool.name))];
+}
+
 /**
  * Generic block every hook ends with (sdds/domain-agnostic, decision 3): each
  * project guard in tools/guards/ runs after the kernel guards, *.js with node
@@ -511,12 +571,13 @@ const LEGACY_FALLBACK_FILES = [
  * forced frontend/backend type keeps the legacy set.
  * @param {string} targetDir - Target project root
  * @param {string} [projectType] - Detected or forced project type
+ * @param {(file: string) => boolean} [keep] - Files to install (update: the selected guards)
  * @returns {{ installed: string[], written: string[] }} Names of the guards copied
  *   (orchestrators excluded), and every file name written into tools/
  */
-function installFallbackTools(targetDir, projectType) {
+function installFallbackTools(targetDir, projectType, keep = () => true) {
   const sourceToolsDir = path.join(__dirname, '..', 'tools');
-  const fallbackFiles = projectType === 'unknown' ? GENERIC_FALLBACK_FILES : LEGACY_FALLBACK_FILES;
+  const fallbackFiles = (projectType === 'unknown' ? GENERIC_FALLBACK_FILES : LEGACY_FALLBACK_FILES).filter(keep);
 
   const installed = new Set();
   const written = [];
@@ -541,13 +602,15 @@ function installFallbackTools(targetDir, projectType) {
  * Generates a minimal generic pre-commit hook when no adapter is available.
  * @param {string} targetDir - Target project root
  * @param {string} projectType - 'frontend', 'backend' or 'unknown'
+ * @param {(file: string) => boolean} [keep] - Installed fallback files
  * @returns {{ file: string, active: boolean }} The hook written and whether git runs it
  */
-function generateFallbackHook(targetDir, projectType) {
+function generateFallbackHook(targetDir, projectType, keep = () => true) {
   const isFront = projectType === 'frontend';
   // Node is the one runtime known to exist for frontend and unknown stacks.
-  const secretScan = isFront || projectType === 'unknown' ? 'node tools/scan_secrets.js' : 'python3 tools/scan_secrets.py';
-  return writeHook(targetDir, isFront, [secretScan], 'Running CLC Kernel Safeguards...');
+  const secretScan = isFront || projectType === 'unknown' ? 'scan_secrets.js' : 'scan_secrets.py';
+  const command = secretScan.endsWith('.js') ? `node tools/${secretScan}` : `python3 tools/${secretScan}`;
+  return writeHook(targetDir, isFront, keep(secretScan) ? [command] : [], 'Running CLC Kernel Safeguards...');
 }
 
 /**
@@ -695,16 +758,16 @@ function generateHarness(targetDir, configOrNull, options = {}) {
   // One io session per install (sdds/safe-update): reuse the caller's (update)
   // or open one, real or dry-run.
   const active = activeIO();
-  if (active) return generateHarnessWith(active, targetDir, configOrNull);
+  if (active) return generateHarnessWith(active, targetDir, configOrNull, options);
   const io = createIO({ root: targetDir, dryRun: !!options.dryRun, knownHashes: options.knownHashes });
-  const result = runWithIO(io, () => generateHarnessWith(io, targetDir, configOrNull));
+  const result = runWithIO(io, () => generateHarnessWith(io, targetDir, configOrNull, options));
   if (result && typeof result === 'object' && !Array.isArray(result) && 'installedGuards' in result) {
     return { ...result, plan: io.plan() };
   }
   return result;
 }
 
-function generateHarnessWith(io, targetDir, configOrNull) {
+function generateHarnessWith(io, targetDir, configOrNull, options = {}) {
   if (configOrNull && (configOrNull.__clcKernelConfigPath === true || configOrNull.__clcForgeConfigPath === true || isExtendedConfig(configOrNull))) {
     return generateConfigPathHarness(targetDir, configOrNull);
   }
@@ -808,20 +871,26 @@ ${commandTable(testRunner)}`;
   // is generated, so whole-project linters can exclude those files.
   let installedGuards;
   let hook;
+  // On update only the guards the project has (plus --add-guards) are
+  // installed and run (sdds/update-no-additions, decisions 1 and 4).
+  const { addGuards } = options;
   if (multiPart) {
-    const manifest = buildPartsManifest(config.parts, config.techTools || [], targetDir);
+    const full = buildPartsManifest(config.parts, config.techTools || [], targetDir);
+    const manifest = { ...full, guards: selectGuards(io, full.guards, addGuards) };
     const { installed, written } = installToolsFromManifest(targetDir, manifest.guards, config);
     installedGuards = installed;
     hook = generatePartsHook(config, targetDir, manifest, managedToolPaths(written));
   } else if (config.adapter) {
-    const manifest = buildToolManifest(config.adapter, config.techTools || [], targetDir);
+    const manifest = selectGuards(io, buildToolManifest(config.adapter, config.techTools || [], targetDir), addGuards);
     const { installed, written } = installToolsFromManifest(targetDir, manifest, config);
     installedGuards = installed;
     hook = generateHookFromManifest(config.adapter, targetDir, manifest, managedToolPaths(written));
   } else {
-    const { installed, written } = installFallbackTools(targetDir, config.projectType);
+    const kept = new Set(selectGuards(io, fallbackGuards(config.projectType), addGuards).map(tool => tool.path));
+    const keep = file => /^audit\./.test(file) || kept.has(file);
+    const { installed } = installFallbackTools(targetDir, config.projectType, keep);
     installedGuards = installed;
-    hook = generateFallbackHook(targetDir, config.projectType);
+    hook = generateFallbackHook(targetDir, config.projectType, keep);
   }
 
   // Step 4: Install LLM Conversational CLI & Agent Context
@@ -875,24 +944,18 @@ function installAgenticCLI(targetDir) {
 
   symlinks.forEach(link => {
     const linkPath = path.join(targetDir, link);
-    const linkDir = path.dirname(linkPath);
-
-    if (!io.exists(linkDir)) {
-      io.mkdir(linkDir);
-    }
-
-    const relPath = path.relative(linkDir, path.join(targetDir, sourceFile));
+    const relPath = path.relative(path.dirname(linkPath), path.join(targetDir, sourceFile));
 
     try {
       // Only replace an existing symlink (a stale mirror needs refreshing).
       // A regular file belongs to the consumer: unlinking it would destroy
-      // their own rules, so leave it in place instead.
-      // io.symlink replaces an existing symlink and skips anything else.
-      io.symlink(relPath, linkPath);
+      // their own rules, so leave it in place instead. An update never
+      // creates a mirror the project does not have (sdds/update-no-additions).
+      io.mirror(relPath, linkPath);
     } catch (e) {
       // Ignorar fallos de permisos o symlinks existentes
     }
   });
 }
 
-module.exports = { generateHarness, generateHookFromManifest, buildToolManifest, configureHooksPath };
+module.exports = { generateHarness, generateHookFromManifest, buildToolManifest, configureHooksPath, manifestGuardNames };

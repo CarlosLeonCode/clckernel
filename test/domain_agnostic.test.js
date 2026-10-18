@@ -415,7 +415,7 @@ describe('update migrates the removed domain guards', () => {
 
 describe('Agent-OS detection names no domain', () => {
   it('package.json with marketing-os and nothing else => not Agent-OS', () => {
-    const config = detect({ 'package.json': JSON.stringify({ name: 'laila-mos', keywords: ['marketing-os'] }) });
+    const config = detect({ 'package.json': JSON.stringify({ name: 'acme-marketing-os', keywords: ['marketing-os'] }) });
     assert.notStrictEqual(config.projectType, 'agent-os');
   });
 

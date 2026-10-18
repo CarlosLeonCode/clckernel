@@ -44,3 +44,14 @@ When the developer issues a \`clckernel <command>\` or \`/clckernel <command>\` 
    - *"Revisar estado / diagnóstico"* -> Route to `doctor` ([reference/doctor.md](reference/doctor.md))
    - *"Commitear / guardar cambios"* -> Route to `commit` ([reference/commit.md](reference/commit.md))
 4. **Mandatory Audit Gate:** Never declare success on code changes without running the audit gate and outputting the summary.
+
+## Human checkpoint
+
+The user's explicit approval is required before any step that changes shared state or cannot be undone. At each checkpoint, show what will happen, stop, and wait for a clear "yes"; silence, an earlier approval, or approval of a different step does not count.
+
+- **Spec before code:** after writing the spec for `feature` (or the root-cause plan for `fix`), present it and wait for approval before writing tests or code.
+- **Before committing:** show the staged files, the audit result and the commit message, and wait for approval before running `git commit`.
+- **Before publishing:** never push, open a pull request, tag or release without the user's explicit request.
+- **Before destructive actions:** removing a guard or phase, deleting files, or overwriting files the project edited locally requires approval of the exact list of paths.
+
+If the user declines, stop and report the current state; do not retry or look for a workaround.

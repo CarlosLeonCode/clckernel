@@ -83,12 +83,12 @@ describe('AgentOSAdapter', () => {
   describe('provision()', () => {
     it('never overwrites an existing project-customized AGENTS.md', () => {
       const custom = [
-        '# Laila MOS — 13 reglas',
+        '# Custom project law — 13 rules',
         '',
-        '- Regla de formato nativo de Carruseles y Reels',
+        '- Output format rule for every channel',
         '- One-question-at-a-time onboarding',
-        '- Estrategia dinamica obligatoria por calendario',
-        '- Invariante de inmutabilidad del calendario',
+        '- Mandatory planning step before execution',
+        '- Published records are immutable',
         '',
       ].join('\n');
       const dir = createTmpProject({ 'AGENTS.md': custom });

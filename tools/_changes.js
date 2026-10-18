@@ -10,8 +10,10 @@
  *
  * Files the harness installed itself are listed in tools/.clckernel-managed.json
  * (written by `clckernel` install/update). changedFiles drops every listed path,
- * so no guard evaluates the harness's own code. Without a registry (e.g. the
- * clckernel repository, where tools/ is source code) nothing is excluded.
+ * so no guard evaluates the harness's own code, unless the guard passes
+ * `includeManaged` (check_hitl: the kernel's own skill must obey its rules).
+ * Without a registry (e.g. the clckernel repository, where tools/ is source
+ * code) nothing is excluded.
  *
  * Self-contained: uses only Node.js built-ins. Git runs with argument arrays,
  * never through a shell; paths are read NUL-separated (-z), so spaces and
@@ -43,10 +45,11 @@ function hasCommit(dir, rev) {
 /**
  * Lists the files added, copied, modified or renamed in the snapshot.
  * @param {string} dir - Directory inside the repository
- * @param {{ extensions?: string[] }} [options] - Keep only paths ending in one of these
+ * @param {{ extensions?: string[], includeManaged?: boolean }} [options] - Keep only
+ *   paths ending in one of `extensions`; `includeManaged` keeps registry-listed paths too
  * @returns {{ mode: 'staged'|'last-commit'|null, files: string[] }}
  */
-function changedFiles(dir, { extensions } = {}) {
+function changedFiles(dir, { extensions, includeManaged = false } = {}) {
   const cwd = dir || process.cwd();
   const anyStaged = git(cwd, ['diff', '--cached', '--name-only', '-z']);
   if (anyStaged === null) return { mode: null, files: [] };
@@ -67,7 +70,7 @@ function changedFiles(dir, { extensions } = {}) {
   }
   if (out === null) return { mode: null, files: [] };
 
-  const managed = managedFiles(cwd, mode);
+  const managed = includeManaged ? new Set() : managedFiles(cwd, mode);
   let files = splitNul(out).filter(f => !managed.has(f));
   if (Array.isArray(extensions) && extensions.length > 0) {
     files = files.filter(f => extensions.some(ext => f.endsWith(ext)));

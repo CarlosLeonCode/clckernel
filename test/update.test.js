@@ -44,9 +44,11 @@ describe('updateHarness (Non-Destructive Update)', () => {
       assert.ok(fs.existsSync(path.join(dir, '.agents', 'skills', 'clckernel_cli', 'SKILL.md')));
       assert.ok(fs.existsSync(path.join(dir, '.agents', 'skills', 'clckernel_cli', 'reference', 'update.md')));
 
-      // Verify symlinks were created/re-linked
-      assert.ok(fs.existsSync(path.join(dir, 'CLAUDE.md')));
-      assert.ok(fs.existsSync(path.join(dir, 'GEMINI.md')));
+      // Mirrors the project does not have are not created by update
+      // (sdds/update-no-additions, decision 2); they are reported instead.
+      assert.ok(!fs.existsSync(path.join(dir, 'CLAUDE.md')));
+      assert.ok(!fs.existsSync(path.join(dir, 'GEMINI.md')));
+      assert.ok(result.plan.mirrorsSkipped.includes('CLAUDE.md'));
     } finally {
       teardown(dir);
     }
@@ -72,12 +74,12 @@ describe('updateHarness (Non-Destructive Update)', () => {
 
   it('never overwrites a project-customized AGENTS.md with the generic template', () => {
     const custom = [
-      '# Laila MOS — AGENTS',
+      '# Custom project law',
       '',
-      '- Native format rule for Carruseles and Reels',
+      '- Output format rule for every channel',
       '- One-question-at-a-time onboarding',
-      '- Mandatory dynamic calendar strategy',
-      '- Calendar immutability invariant',
+      '- Mandatory planning step before execution',
+      '- Published records are immutable',
       '',
     ].join('\n');
     const dir = createTmpProject({ 'AGENTS.md': custom });

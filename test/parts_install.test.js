@@ -125,6 +125,8 @@ describe('install — Next.js at the root + backend/ FastAPI', () => {
 });
 
 describe('update re-detects the parts', () => {
+  // sdds/update-no-additions: the new part's external tools join the hook;
+  // its guards are offered (available) and installed with --add-guards.
   it('a Next.js repo that gains backend/ gets the backend tools in hook and registry on update', () => {
     const dir = createTmpProject({ 'package.json': NEXT_BACKEND['package.json'] });
     try {
@@ -134,8 +136,12 @@ describe('update re-detects the parts', () => {
 
       fs.mkdirSync(path.join(dir, 'backend'));
       fs.writeFileSync(path.join(dir, 'backend', 'requirements.txt'), 'fastapi\n');
-      quietly(() => updateHarness(dir));
+      const plain = quietly(() => updateHarness(dir));
+      assert.match(read(dir, '.githooks/pre-commit'), /\( cd 'backend' && if python3 -m pytest --version/);
+      assert.ok(!read(dir, '.githooks/pre-commit').includes('python3 tools/verify_tdd.py'));
+      assert.ok(plain.plan.available.includes('verify_tdd'));
 
+      quietly(() => updateHarness(dir, { addGuards: ['verify_tdd'] }));
       const hook = read(dir, '.githooks/pre-commit');
       assert.match(hook, /\( cd 'backend' && if python3 -m pytest --version/);
       assert.ok(hook.includes('python3 tools/verify_tdd.py'));

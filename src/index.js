@@ -23,6 +23,48 @@ const INSTALL_FLAGS = new Set(['--yes', '-y']);
 /** Prints the plan instead of writing (sdds/safe-update, decision 5). Not an opt-in by itself. */
 const DRY_RUN_FLAG = '--dry-run';
 
+/** Opts guards the project does not have into an update (sdds/update-no-additions). */
+const ADD_GUARDS_FLAG = '--add-guards';
+
+/**
+ * Parses the arguments after `update`: at most one target dir, --dry-run,
+ * and `--add-guards <a,b|all>` (or `--add-guards=<...>`). The names are
+ * checked against the stack's manifest by the updater, before any write.
+ * @param {string[]} rest - Arguments without the `update` word
+ * @returns {{ positionals: string[], dryRun: boolean, addGuards?: string[]|'all' }|null}
+ *   null when the input is not understood
+ */
+function parseUpdateArgs(rest) {
+  const positionals = [];
+  let dryRun = false;
+  let addGuards;
+  for (let i = 0; i < rest.length; i++) {
+    const arg = rest[i];
+    let value = null;
+    if (arg === DRY_RUN_FLAG) {
+      dryRun = true;
+      continue;
+    } else if (arg === ADD_GUARDS_FLAG) {
+      value = rest[i + 1];
+      if (value === undefined || value.startsWith('-')) return null;
+      i++;
+    } else if (arg.startsWith(`${ADD_GUARDS_FLAG}=`)) {
+      value = arg.slice(ADD_GUARDS_FLAG.length + 1);
+    } else if (arg.startsWith('-')) {
+      return null;
+    } else {
+      positionals.push(arg);
+      continue;
+    }
+    if (addGuards !== undefined) return null;
+    const names = value.split(',').map((n) => n.trim()).filter(Boolean);
+    if (names.length === 0) return null;
+    addGuards = names.includes('all') ? 'all' : names;
+  }
+  if (positionals.length > 1) return null;
+  return { positionals, dryRun, addGuards };
+}
+
 /**
  * Words AGENTS.md documents as agent commands (`clckernel test`, ...). They are
  * executed by the AI agent, not by this CLI; without this list they would be
@@ -48,7 +90,10 @@ WRITES TO THE TARGET PROJECT
   update [targetDir]            Refresh tools, hooks, playbooks, IDE symlinks,
                                 .gitignore and AGENTS.md. A kernel file you
                                 edited is kept; the new version is written
-                                next to it as <file>.clckernel-new
+                                next to it as <file>.clckernel-new. Only the
+                                guards and mirrors you have are refreshed;
+                                none are added
+  --add-guards <a,b|all>        With update: also install these guards
   clckernel [targetDir] --yes   Provision the governance harness
   --dry-run                     With update or --yes: print the plan, write nothing
 
@@ -66,6 +111,7 @@ EXAMPLES
   clckernel audit .
   clckernel update .
   clckernel update . --dry-run
+  clckernel update . --add-guards check_skills
   clckernel . --yes
 `;
 
@@ -205,15 +251,14 @@ async function runCli() {
   if (command === 'update' || args.includes('--update')) {
     const rest = [...args];
     rest.splice(rest.indexOf(command === 'update' ? 'update' : '--update'), 1);
-    const updateFlags = rest.filter((a) => a.startsWith('-'));
-    const updatePositionals = rest.filter((a) => !a.startsWith('-'));
-    if (updateFlags.some((f) => f !== DRY_RUN_FLAG) || updatePositionals.length > 1) {
+    const parsed = parseUpdateArgs(rest);
+    if (!parsed) {
       process.exitCode = rejectUnknownInput(args);
       return;
     }
     const { runUpdate } = require('./updater');
-    const target = updatePositionals[0];
-    await runUpdate(target ? path.resolve(target) : process.cwd(), { dryRun: updateFlags.includes(DRY_RUN_FLAG) });
+    const target = parsed.positionals[0];
+    await runUpdate(target ? path.resolve(target) : process.cwd(), { dryRun: parsed.dryRun, addGuards: parsed.addGuards });
     return;
   }
 

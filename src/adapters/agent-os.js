@@ -274,8 +274,9 @@ ${this.getSafeguards().map(s => `- ${s}`).join('\n')}
     for (const mirror of mirrors) {
       const mirrorPath = path.join(targetDir, mirror);
       try {
+        // An update never creates a mirror the project deleted (sdds/update-no-additions).
         if (!io.exists(mirrorPath)) {
-          io.symlink('AGENTS.md', mirrorPath);
+          io.mirror('AGENTS.md', mirrorPath);
         }
       } catch {}
     }

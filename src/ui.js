@@ -191,7 +191,9 @@ function printSuccess(targetDir, hook, config, installedGuards = []) {
 /**
  * Lines of the install/update summary (sdds/safe-update, decision 4): written,
  * unchanged, protected (with the .clckernel-new path), moved, removed, added
- * to .gitignore and git config. A dry run prints the same sections as a plan.
+ * to .gitignore and git config; then what was left out on purpose: guards
+ * available but not installed, mirrors not present, tracked paths not
+ * ignored. A dry run prints the same sections as a plan.
  * @param {object} plan - io.plan()
  * @param {{ dryRun?: boolean }} [options]
  * @returns {string[]}
@@ -214,6 +216,10 @@ function planLines(plan, { dryRun = false } = {}) {
   section(label('Removed', 'Would remove'), plan.removed);
   section(label('Added to .gitignore', 'Would add to .gitignore'), plan.gitignore);
   section(label('git config', 'Would set git config'), plan.gitConfig.map((c) => `${c.key} = ${c.value}`));
+  // sdds/update-no-additions, decision 5: what was left out on purpose.
+  section('Available, not installed (add with --add-guards <name,...|all>)', plan.available || [], colors.cyan);
+  section('Mirrors not present (skipped)', plan.mirrorsSkipped || [], colors.cyan);
+  section('Tracked, not ignored (git tracks them; no .gitignore entry added)', plan.trackedNotIgnored || [], colors.cyan);
   if (plan.protected.length > 0) {
     lines.push('');
     lines.push(`${colors.amber}⚠ ${plan.protected.length} file(s) ${dryRun ? 'would be' : 'were'} protected: the kernel cannot prove they are its own and intact.${colors.reset}`);

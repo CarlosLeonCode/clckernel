@@ -11,7 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 const { autoDetectStack } = require('./detector');
-const { generateHarness } = require('./generator');
+const { generateHarness, manifestGuardNames } = require('./generator');
 const { createIO, runWithIO, currentIO, sha256, NEW_SUFFIX } = require('./io');
 
 // Config names, canonical first; the rest are read for compatibility.
@@ -178,6 +178,33 @@ function migrateDomainGuards(dir, knownHashes) {
   return { moved, kept };
 }
 
+/**
+ * Checks --add-guards against the stack's manifest.
+ * @param {string[]|'all'|undefined} requested - Guard names, or 'all'
+ * @param {string[]} offered - Guard names of the stack's manifest
+ * @returns {string[]|'all'} The guards to add
+ * @throws {Error} When a name is not a guard of this stack
+ */
+function validateAddGuards(requested, offered) {
+  if (requested === undefined || requested === null) return [];
+  if (requested === 'all') return 'all';
+  const unknown = requested.filter((name) => !offered.includes(name));
+  if (unknown.length > 0) {
+    throw new Error(
+      `Unknown guard(s) for --add-guards: ${unknown.join(', ')}. ` +
+        `This stack offers: ${offered.join(', ') || '(none)'}. Nothing was written.`
+    );
+  }
+  return [...requested];
+}
+
+/**
+ * Refreshes the harness of an installed project. It updates what the project
+ * has and never adds guards or mirrors it does not have
+ * (sdds/update-no-additions); options.addGuards opts guards in.
+ * @param {string} [targetDir] - Project root
+ * @param {{ dryRun?: boolean, addGuards?: string[]|'all', knownHashes?: object }} [options]
+ */
 function updateHarness(targetDir = process.cwd(), options = {}) {
   const resolvedDir = path.resolve(targetDir);
 
@@ -187,6 +214,10 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
 
   // 1. Detect Stack
   const detected = autoDetectStack(resolvedDir);
+
+  // --add-guards is checked before anything is written: an unknown name
+  // fails the whole update (sdds/update-no-additions, decision 1).
+  const addGuards = validateAddGuards(options.addGuards, manifestGuardNames(resolvedDir, detected));
 
   // 2. Identify existing preserved assets
   const preserved = {
@@ -200,12 +231,12 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
   // ownership rule, and a dry run only records the plan.
   const { loadKnownHashes } = require('./io');
   const knownHashes = options.knownHashes || loadKnownHashes();
-  const io = createIO({ root: resolvedDir, dryRun: !!options.dryRun, knownHashes });
+  const io = createIO({ root: resolvedDir, dryRun: !!options.dryRun, knownHashes, mode: 'update' });
   const { guardMigration, legacyCleanup } = runWithIO(io, () => {
     // Snapshot the installed skill first: the legacy copy is compared against it.
     const previousSkill = snapshotFiles(path.join(resolvedDir, SKILLS_REL, CURRENT_SKILL)).files;
     const migration = migrateDomainGuards(resolvedDir, knownHashes);
-    generateHarness(resolvedDir, detected);
+    generateHarness(resolvedDir, detected, { addGuards });
     const cleanup = cleanupLegacyArtifacts(resolvedDir, previousSkill);
     const { ensureGitignoreEntries } = require('./gitignore');
     ensureGitignoreEntries(resolvedDir);
@@ -262,7 +293,7 @@ async function runUpdate(targetDir = process.cwd(), options = {}) {
   console.log(`\n${colors.cyan}🔄 Actualizando CLC Kernel en:${colors.reset} ${targetDir}${dryRun ? ' (dry run)' : ''}\n`);
 
   try {
-    const result = updateHarness(targetDir, { dryRun });
+    const result = updateHarness(targetDir, { dryRun, addGuards: options.addGuards });
 
     const moveVerb = dryRun ? 'Would move' : 'Moved';
     for (const movedPath of result.guardMigration.moved) {

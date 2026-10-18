@@ -159,7 +159,7 @@ describe('item 1: a locally edited kernel file survives update', () => {
 
 describe('item 2: a project-owned tools/check_links.js in an Agent-OS survives', () => {
   it('unregistered and different: kept, .clckernel-new written, name collision reported', () => {
-    const own = '#!/usr/bin/env node\n// Laila link checker, not the kernel one\nprocess.exit(0);\n';
+    const own = '#!/usr/bin/env node\n// project link checker, not the kernel one\nprocess.exit(0);\n';
     const dir = createTmpProject({ ...AGENT_OS, 'tools/check_links.js': own });
     try {
       const result = quietly(() => updateHarness(dir));
@@ -471,24 +471,24 @@ describe('item 7: no direct fs write outside src/io.js in the install/update fil
   }
 });
 
-// ── Item 8: an old install shaped like laila-mos ────────────────────────────
+// ── Item 8: an old, locally hardened Agent-OS install ───────────────────────
 
 describe('item 8: an old Agent-OS install with hardened kernel files and its own check_links.js', () => {
   const EDITED = ['tools/audit.js', 'tools/scan_secrets.js', 'tools/check_hitl.js', 'tools/check_symlinks.js', SKILL_MD, '.githooks/pre-commit'];
 
-  function lailaLike() {
+  function hardenedOldInstall() {
     const dir = installed(AGENT_OS, { repo: true });
     // An older install: list registry, no hashes.
     const list = registryOf(dir).files.map((f) => f.path).filter((p) => p.startsWith('tools/'));
     write(dir, REGISTRY, JSON.stringify([...list, REGISTRY].sort(), null, 2) + '\n');
     for (const rel of EDITED) write(dir, rel, readText(dir, rel) + '\n// hardened locally\n');
     write(dir, 'tools/check_links.js', '#!/usr/bin/env node\n// project link checker\nprocess.exit(0);\n');
-    commitAll(dir, 'laila-like install');
+    commitAll(dir, 'hardened old install');
     return dir;
   }
 
   it('update keeps every edited file byte-identical and writes their .clckernel-new', () => {
-    const dir = lailaLike();
+    const dir = hardenedOldInstall();
     try {
       const before = Object.fromEntries([...EDITED, 'tools/check_links.js'].map((rel) => [rel, read(dir, rel)]));
       const res = cli(['update', dir]);

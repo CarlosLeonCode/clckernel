@@ -9,8 +9,10 @@
  * code blocks do not count.
  * Checked files: SKILL.md under skills/, .agents/skills/ or .claude/skills/,
  * flat skills/*.md files, and Markdown under playbooks/ (README.md excluded).
- * Skills the harness or tool plugins install (clckernel_cli, clc_forge_cli,
- * impeccable) and registry files are ignored.
+ * The kernel's own skill (clckernel_cli) is checked like any other skill, even
+ * though the harness registry lists it (other guards skip registry files).
+ * Ignored: the retired kernel skill (clc_forge_cli, removed by `update`) and
+ * skills vendored by third-party tool plugins (impeccable).
  * Self-contained: uses only Node.js built-ins.
  *
  * @param {string} targetDir - Repository root (defaults to cwd)
@@ -20,7 +22,7 @@ const { changedFiles, readFile } = require('./_changes');
 
 const NAME = 'check_hitl';
 const SKILL_ROOTS = ['skills/', '.agents/skills/', '.claude/skills/'];
-const EXCLUDED_SKILLS = new Set(['clckernel_cli', 'clc_forge_cli', 'impeccable']);
+const EXCLUDED_SKILLS = new Set(['clc_forge_cli', 'impeccable']);
 const FENCE_RE = /^\s{0,3}(`{3,}|~{3,})/;
 const INLINE_MARKER_RE = /^\s*(?:(?:[-*+]|\d+[.)]|>)\s+)*[*_]{0,2}HITL[*_]{0,2}\s*:/i;
 const HEADING_MARKER_RE = /^\s{0,3}#{2,6}\s+(?:Human[- ]checkpoints?|HITL)\b/i;
@@ -60,7 +62,7 @@ function hasMarker(text) {
 
 const check = async function checkHitl(targetDir) {
   const dir = targetDir || process.cwd();
-  const { mode, files } = changedFiles(dir, { extensions: ['.md'] });
+  const { mode, files } = changedFiles(dir, { extensions: ['.md'], includeManaged: true });
   const targets = files.filter(needsMarker);
 
   if (targets.length === 0) {

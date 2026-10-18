@@ -5,7 +5,35 @@
  */
 
 const path = require('path');
+const { spawnSync } = require('child_process');
 const { currentIO } = require('./io');
+
+// Repository-locating variables a hook may export; they would point git at
+// another repository than the target's.
+const GIT_LOCAL_ENV = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_PREFIX', 'GIT_COMMON_DIR'];
+
+/**
+ * Entries whose path (or, for a directory entry, anything under it) is
+ * tracked by git in targetDir (sdds/update-no-additions, decision 3). Only
+ * literal paths are checked: negations and glob patterns are kept as they
+ * are. Outside a git repository nothing is tracked. One `git ls-files` call.
+ * @param {string} targetDir - Project root
+ * @param {string[]} entries - Candidate .gitignore entries
+ * @returns {Set<string>}
+ */
+function trackedEntries(targetDir, entries) {
+  const literal = entries.filter((e) => !e.startsWith('!') && !/[*?[\\]/.test(e));
+  if (literal.length === 0) return new Set();
+  const env = { ...process.env };
+  for (const key of GIT_LOCAL_ENV) delete env[key];
+  const bare = (e) => e.replace(/\/+$/, '');
+  const res = spawnSync('git', ['ls-files', '-z', '--', ...literal.map((e) => `:(literal)${bare(e)}`)], {
+    cwd: targetDir, env, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'],
+  });
+  if (res.error || res.status !== 0) return new Set();
+  const files = res.stdout.split('\0').filter(Boolean);
+  return new Set(literal.filter((e) => files.some((f) => f === bare(e) || f.startsWith(`${bare(e)}/`))));
+}
 
 const MANAGED_GITIGNORE_SECTIONS = [
   {
@@ -47,7 +75,8 @@ const MANAGED_GITIGNORE_SECTIONS = [
  * Idempotently appends missing CLC Kernel entries to target project's .gitignore.
  *
  * Writes through the active io session (sdds/safe-update), so a dry run
- * only records the entries it would add.
+ * only records the entries it would add. An entry whose path git tracks is
+ * not added (sdds/update-no-additions, decision 3).
  *
  * @param {string} targetDir - Target project root
  * @returns {boolean} True if .gitignore was created or modified, false if already complete.
@@ -68,8 +97,15 @@ function ensureGitignoreEntries(targetDir) {
   const sectionsToAppend = [];
   const added = [];
 
+  // A path the project tracks is never ignored behind its back: the entry is
+  // left out and reported instead.
+  const candidates = MANAGED_GITIGNORE_SECTIONS.flatMap(section => section.entries)
+    .filter(entry => !existingLines.has(entry.trim()));
+  const tracked = trackedEntries(targetDir, candidates);
+  for (const entry of tracked) io.noteTrackedNotIgnored(entry);
+
   for (const section of MANAGED_GITIGNORE_SECTIONS) {
-    const missingEntries = section.entries.filter(entry => !existingLines.has(entry.trim()));
+    const missingEntries = section.entries.filter(entry => !existingLines.has(entry.trim()) && !tracked.has(entry));
     if (missingEntries.length > 0) {
       sectionsToAppend.push(`${section.header}\n${missingEntries.join('\n')}`);
       added.push(...missingEntries);

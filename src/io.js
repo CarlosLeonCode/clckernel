@@ -80,15 +80,21 @@ function registeredPaths(root) {
  * @param {string} options.root - Project root
  * @param {boolean} [options.dryRun] - Record only, never write
  * @param {object} [options.knownHashes] - { path: [sha256] } (defaults to src/known-hashes.json)
+ * @param {'install'|'update'} [options.mode] - An update never adds guards or
+ *   mirrors the project does not have (sdds/update-no-additions)
  */
-function createIO({ root, dryRun = false, knownHashes = loadKnownHashes() } = {}) {
+function createIO({ root, dryRun = false, knownHashes = loadKnownHashes(), mode: sessionMode = 'install' } = {}) {
   const projectRoot = path.resolve(root);
   const registry = readRegistry(projectRoot);
   // Dry-run overlay: what the plan would have put on disk, so later reads in
   // the same run see it (e.g. .gitignore entries added twice).
   const overlay = new Map(); // abs -> { kind: 'file', bytes } | { kind: 'dir' } | { kind: 'link', target } | { kind: 'gone' }
   const decisions = new Map(); // rel -> { status, sha }
-  const plan = { written: [], unchanged: [], protected: [], moved: [], removed: [], gitignore: [], gitConfig: [] };
+  const plan = {
+    written: [], unchanged: [], protected: [], moved: [], removed: [], gitignore: [], gitConfig: [],
+    // sdds/update-no-additions: what update left out on purpose.
+    available: [], mirrorsSkipped: [], trackedNotIgnored: [],
+  };
 
   const rel = (abs) => toPosix(path.relative(projectRoot, abs));
   const abs = (p) => (path.isAbsolute(p) ? p : path.join(projectRoot, p));
@@ -243,6 +249,32 @@ function createIO({ root, dryRun = false, knownHashes = loadKnownHashes() } = {}
     return 'written';
   }
 
+  /**
+   * Creates or refreshes an AI IDE mirror (a symlink to AGENTS.md). An update
+   * only refreshes mirrors that exist: one the project deleted is reported as
+   * skipped and neither it nor its directory is created.
+   * @returns {'written'|'unchanged'|'skipped'}
+   */
+  function mirror(target, p) {
+    const dest = abs(p);
+    if (sessionMode === 'update' && !lstat(dest)) {
+      note(plan.mirrorsSkipped, rel(dest));
+      return 'skipped';
+    }
+    if (!exists(path.dirname(dest))) mkdir(path.dirname(dest));
+    return symlink(target, dest);
+  }
+
+  /** Records a guard of the manifest the project has not installed. */
+  function noteAvailable(name) {
+    note(plan.available, name);
+  }
+
+  /** Records a .gitignore entry left out because the project tracks that path. */
+  function noteTrackedNotIgnored(entry) {
+    note(plan.trackedNotIgnored, entry);
+  }
+
   /** Removes a file, symlink or directory tree. */
   function remove(p) {
     const dest = abs(p);
@@ -291,6 +323,7 @@ function createIO({ root, dryRun = false, knownHashes = loadKnownHashes() } = {}
   return {
     root: projectRoot,
     dryRun,
+    mode: sessionMode,
     registry,
     exists,
     read,
@@ -299,6 +332,9 @@ function createIO({ root, dryRun = false, knownHashes = loadKnownHashes() } = {}
     writeManaged,
     copyManaged,
     symlink,
+    mirror,
+    noteAvailable,
+    noteTrackedNotIgnored,
     remove,
     move,
     appendGitignore,
