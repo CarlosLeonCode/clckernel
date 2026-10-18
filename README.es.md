@@ -169,7 +169,7 @@ clckernel update
 ```
 
 ### 🔒 La Garantía de Actualización No Destructiva:
-- **Refresca y Actualiza:** Orquestadores centrales (`tools/audit.js`, `tools/audit.py`), guards nativos, Skills de agentes (`.agents/skills/`) y symlinks de IDEs (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`, Copilot, Antigravity).
+- **Refresca y Actualiza:** Orquestadores centrales (`tools/audit.js`, `tools/audit.py`), los guards nativos que tu proyecto tiene, Skills de agentes (`.agents/skills/`) y los symlinks de IDEs que tu proyecto tiene (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`, Copilot, Antigravity).
 - **100% Preservado:**
   - `sdds/`: Todas las especificaciones locales, planes y recibos de verificación permanecen intactos.
   - `tools/guards/`: Todos los guards personalizados creados por el equipo se conservan sin modificaciones. Los guards de dominio que versiones anteriores instalaban en `tools/` se mueven aquí (nunca se borran) y pasan a ser guards del proyecto.
@@ -190,6 +190,21 @@ Previsualizá primero con `--dry-run`: imprime el mismo resumen como plan y no e
 ```bash
 npx clckernel update . --dry-run
 npx clckernel . --yes --dry-run
+```
+
+### ➕ `update` nunca agrega lo que no elegiste
+`update` actualiza lo que el proyecto ya tiene; nunca agrega guards ni mirrors de IDE por su cuenta:
+- **Guards:** sólo se actualizan (y corre el hook) los guards del registro o presentes en `tools/`. Los
+  guards nuevos de tu stack se listan como *available, not installed*; se agregan con `--add-guards` (desde
+  ahí quedan instalados y se actualizan). Un nombre desconocido falla con exit 1 y no escribe nada. Los
+  archivos de soporte (`_changes.js/.py`, `yaml.js`, los orquestadores de audit) siguen a los guards instalados.
+- **Mirrors:** un mirror que borraste (p. ej. `.cursor/rules/clckernel_context.mdc`) no se recrea; se reporta
+  como *not present (skipped)*. Una instalación nueva los sigue creando todos.
+- **`.gitignore`:** una entrada cuya ruta git trackea (un mirror o la skill que commiteás) nunca se agrega, ni
+  en install ni en update; se reporta como *tracked, not ignored*.
+```bash
+npx clckernel update . --add-guards check_skills,check_placeholders
+npx clckernel update . --add-guards all
 ```
 
 ---

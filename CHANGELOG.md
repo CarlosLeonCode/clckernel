@@ -72,6 +72,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- **`update` never adds what the project did not choose.** It refreshes only the guards the project has (in
+  the registry or present in `tools/`) and runs only those in the hook; the stack's other guards are listed
+  as *available, not installed* and opted in with the new `clckernel update --add-guards <name,...|all>`
+  (an unknown name exits 1 without writing). It no longer recreates IDE mirrors the project deleted (*not
+  present (skipped)*), and neither install nor update adds a `.gitignore` entry for a path git tracks
+  (*tracked, not ignored*). `--dry-run` shows the three new sections. A part added to a monorepo gets its
+  external tools on update; its guards are offered as available.
+- **The kernel skill obeys `check_hitl`.** `check_hitl` no longer exempts `clckernel_cli` (it also reads
+  registry-listed files, via the new `includeManaged` option of `_changes.js`); the skill gains a
+  `## Human checkpoint` section: approval before code after a spec, before committing, before destructive
+  steps, and no publishing without an explicit request. The retired `clc_forge_cli` and vendored plugin
+  skills (`impeccable`) stay exempt.
 - **Hashed registry.** `tools/.clckernel-managed.json` is now `{ "kernelVersion", "files": [{ "path",
   "sha256" }] }` and also covers the hook and the skill; `_changes.js`/`_changes.py` read both this and the
   older list format, and `update` migrates it. Protected files are left out of it.

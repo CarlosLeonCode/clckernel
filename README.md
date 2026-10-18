@@ -169,7 +169,7 @@ clckernel update
 ```
 
 ### 🔒 The Non-Destructive Update Guarantee:
-- **Refreshes & Upgrades:** Core orchestrators (`tools/audit.js`, `tools/audit.py`), built-in guards, Agent Skills (`.agents/skills/`), and IDE symlinks (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`, Copilot, Antigravity).
+- **Refreshes & Upgrades:** Core orchestrators (`tools/audit.js`, `tools/audit.py`), the built-in guards your project has, Agent Skills (`.agents/skills/`), and the IDE symlinks your project has (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`, Copilot, Antigravity).
 - **100% Preserved:**
   - `sdds/`: All local specifications, plans, and verification receipts remain intact.
   - `tools/guards/`: All team-authored custom guards are preserved without modification. Domain guards that earlier releases installed into `tools/` are moved here (never deleted) and become project guards.
@@ -189,6 +189,21 @@ Preview first with `--dry-run`: it prints the same summary as a plan and writes 
 ```bash
 npx clckernel update . --dry-run
 npx clckernel . --yes --dry-run
+```
+
+### ➕ Update never adds what you did not choose
+`update` refreshes what the project already has; it never adds guards or IDE mirrors on its own:
+- **Guards:** only the guards in the registry or present in `tools/` are refreshed and run by the hook. New
+  guards of your stack are listed as *available, not installed*; opt in with `--add-guards` (they stay
+  installed and updated from then on). An unknown name fails with exit 1 and writes nothing. Support files
+  (`_changes.js/.py`, `yaml.js`, the audit orchestrators) follow the installed guards.
+- **Mirrors:** a mirror you deleted (e.g. `.cursor/rules/clckernel_context.mdc`) is not recreated; it is
+  reported as *not present (skipped)*. A fresh install still creates them all.
+- **`.gitignore`:** an entry whose path git tracks (a mirror or the skill you commit) is never added, on
+  install or update; it is reported as *tracked, not ignored*.
+```bash
+npx clckernel update . --add-guards check_skills,check_placeholders
+npx clckernel update . --add-guards all
 ```
 
 ---
