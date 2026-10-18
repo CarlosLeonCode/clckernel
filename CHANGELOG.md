@@ -30,6 +30,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Safe `update` and `--dry-run` (sdds/safe-update).** `clckernel update` and a reinstall with `--yes` never
+  overwrite a kernel file (`tools/*`, the pre-commit hook, the `clckernel_cli` skill) they cannot prove is
+  theirs and intact: a locally edited file, or a project file that only shares a kernel file's name, is kept
+  and the new version is written as `<file>.clckernel-new` (added to the consumer `.gitignore`). An older
+  intact install without hashes still updates silently: `src/known-hashes.json` holds the sha256 of every
+  version the kernel published (built from the git history by `scripts/build-known-hashes.js`).
+  `--dry-run` (`clckernel update [dir] --dry-run`, `clckernel [dir] --yes --dry-run`) prints the plan and
+  writes nothing — no files, directories, `.gitignore` or `git config`.
+
 - **Full-stack and monorepo support.** The detector finds code parts at the root, in declared workspaces
   (`package.json#workspaces`, `pnpm-workspace.yaml`) and in conventional directories (`frontend`, `backend`,
   `web`, `api`, `server`, `client`, `apps/*`, `services/*`, `packages/*`). Several parts install the union of
@@ -62,6 +71,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   regression tests for documentation claims and repository hygiene.
 
 ### Changed
+
+- **Hashed registry.** `tools/.clckernel-managed.json` is now `{ "kernelVersion", "files": [{ "path",
+  "sha256" }] }` and also covers the hook and the skill; `_changes.js`/`_changes.py` read both this and the
+  older list format, and `update` migrates it. Protected files are left out of it.
+- **Every install/update write goes through `src/io.js`**, one write point that applies the ownership rule and
+  records the plan. The `update` summary now lists written, unchanged, protected, moved, removed, `.gitignore`
+  and `git config` changes, and exits 0 with a visible warning when files were protected. `update` rejects
+  unknown flags.
+- **Old domain guards are moved only when intact.** A locally modified `tools/check_domain_data.js` or
+  `tools/check_test_calendar_sync.js` stays in `tools/` with a warning instead of being moved.
 
 - Generated hooks run under `set -e` without `|| true`; audit orchestrators report a crashing guard as
   FAILED.

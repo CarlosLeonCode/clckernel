@@ -176,6 +176,21 @@ clckernel update
   - `.clckernel.yaml`: All custom thresholds and active safeguard selections are preserved.
   - Application source code and domain models are never touched.
 
+### 🛡️ Files you edited are never overwritten
+`update` (and a reinstall with `--yes`) only overwrites a kernel file (`tools/*`, the pre-commit hook, the
+`clckernel_cli` skill) when it can prove the file is its own and intact: its sha256 matches the registry
+(`tools/.clckernel-managed.json`) or a version the kernel published. Anything else — a guard you hardened, a
+project file that happens to share a kernel file's name — is kept byte for byte, and the new version is
+written next to it as `<file>.clckernel-new` (gitignored) for you to review and merge. The summary lists what
+was written, unchanged, protected, moved, added to `.gitignore` and set in `git config`.
+
+Preview first with `--dry-run`: it prints the same summary as a plan and writes nothing (no files,
+`.gitignore` or `git config`):
+```bash
+npx clckernel update . --dry-run
+npx clckernel . --yes --dry-run
+```
+
 ---
 
 <a id="supported-stacks"></a>
