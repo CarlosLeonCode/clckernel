@@ -11,6 +11,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
+const { registryPaths } = require('./helpers');
 
 const ROOT = path.resolve(__dirname, '..');
 const CLI = path.join(ROOT, 'bin', 'cli.js');
@@ -203,15 +204,16 @@ describe('the install commit passes through the real hook', { concurrency: true 
     }
   });
 
-  it('install writes a sorted registry of the files it put in tools/, itself included', async () => {
+  it('install writes a sorted, hashed registry of the files it put in tools/', async () => {
     const dir = await createRepo(STACKS.FastAPI);
     try {
       await install(dir);
       const registry = JSON.parse(fs.readFileSync(path.join(dir, REGISTRY), 'utf-8'));
-      const onDisk = fs.readdirSync(path.join(dir, 'tools')).map((f) => `tools/${f}`).sort();
-      assert.deepStrictEqual(registry, onDisk);
-      assert.ok(registry.includes(REGISTRY));
-      assert.deepStrictEqual(registry, [...registry].sort());
+      const paths = registryPaths(registry);
+      const onDisk = fs.readdirSync(path.join(dir, 'tools')).map((f) => `tools/${f}`).filter((p) => p !== REGISTRY).sort();
+      assert.deepStrictEqual(paths.filter((p) => p.startsWith('tools/')), onDisk);
+      assert.ok(registry.files.every((f) => /^[0-9a-f]{64}$/.test(f.sha256)));
+      assert.deepStrictEqual(paths, [...paths].sort());
     } finally {
       teardown(dir);
     }

@@ -126,9 +126,13 @@ def _managed_files(cwd: str, mode: Optional[str]) -> set:
         data = json.loads(text)
     except ValueError:
         return set()
-    if not isinstance(data, list):
-        return set()
-    return {f for f in data if isinstance(f, str)}
+    # Older installs wrote a list of paths; current ones {kernelVersion, files: [{path, sha256}]}.
+    if isinstance(data, list):
+        return {f for f in data if isinstance(f, str)}
+    if isinstance(data, dict) and isinstance(data.get("files"), list):
+        paths = {f.get("path") for f in data["files"] if isinstance(f, dict)}
+        return {p for p in paths if isinstance(p, str)} | {MANAGED_REGISTRY}
+    return set()
 
 
 def _object_name(file: str, mode: str) -> str:

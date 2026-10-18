@@ -10,7 +10,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
-const { createTmpProject, createGitRepo, teardown, git: gitSync } = require('./helpers');
+const { createTmpProject, createGitRepo, teardown, git: gitSync, registryPaths } = require('./helpers');
 const { autoDetectStack } = require('../src/detector');
 const { generateHarness } = require('../src/generator');
 const AgentOSAdapter = require('../src/adapters/agent-os');
@@ -47,7 +47,7 @@ describe('Agent-OS installs no domain guard', () => {
         const config = autoDetectStack(dir);
         assert.strictEqual(config.projectType, 'agent-os');
         const result = generateHarness(dir, config);
-        const registry = readJson(path.join(dir, 'tools', '.clckernel-managed.json'));
+        const registry = registryPaths(readJson(path.join(dir, 'tools', '.clckernel-managed.json')));
         const hook = fs.readFileSync(path.join(dir, '.githooks', 'pre-commit'), 'utf-8');
         for (const legacy of ['check_domain_data', 'check_test_calendar_sync']) {
           assert.ok(!result.installedGuards.includes(legacy), `${legacy} must not be installed`);
@@ -349,7 +349,8 @@ function legacyProject(extra = {}) {
   const dir = createTmpProject({ ...AGENT_OS, ...extra });
   generateHarness(dir, autoDetectStack(dir));
   const registryFile = path.join(dir, 'tools', '.clckernel-managed.json');
-  const registry = readJson(registryFile);
+  // An older install: the registry was a list of paths.
+  const registry = registryPaths(readJson(registryFile));
   for (const file of LEGACY_GUARDS) {
     fs.copyFileSync(path.join(LEGACY_DIR, file), path.join(dir, 'tools', file));
     registry.push(`tools/${file}`);
@@ -377,7 +378,7 @@ describe('update migrates the removed domain guards', () => {
         assert.ok(result.guardMigration.moved.includes(`tools/guards/${file}`));
         assert.ok(lines.some((l) => l.includes(`tools/${file}`) && l.includes(`tools/guards/${file}`)), `reports the move of ${file}:\n${lines.join('\n')}`);
       }
-      const registry = readJson(path.join(dir, 'tools', '.clckernel-managed.json'));
+      const registry = registryPaths(readJson(path.join(dir, 'tools', '.clckernel-managed.json')));
       assert.ok(!registry.some((f) => LEGACY_GUARDS.some((g) => f.endsWith(g))), 'out of the registry');
     } finally {
       console.log = log;

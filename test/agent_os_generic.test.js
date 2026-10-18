@@ -8,7 +8,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
-const { createTmpProject, teardown } = require('./helpers');
+const { createTmpProject, teardown, registryPaths } = require('./helpers');
 const { autoDetectStack } = require('../src/detector');
 const { generateHarness } = require('../src/generator');
 const AgentOSAdapter = require('../src/adapters/agent-os');
@@ -86,7 +86,7 @@ function install(files) {
   const config = autoDetectStack(dir);
   assert.strictEqual(config.projectType, 'agent-os');
   const result = generateHarness(dir, config);
-  const registry = JSON.parse(fs.readFileSync(path.join(dir, 'tools', '.clckernel-managed.json'), 'utf-8'));
+  const registry = registryPaths(JSON.parse(fs.readFileSync(path.join(dir, 'tools', '.clckernel-managed.json'), 'utf-8')));
   const hook = fs.readFileSync(path.join(dir, '.githooks', 'pre-commit'), 'utf-8');
   const agents = fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8');
   return { dir, result, registry, hook, agents };

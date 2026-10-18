@@ -4,8 +4,8 @@
  * inherit from this interface to ensure universal polyglot harness behavior.
  */
 
-const fs = require('fs');
 const path = require('path');
+const { currentIO } = require('../io');
 
 class BaseAdapter {
   constructor(name, projectType, testRunner) {
@@ -40,17 +40,21 @@ class BaseAdapter {
     // so this generic law file is never written alongside (or over) theirs.
     const skipAgentsMd = !!(config && config.skipAgentsMd);
 
+    // Every write goes through the active io session (sdds/safe-update).
+    const io = currentIO(targetDir);
+
     // 1. Create docs/ and sdds/
-    fs.mkdirSync(path.join(targetDir, 'docs', 'Journal'), { recursive: true });
-    fs.mkdirSync(path.join(targetDir, 'docs', 'Architecture'), { recursive: true });
-    fs.mkdirSync(path.join(targetDir, 'docs', 'Development'), { recursive: true });
-    fs.mkdirSync(path.join(targetDir, 'sdds'), { recursive: true });
-    fs.mkdirSync(path.join(targetDir, 'tools'), { recursive: true });
+    io.mkdir(path.join(targetDir, 'docs', 'Journal'));
+    io.mkdir(path.join(targetDir, 'docs', 'Architecture'));
+    io.mkdir(path.join(targetDir, 'docs', 'Development'));
+    io.mkdir(path.join(targetDir, 'sdds'));
+    io.mkdir(path.join(targetDir, 'tools'));
 
     // 2. Gitignore local SDD specs, ephemeral artifacts, and AI IDE mirrors
     const { ensureGitignoreEntries } = require('../gitignore');
     ensureGitignoreEntries(targetDir);
-    fs.writeFileSync(path.join(targetDir, 'sdds', '.gitkeep'), '', 'utf-8');
+    const gitkeep = path.join(targetDir, 'sdds', '.gitkeep');
+    if (!io.exists(gitkeep)) io.writeFile(gitkeep, '');
 
     // 3. Write AGENTS.md
     const isFront = this.projectType === 'frontend';
@@ -86,8 +90,8 @@ ${this.getSafeguards().map(s => `- ${s}`).join('\n')}
       return;
     }
     const agentsPath = path.join(targetDir, 'AGENTS.md');
-    if (!fs.existsSync(agentsPath)) {
-      fs.writeFileSync(agentsPath, agentsContent, 'utf-8');
+    if (!io.exists(agentsPath)) {
+      io.writeFile(agentsPath, agentsContent);
     }
   }
 }

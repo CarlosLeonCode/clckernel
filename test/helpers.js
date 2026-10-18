@@ -73,4 +73,29 @@ function stageFiles(dir, files = {}) {
   }
 }
 
-module.exports = { createTmpProject, teardown, git, createGitRepo, stageFiles };
+/**
+ * Paths a registry lists, in either format: the older list of paths or the
+ * hashed { kernelVersion, files: [{ path, sha256 }] } (sdds/safe-update).
+ * @param {string[]|object} registry - Parsed tools/.clckernel-managed.json
+ * @returns {string[]}
+ */
+function registryPaths(registry) {
+  return Array.isArray(registry) ? registry : registry.files.map((f) => f.path);
+}
+
+/**
+ * `files` plus a hashed registry vouching for them: an older install whose
+ * kernel files are intact, so update may overwrite them (sdds/safe-update).
+ * @param {Record<string, string>} files - Kernel files of the older install
+ * @returns {Record<string, string>}
+ */
+function withRegistry(files) {
+  const crypto = require('crypto');
+  const entries = Object.entries(files).map(([p, content]) => ({
+    path: p,
+    sha256: crypto.createHash('sha256').update(content).digest('hex'),
+  }));
+  return { ...files, 'tools/.clckernel-managed.json': JSON.stringify({ kernelVersion: '0.0.0', files: entries }) };
+}
+
+module.exports = { createTmpProject, teardown, git, createGitRepo, stageFiles, registryPaths, withRegistry };

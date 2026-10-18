@@ -11,7 +11,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { teardown } = require('./helpers');
+const { teardown, registryPaths } = require('./helpers');
 
 const ROOT = path.resolve(__dirname, '..');
 const CLI = path.join(ROOT, 'bin', 'cli.js');
@@ -164,7 +164,8 @@ describe('clckernel update moving the old domain guards does not block the next 
       assert.strictEqual(installed.status, 0, `install failed:\n${installed.output}`);
       // An older install: the domain guards shipped in tools/ and were managed.
       const registryFile = path.join(dir, 'tools', '.clckernel-managed.json');
-      const registry = JSON.parse(fs.readFileSync(registryFile, 'utf-8'));
+      // An older install: the registry was a list of paths.
+      const registry = registryPaths(JSON.parse(fs.readFileSync(registryFile, 'utf-8')));
       for (const file of LEGACY_GUARDS) {
         fs.copyFileSync(path.join(LEGACY_DIR, file), path.join(dir, 'tools', file));
         registry.push(`tools/${file}`);

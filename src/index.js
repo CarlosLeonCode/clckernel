@@ -20,6 +20,9 @@ const READ_ONLY_COMMANDS = new Set(['help', '--help', '-h', 'version', '--versio
  */
 const INSTALL_FLAGS = new Set(['--yes', '-y']);
 
+/** Prints the plan instead of writing (sdds/safe-update, decision 5). Not an opt-in by itself. */
+const DRY_RUN_FLAG = '--dry-run';
+
 /**
  * Words AGENTS.md documents as agent commands (`clckernel test`, ...). They are
  * executed by the AI agent, not by this CLI; without this list they would be
@@ -43,8 +46,11 @@ READ-ONLY COMMANDS (do not modify your project's code or config)
 
 WRITES TO THE TARGET PROJECT
   update [targetDir]            Refresh tools, hooks, playbooks, IDE symlinks,
-                                .gitignore and AGENTS.md
+                                .gitignore and AGENTS.md. A kernel file you
+                                edited is kept; the new version is written
+                                next to it as <file>.clckernel-new
   clckernel [targetDir] --yes   Provision the governance harness
+  --dry-run                     With update or --yes: print the plan, write nothing
 
   Installation requires an explicit opt-in and an existing target directory.
   Bare \`clckernel\` runs the interactive confirmation flow; with no TTY it
@@ -59,6 +65,7 @@ EXAMPLES
   clckernel doctor .
   clckernel audit .
   clckernel update .
+  clckernel update . --dry-run
   clckernel . --yes
 `;
 
@@ -196,9 +203,17 @@ async function runCli() {
   }
 
   if (command === 'update' || args.includes('--update')) {
-    const target = args[1] && args[1] !== '--update' ? args[1] : (args[0] === 'update' ? null : args[0]);
+    const rest = [...args];
+    rest.splice(rest.indexOf(command === 'update' ? 'update' : '--update'), 1);
+    const updateFlags = rest.filter((a) => a.startsWith('-'));
+    const updatePositionals = rest.filter((a) => !a.startsWith('-'));
+    if (updateFlags.some((f) => f !== DRY_RUN_FLAG) || updatePositionals.length > 1) {
+      process.exitCode = rejectUnknownInput(args);
+      return;
+    }
     const { runUpdate } = require('./updater');
-    await runUpdate(target ? path.resolve(target) : process.cwd());
+    const target = updatePositionals[0];
+    await runUpdate(target ? path.resolve(target) : process.cwd(), { dryRun: updateFlags.includes(DRY_RUN_FLAG) });
     return;
   }
 
@@ -206,7 +221,8 @@ async function runCli() {
   // or an explicit install flag.
   const flags = args.filter((a) => a.startsWith('-'));
   const positionals = args.filter((a) => !a.startsWith('-'));
-  const unknownFlags = flags.filter((f) => !INSTALL_FLAGS.has(f));
+  const unknownFlags = flags.filter((f) => !INSTALL_FLAGS.has(f) && f !== DRY_RUN_FLAG);
+  const dryRun = flags.includes(DRY_RUN_FLAG);
 
   if (unknownFlags.length > 0 || positionals.length > 1) {
     process.exitCode = rejectUnknownInput(args);
@@ -224,7 +240,7 @@ async function runCli() {
     process.exitCode = 1;
     return;
   }
-  const explicitInstall = INSTALL_FLAGS.has(command) || flags.length > 0;
+  const explicitInstall = flags.some((f) => INSTALL_FLAGS.has(f));
   const isInteractive = Boolean(process.stdin.isTTY) && !process.env.CI;
 
   if (!explicitInstall && !isInteractive) {
@@ -266,14 +282,20 @@ async function runCli() {
     s.start('Configurando salvaguardas y motor de gobernanza...');
   }
 
-  const { installedGuards, hook } = generateHarness(targetDir, finalConfig) || {};
+  const { installedGuards, hook, plan } = generateHarness(targetDir, finalConfig, { dryRun }) || {};
 
   if (s) {
-    s.stop('Salvaguardas y motor de gobernanza configurados.');
+    s.stop(dryRun ? 'Plan listo (dry run).' : 'Salvaguardas y motor de gobernanza configurados.');
   }
 
-  // 6. Render Pro Success Card
+  // 6. Render Pro Success Card (or, for a dry run, only the plan)
+  const { printPlan } = require('./ui');
+  if (dryRun) {
+    if (plan) printPlan(plan, { dryRun: true });
+    return;
+  }
   printSuccess(targetDir, hook, finalConfig, installedGuards);
+  if (plan) printPlan(plan);
 }
 
 module.exports = { runCli };

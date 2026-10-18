@@ -2,7 +2,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const path = require('path');
 const fs = require('fs');
-const { createTmpProject, teardown } = require('./helpers');
+const { createTmpProject, teardown, withRegistry } = require('./helpers');
 const { updateHarness } = require('../src/updater');
 
 describe('updateHarness (Non-Destructive Update)', () => {
@@ -10,7 +10,8 @@ describe('updateHarness (Non-Destructive Update)', () => {
     const dir = createTmpProject({
       'sdds/auth-jwt/spec.md': '# Spec: Auth JWT\nDO NOT OVERWRITE THIS\n',
       'sdds/payment/plan.md': '# Plan: Payment\nIMPORTANT PLAN\n',
-      'tools/audit.js': '// outdated audit orchestrator\n',
+      // An outdated but intact kernel copy: the registry vouches for it.
+      ...withRegistry({ 'tools/audit.js': '// outdated audit orchestrator\n' }),
       'AGENTS.md': '# Old AGENTS.md\n',
       '.clckernel.yaml': 'safeguards:\n  scan_secrets: true\n  custom_threshold: 42\n',
       'tools/guards/company_rule.js': '// Custom company AST rule\n',

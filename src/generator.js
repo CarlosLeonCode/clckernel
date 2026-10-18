@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { resolveConfig } = require('./config.js');
+const { createIO, runWithIO, activeIO, currentIO, registeredPaths, MANAGED_REGISTRY } = require('./io');
 
 /**
  * Shell condition that decides at commit time whether an external tool runs.
@@ -34,9 +35,6 @@ function guardedCommand(tool, managed = []) {
     `else echo "clckernel: ${tool.name} not available, skipped"; fi`;
 }
 
-/** Registry of the files the harness installed into tools/ (paths relative to the project root). */
-const MANAGED_REGISTRY = 'tools/.clckernel-managed.json';
-
 /**
  * Appends the harness's own files to a whole-project linter's exclusions.
  * A tool opts in with `excludeManaged: { flag, extensions }` (e.g. ruff's
@@ -54,32 +52,38 @@ function withManagedExcludes(tool, managed) {
 }
 
 /**
- * Reads the registry written by the last install/update; [] when absent or malformed.
+ * Reads the registry written by the last install/update (either format); []
+ * when absent or malformed.
  * @param {string} targetDir - Target project root
  * @returns {string[]}
  */
 function readManagedRegistry(targetDir) {
-  try {
-    const list = JSON.parse(fs.readFileSync(path.join(targetDir, MANAGED_REGISTRY), 'utf-8'));
-    return Array.isArray(list) ? list.filter(f => typeof f === 'string') : [];
-  } catch {
-    return [];
-  }
+  return registeredPaths(targetDir);
 }
 
 /**
- * Writes the registry: the sorted list of every file this run installed into
- * tools/, the registry itself included. The snapshot helpers (_changes.js/.py)
- * drop these paths from the files a guard evaluates.
- * @param {string} targetDir - Target project root
- * @param {string[]} toolFiles - File names written into tools/
- * @returns {string[]} The registered paths
+ * The sorted paths of every file this run installs into tools/, the registry
+ * included: whole-project linters in the hook exclude them.
+ * @param {string[]} toolFiles - File names installed into tools/
+ * @returns {string[]}
  */
-function writeManagedRegistry(targetDir, toolFiles) {
-  const paths = [...new Set([...toolFiles.map(f => `tools/${f}`), MANAGED_REGISTRY])].sort();
-  fs.mkdirSync(path.join(targetDir, 'tools'), { recursive: true });
-  fs.writeFileSync(path.join(targetDir, MANAGED_REGISTRY), JSON.stringify(paths, null, 2) + '\n', 'utf-8');
-  return paths;
+function managedToolPaths(toolFiles) {
+  return [...new Set([...toolFiles.map(f => `tools/${f}`), MANAGED_REGISTRY])].sort();
+}
+
+/**
+ * Writes the registry (sdds/safe-update, decision 2): every kernel-owned file
+ * whose bytes are the kernel's after this run (tools/*, the hook, the skill),
+ * with its sha256. Protected files are left out: their content is the
+ * project's. The snapshot helpers (_changes.js/.py) drop these paths, and the
+ * registry itself, from the files a guard evaluates.
+ * @param {object} io - Active io session
+ * @param {string} targetDir - Target project root
+ */
+function writeManagedRegistry(io, targetDir) {
+  const { version } = require('../package.json');
+  const registry = { kernelVersion: version, files: io.managedEntries() };
+  io.writeFile(path.join(targetDir, MANAGED_REGISTRY), JSON.stringify(registry, null, 2) + '\n');
 }
 
 /**
@@ -161,7 +165,8 @@ function configureHooksPath(targetDir) {
   }
 
   const current = runGit(targetDir, ['config', '--get', 'core.hooksPath']).out;
-  if (current && current !== GITHOOKS_DIR) {
+  if (current === GITHOOKS_DIR) return true;
+  if (current) {
     console.warn(
       `Warning: core.hooksPath is already set to "${current}" (another hook manager?); it was left unchanged.\n` +
         `  To run the CLC Kernel hooks instead run: git config core.hooksPath ${GITHOOKS_DIR}`
@@ -169,7 +174,7 @@ function configureHooksPath(targetDir) {
     return false;
   }
 
-  return runGit(targetDir, ['config', 'core.hooksPath', GITHOOKS_DIR]).ok;
+  return currentIO(targetDir).gitConfig(targetDir, 'core.hooksPath', GITHOOKS_DIR);
 }
 
 /** core.hooksPath values that mean Husky (v9: .husky/_, older: .husky) runs the hooks. */
@@ -216,12 +221,13 @@ function writeHook(targetDir, isFront, commands, banner) {
   lines.push(...commands);
   lines.push(...PROJECT_GUARDS_BLOCK);
 
-  fs.mkdirSync(hookDir, { recursive: true });
-  fs.writeFileSync(hookFile, lines.join('\n') + '\n', 'utf-8');
-  try { fs.chmodSync(hookFile, '755'); } catch (e) {}
+  // Generated per project: overwritten only when it still matches the
+  // registry's hash (sdds/safe-update, decision 3).
+  const file = path.posix.join(useHusky ? '.husky' : GITHOOKS_DIR, 'pre-commit');
+  const status = currentIO(targetDir).writeManaged(file, lines.join('\n') + '\n', { mode: '755' });
 
   const active = useHusky ? true : configureHooksPath(targetDir);
-  return { file: path.posix.join(useHusky ? '.husky' : GITHOOKS_DIR, 'pre-commit'), active };
+  return { file, active, status };
 }
 
 /**
@@ -384,9 +390,7 @@ function installOrchestrators(targetDir, copiedFiles) {
   for (const file of wanted) {
     const src = path.join(__dirname, '..', 'tools', file);
     if (!fs.existsSync(src)) continue;
-    const dest = path.join(targetDir, 'tools', file);
-    fs.copyFileSync(src, dest);
-    try { fs.chmodSync(dest, '755'); } catch (e) {}
+    currentIO(targetDir).copyManaged(src, `tools/${file}`, { mode: '755' });
     written.push(file);
   }
   return written;
@@ -411,7 +415,7 @@ function installToolsFromManifest(targetDir, manifest, config) {
 
   // tools/ must exist before anything is copied into it. Provisioning a project
   // that has no tools/ yet used to throw ENOENT on the first copyFileSync.
-  fs.mkdirSync(path.join(targetDir, 'tools'), { recursive: true });
+  currentIO(targetDir).mkdir(path.join(targetDir, 'tools'));
 
   // Validate descriptors: skip + warn tools missing required fields
   const validTools = manifest.filter(tool => {
@@ -428,10 +432,8 @@ function installToolsFromManifest(targetDir, manifest, config) {
   validTools.forEach(tool => {
     if (tool.language === 'external' || !tool.path) return;
     const srcFile = path.join(sourceToolsDir, tool.path);
-    const destFile = path.join(targetDir, 'tools', tool.path);
     if (fs.existsSync(srcFile)) {
-      fs.copyFileSync(srcFile, destFile);
-      try { fs.chmodSync(destFile, '755'); } catch (e) {}
+      currentIO(targetDir).copyManaged(srcFile, `tools/${tool.path}`, { mode: '755' });
       installed.push(tool.name);
       copiedPaths.push(tool.path);
     } else {
@@ -464,9 +466,7 @@ function installToolsFromManifest(targetDir, manifest, config) {
 function installYamlModule(targetDir) {
   const yamlSrc = path.join(__dirname, '..', 'tools', 'yaml.js');
   if (!fs.existsSync(yamlSrc)) return [];
-  const toolsDest = path.join(targetDir, 'tools');
-  fs.mkdirSync(toolsDest, { recursive: true });
-  fs.copyFileSync(yamlSrc, path.join(toolsDest, 'yaml.js'));
+  currentIO(targetDir).copyManaged(yamlSrc, 'tools/yaml.js');
   return ['yaml.js'];
 }
 
@@ -482,14 +482,12 @@ function installYamlModule(targetDir) {
  * @returns {string[]} File names written into tools/
  */
 function installSnapshotHelpers(targetDir, copiedFiles) {
-  const toolsDest = path.join(targetDir, 'tools');
   const helpers = new Set(copiedFiles.map(f => SNAPSHOT_HELPERS[path.extname(f)]).filter(Boolean));
   const written = [];
   for (const file of helpers) {
     const src = path.join(__dirname, '..', 'tools', file);
     if (!fs.existsSync(src)) continue;
-    fs.mkdirSync(toolsDest, { recursive: true });
-    fs.copyFileSync(src, path.join(toolsDest, file));
+    currentIO(targetDir).copyManaged(src, `tools/${file}`);
     written.push(file);
   }
   return written;
@@ -524,10 +522,8 @@ function installFallbackTools(targetDir, projectType) {
   const written = [];
   fallbackFiles.forEach(file => {
     const srcFile = path.join(sourceToolsDir, file);
-    const destFile = path.join(targetDir, 'tools', file);
     if (fs.existsSync(srcFile)) {
-      fs.copyFileSync(srcFile, destFile);
-      try { fs.chmodSync(destFile, '755'); } catch (e) {}
+      currentIO(targetDir).copyManaged(srcFile, `tools/${file}`, { mode: '755' });
       written.push(file);
       const name = path.basename(file, path.extname(file));
       if (name !== 'audit') installed.add(name);
@@ -608,12 +604,9 @@ function generateConfigPathHarness(targetDir, configOrNull) {
     __catalog: resolved.__catalog,
   };
 
-  fs.mkdirSync(targetDir, { recursive: true });
-  fs.writeFileSync(
-    path.join(targetDir, '.clckernel.resolved.json'),
-    JSON.stringify(metadata, null, 2) + '\n',
-    'utf-8'
-  );
+  const io = currentIO(targetDir);
+  io.mkdir(targetDir);
+  io.writeFile(path.join(targetDir, '.clckernel.resolved.json'), JSON.stringify(metadata, null, 2) + '\n');
   return resolved;
 }
 
@@ -698,7 +691,20 @@ When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`,
  * by index.js) routes to the config-driven path — which for A-03 emits the
  * resolved metadata; full materialization lands in A-04.
  */
-function generateHarness(targetDir, configOrNull) {
+function generateHarness(targetDir, configOrNull, options = {}) {
+  // One io session per install (sdds/safe-update): reuse the caller's (update)
+  // or open one, real or dry-run.
+  const active = activeIO();
+  if (active) return generateHarnessWith(active, targetDir, configOrNull);
+  const io = createIO({ root: targetDir, dryRun: !!options.dryRun, knownHashes: options.knownHashes });
+  const result = runWithIO(io, () => generateHarnessWith(io, targetDir, configOrNull));
+  if (result && typeof result === 'object' && !Array.isArray(result) && 'installedGuards' in result) {
+    return { ...result, plan: io.plan() };
+  }
+  return result;
+}
+
+function generateHarnessWith(io, targetDir, configOrNull) {
   if (configOrNull && (configOrNull.__clcKernelConfigPath === true || configOrNull.__clcForgeConfigPath === true || isExtendedConfig(configOrNull))) {
     return generateConfigPathHarness(targetDir, configOrNull);
   }
@@ -714,8 +720,8 @@ function generateHarness(targetDir, configOrNull) {
     // Directories and .gitignore as any adapter provisions them; the law file
     // is the multi-part one, never written over a project's own AGENTS.md.
     config.parts[0].adapter.provision(targetDir, { ...config, skipAgentsMd: true });
-    if (!fs.existsSync(path.join(targetDir, 'AGENTS.md'))) {
-      fs.writeFileSync(path.join(targetDir, 'AGENTS.md'), partsAgentsMd(config), 'utf-8');
+    if (!io.exists(path.join(targetDir, 'AGENTS.md'))) {
+      io.writeFile(path.join(targetDir, 'AGENTS.md'), partsAgentsMd(config));
     }
   } else if (config.adapter) {
     config.adapter.provision(targetDir, config);
@@ -727,15 +733,16 @@ function generateHarness(targetDir, configOrNull) {
     const frameworkLabel = isGeneric ? 'Generic' : (config.framework || 'Generic');
     const testRunner = isGeneric ? "the project's test runner" : (config.testRunner || 'npm test');
 
-    fs.mkdirSync(path.join(targetDir, 'docs', 'Journal'), { recursive: true });
-    fs.mkdirSync(path.join(targetDir, 'docs', 'Architecture'), { recursive: true });
-    fs.mkdirSync(path.join(targetDir, 'docs', 'Development'), { recursive: true });
-    fs.mkdirSync(path.join(targetDir, 'sdds'), { recursive: true });
-    fs.mkdirSync(path.join(targetDir, 'tools'), { recursive: true });
+    io.mkdir(path.join(targetDir, 'docs', 'Journal'));
+    io.mkdir(path.join(targetDir, 'docs', 'Architecture'));
+    io.mkdir(path.join(targetDir, 'docs', 'Development'));
+    io.mkdir(path.join(targetDir, 'sdds'));
+    io.mkdir(path.join(targetDir, 'tools'));
 
     const { ensureGitignoreEntries } = require('./gitignore');
     ensureGitignoreEntries(targetDir);
-    fs.writeFileSync(path.join(targetDir, 'sdds', '.gitkeep'), '', 'utf-8');
+    const gitkeep = path.join(targetDir, 'sdds', '.gitkeep');
+    if (!io.exists(gitkeep)) io.writeFile(gitkeep, '');
 
     const agentsContent = `# CLC Kernel ${frameworkLabel} (${(config.projectType || 'unknown').toUpperCase()}) — AGENTS
 
@@ -789,8 +796,8 @@ ${commandTable(testRunner)}`;
     // Guard: never overwrite an existing project-customized AGENTS.md.
     // This prevents clckernel update from replacing project-specific
     // invariants the template cannot know about.
-    if (!fs.existsSync(path.join(targetDir, 'AGENTS.md'))) {
-      fs.writeFileSync(path.join(targetDir, 'AGENTS.md'), agentsContent, 'utf-8');
+    if (!io.exists(path.join(targetDir, 'AGENTS.md'))) {
+      io.writeFile(path.join(targetDir, 'AGENTS.md'), agentsContent);
     }
 
   }
@@ -805,23 +812,23 @@ ${commandTable(testRunner)}`;
     const manifest = buildPartsManifest(config.parts, config.techTools || [], targetDir);
     const { installed, written } = installToolsFromManifest(targetDir, manifest.guards, config);
     installedGuards = installed;
-    const managed = writeManagedRegistry(targetDir, written);
-    hook = generatePartsHook(config, targetDir, manifest, managed);
+    hook = generatePartsHook(config, targetDir, manifest, managedToolPaths(written));
   } else if (config.adapter) {
     const manifest = buildToolManifest(config.adapter, config.techTools || [], targetDir);
     const { installed, written } = installToolsFromManifest(targetDir, manifest, config);
     installedGuards = installed;
-    const managed = writeManagedRegistry(targetDir, written);
-    hook = generateHookFromManifest(config.adapter, targetDir, manifest, managed);
+    hook = generateHookFromManifest(config.adapter, targetDir, manifest, managedToolPaths(written));
   } else {
     const { installed, written } = installFallbackTools(targetDir, config.projectType);
     installedGuards = installed;
-    writeManagedRegistry(targetDir, written);
     hook = generateFallbackHook(targetDir, config.projectType);
   }
 
   // Step 4: Install LLM Conversational CLI & Agent Context
   installAgenticCLI(targetDir);
+
+  // Step 5: Record what the kernel owns now, with hashes.
+  writeManagedRegistry(io, targetDir);
 
   return { installedGuards, hook };
 }
@@ -831,10 +838,10 @@ ${commandTable(testRunner)}`;
  * para que todos los LLMs (Cursor, Claude, Gemini) absorban el AGENTS.md.
  */
 function installAgenticCLI(targetDir) {
+  const io = currentIO(targetDir);
   // 1. Crear el Directorio de Skills
-  const skillDir = path.join(targetDir, '.agents', 'skills', 'clckernel_cli');
-  const skillRefDir = path.join(skillDir, 'reference');
-  fs.mkdirSync(skillRefDir, { recursive: true });
+  const skillRel = '.agents/skills/clckernel_cli';
+  io.mkdir(path.join(targetDir, skillRel, 'reference'));
 
   // 2. Inyectar el SKILL.md Maestro y Playbooks de Referencia
   const bundledSkillDir = path.join(__dirname, '..', '.agents', 'skills', 'clckernel_cli');
@@ -842,7 +849,7 @@ function installAgenticCLI(targetDir) {
   const bundledRefDir = path.join(bundledSkillDir, 'reference');
 
   if (fs.existsSync(bundledSkillFile)) {
-    fs.copyFileSync(bundledSkillFile, path.join(skillDir, 'SKILL.md'));
+    io.copyManaged(bundledSkillFile, `${skillRel}/SKILL.md`);
   }
 
   if (fs.existsSync(bundledRefDir)) {
@@ -850,7 +857,7 @@ function installAgenticCLI(targetDir) {
     for (const pb of playbooks) {
       const srcPb = path.join(bundledRefDir, pb);
       if (fs.statSync(srcPb).isFile()) {
-        fs.copyFileSync(srcPb, path.join(skillRefDir, pb));
+        io.copyManaged(srcPb, `${skillRel}/reference/${pb}`);
       }
     }
   }
@@ -870,8 +877,8 @@ function installAgenticCLI(targetDir) {
     const linkPath = path.join(targetDir, link);
     const linkDir = path.dirname(linkPath);
 
-    if (!fs.existsSync(linkDir)) {
-      fs.mkdirSync(linkDir, { recursive: true });
+    if (!io.exists(linkDir)) {
+      io.mkdir(linkDir);
     }
 
     const relPath = path.relative(linkDir, path.join(targetDir, sourceFile));
@@ -880,17 +887,8 @@ function installAgenticCLI(targetDir) {
       // Only replace an existing symlink (a stale mirror needs refreshing).
       // A regular file belongs to the consumer: unlinking it would destroy
       // their own rules, so leave it in place instead.
-      let existing = null;
-      try {
-        existing = fs.lstatSync(linkPath);
-      } catch (err) {}
-
-      if (existing) {
-        if (!existing.isSymbolicLink()) return;
-        fs.unlinkSync(linkPath);
-      }
-
-      fs.symlinkSync(relPath, linkPath, 'file');
+      // io.symlink replaces an existing symlink and skips anything else.
+      io.symlink(relPath, linkPath);
     } catch (e) {
       // Ignorar fallos de permisos o symlinks existentes
     }

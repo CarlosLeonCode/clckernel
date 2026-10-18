@@ -9,7 +9,7 @@ const assert = require('node:assert');
 const path = require('path');
 const fs = require('fs');
 const { spawnSync } = require('child_process');
-const { createTmpProject, teardown } = require('./helpers');
+const { createTmpProject, teardown, withRegistry } = require('./helpers');
 const { generateHarness } = require('../src/generator');
 const { updateHarness } = require('../src/updater');
 const { autoDetectStack } = require('../src/detector');
@@ -104,7 +104,8 @@ describe('_changes helpers are installed with the guards', () => {
   });
 
   it('update restores missing helpers and refreshes stale ones', () => {
-    const dir = createTmpProject({ 'tools/_changes.js': '// stale\n' });
+    // Stale but intact: the registry vouches for it (sdds/safe-update).
+    const dir = createTmpProject(withRegistry({ 'tools/_changes.js': '// stale\n' }));
     try {
       updateHarness(dir);
       assertHelpersInstalled(dir, ['_changes.js']);

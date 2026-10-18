@@ -188,7 +188,52 @@ function printSuccess(targetDir, hook, config, installedGuards = []) {
   }
 }
 
+/**
+ * Lines of the install/update summary (sdds/safe-update, decision 4): written,
+ * unchanged, protected (with the .clckernel-new path), moved, removed, added
+ * to .gitignore and git config. A dry run prints the same sections as a plan.
+ * @param {object} plan - io.plan()
+ * @param {{ dryRun?: boolean }} [options]
+ * @returns {string[]}
+ */
+function planLines(plan, { dryRun = false } = {}) {
+  const label = (real, planned) => (dryRun ? planned : real);
+  const lines = [];
+  const section = (title, items, color = colors.emerald) => {
+    if (items.length === 0) return;
+    lines.push(`${colors.bold}${title} (${items.length}):${colors.reset}`);
+    for (const item of items) lines.push(`   ${color}•${colors.reset} ${item}`);
+  };
+  section(label('Written', 'Would write'), plan.written);
+  if (plan.unchanged.length > 0) {
+    lines.push(`${colors.bold}${label('Unchanged', 'Unchanged')} (${plan.unchanged.length}):${colors.reset} already up to date`);
+  }
+  section(label('Protected (local changes kept)', 'Would protect (local changes kept)'),
+    plan.protected.map((p) => `${p.path} (${p.reason}) -> new version in ${p.newPath}`), colors.amber);
+  section(label('Moved', 'Would move'), plan.moved.map((m) => `${m.from} -> ${m.to}`));
+  section(label('Removed', 'Would remove'), plan.removed);
+  section(label('Added to .gitignore', 'Would add to .gitignore'), plan.gitignore);
+  section(label('git config', 'Would set git config'), plan.gitConfig.map((c) => `${c.key} = ${c.value}`));
+  if (plan.protected.length > 0) {
+    lines.push('');
+    lines.push(`${colors.amber}⚠ ${plan.protected.length} file(s) ${dryRun ? 'would be' : 'were'} protected: the kernel cannot prove they are its own and intact.${colors.reset}`);
+    lines.push(`${colors.amber}  Review each *.clckernel-new copy, merge what you want, then delete it (it is gitignored).${colors.reset}`);
+  }
+  if (dryRun) {
+    lines.push('');
+    lines.push(`${colors.cyan}Dry run: nothing was written (no files, .gitignore or git config).${colors.reset}`);
+  }
+  return lines;
+}
+
+/** Prints planLines. */
+function printPlan(plan, options) {
+  console.log(planLines(plan, options).join('\n'));
+}
+
 module.exports = {
+  planLines,
+  printPlan,
   colors,
   printBanner,
   printBox,

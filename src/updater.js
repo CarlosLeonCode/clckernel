@@ -12,6 +12,7 @@ const fs = require('fs');
 const path = require('path');
 const { autoDetectStack } = require('./detector');
 const { generateHarness } = require('./generator');
+const { createIO, runWithIO, currentIO, sha256, NEW_SUFFIX } = require('./io');
 
 // Config names, canonical first; the rest are read for compatibility.
 const CONFIG_NAMES = ['.clckernel.yaml', '.clckernel.yml', '.clc-forge.yaml', '.clc-forge.yml'];
@@ -96,7 +97,7 @@ function cleanupLegacyArtifacts(dir, previousSkill) {
       if (mismatch) {
         kept.push({ path: skillLabel, reason: mismatch });
       } else {
-        fs.rmSync(skillDir, { recursive: true, force: true });
+        currentIO(dir).remove(skillDir);
         removed.push(skillLabel);
       }
     }
@@ -109,7 +110,7 @@ function cleanupLegacyArtifacts(dir, previousSkill) {
       ruleStat.isSymbolicLink() &&
       path.resolve(path.dirname(rulePath), fs.readlinkSync(rulePath)) === path.join(dir, 'AGENTS.md');
     if (pointsToAgents) {
-      fs.unlinkSync(rulePath);
+      currentIO(dir).remove(rulePath);
       removed.push(LEGACY_CURSOR_RULE);
     } else {
       kept.push({
@@ -123,7 +124,7 @@ function cleanupLegacyArtifacts(dir, previousSkill) {
   const jsonStat = lstat(jsonPath);
   if (jsonStat) {
     if (jsonStat.isFile()) {
-      fs.unlinkSync(jsonPath);
+      currentIO(dir).remove(jsonPath);
       removed.push(LEGACY_RESOLVED_JSON);
     } else {
       kept.push({ path: LEGACY_RESOLVED_JSON, reason: 'not a regular file' });
@@ -139,10 +140,15 @@ function cleanupLegacyArtifacts(dir, previousSkill) {
  * them). Nothing is deleted: when tools/guards/ already has a file with that
  * name, both are left in place and reported. The moved files leave the managed
  * registry because generateHarness rewrites it from what it installs.
+ * Ownership (sdds/safe-update): only a guard whose bytes the kernel can prove
+ * are its own (registry hash or a published version) is moved; a locally
+ * modified one stays where it is, with a warning.
  * @param {string} dir - Project root
+ * @param {object} knownHashes - { path: [sha256] } of published versions
  * @returns {{ moved: string[], kept: {path: string, reason: string}[] }}
  */
-function migrateDomainGuards(dir) {
+function migrateDomainGuards(dir, knownHashes) {
+  const io = currentIO(dir);
   const moved = [];
   const kept = [];
   for (const file of LEGACY_DOMAIN_GUARDS) {
@@ -156,12 +162,17 @@ function migrateDomainGuards(dir) {
       continue;
     }
     const to = path.join(dir, PROJECT_GUARDS_REL, file);
-    if (fs.existsSync(to)) {
+    if (io.exists(to)) {
       kept.push({ path: fromRel, reason: `${toRel} already exists` });
       continue;
     }
-    fs.mkdirSync(path.dirname(to), { recursive: true });
-    fs.renameSync(from, to);
+    const hash = sha256(fs.readFileSync(from));
+    const ours = io.registry.hashes.get(fromRel) === hash || (knownHashes[fromRel] || []).includes(hash);
+    if (!ours) {
+      kept.push({ path: fromRel, reason: 'modified locally, not moved' });
+      continue;
+    }
+    io.move(from, to);
     moved.push(toRel);
   }
   return { moved, kept };
@@ -184,42 +195,32 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
     configYaml: CONFIG_NAMES.some((name) => fs.existsSync(path.join(resolvedDir, name))),
   };
 
-  // 3. Run harness generation (refreshes tools, hooks, skills, and symlinks).
-  // Snapshot the installed skill first: the legacy copy is compared against it.
-  const previousSkill = snapshotFiles(path.join(resolvedDir, SKILLS_REL, CURRENT_SKILL)).files;
-  const guardMigration = migrateDomainGuards(resolvedDir);
-  generateHarness(resolvedDir, detected);
-  const legacyCleanup = cleanupLegacyArtifacts(resolvedDir, previousSkill);
-  const { ensureGitignoreEntries } = require('./gitignore');
-  ensureGitignoreEntries(resolvedDir);
-
-  // 4. Ensure AGENTS.md documents the update command in its command table.
-  // Non-destructive: only inject into a file that already carries the CLC
-  // Kernel command table, and only when the row is missing (idempotent).
-  // A project-customized AGENTS.md without that structure is left untouched.
-  const agentsPath = path.join(resolvedDir, 'AGENTS.md');
-  if (fs.existsSync(agentsPath)) {
-    let agentsContent = fs.readFileSync(agentsPath, 'utf-8');
-    if (!agentsContent.includes('clckernel update')) {
-      if (agentsContent.includes('| `clckernel start`')) {
-        agentsContent = agentsContent.replace(
-          '| `clckernel start`',
-          '| `clckernel update` | Maintenance | Non-destructive update: refresh core tools, playbooks & symlinks (preserves SDDs & custom guards). |\n| `clckernel start`'
-        );
-        fs.writeFileSync(agentsPath, agentsContent, 'utf-8');
-      } else if (agentsContent.includes('## 3. Universal Command Interface')) {
-        agentsContent += '\n| `clckernel update` | Maintenance | Non-destructive update: refresh core tools, playbooks & symlinks (preserves SDDs & custom guards). |\n';
-        fs.writeFileSync(agentsPath, agentsContent, 'utf-8');
-      }
-    }
-  }
+  // 3. Run harness generation (refreshes tools, hooks, skills, and symlinks)
+  // inside one io session (sdds/safe-update): every write follows the
+  // ownership rule, and a dry run only records the plan.
+  const { loadKnownHashes } = require('./io');
+  const knownHashes = options.knownHashes || loadKnownHashes();
+  const io = createIO({ root: resolvedDir, dryRun: !!options.dryRun, knownHashes });
+  const { guardMigration, legacyCleanup } = runWithIO(io, () => {
+    // Snapshot the installed skill first: the legacy copy is compared against it.
+    const previousSkill = snapshotFiles(path.join(resolvedDir, SKILLS_REL, CURRENT_SKILL)).files;
+    const migration = migrateDomainGuards(resolvedDir, knownHashes);
+    generateHarness(resolvedDir, detected);
+    const cleanup = cleanupLegacyArtifacts(resolvedDir, previousSkill);
+    const { ensureGitignoreEntries } = require('./gitignore');
+    ensureGitignoreEntries(resolvedDir);
+    injectUpdateRow(io, resolvedDir);
+    return { guardMigration: migration, legacyCleanup: cleanup };
+  });
 
   return {
     success: true,
     targetDir: resolvedDir,
+    dryRun: io.dryRun,
     preserved,
     legacyCleanup,
     guardMigration,
+    plan: io.plan(),
     refreshed: {
       tools: true,
       skills: true,
@@ -229,25 +230,44 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
   };
 }
 
-async function runUpdate(targetDir = process.cwd()) {
-  const { colors, printBanner } = require('./ui');
+/**
+ * Ensures AGENTS.md documents the update command in its command table.
+ * Non-destructive: only inject into a file that already carries the CLC
+ * Kernel command table, and only when the row is missing (idempotent).
+ * A project-customized AGENTS.md without that structure is left untouched.
+ */
+function injectUpdateRow(io, resolvedDir) {
+  const agentsPath = path.join(resolvedDir, 'AGENTS.md');
+  const current = io.read(agentsPath);
+  if (!current) return;
+  let agentsContent = current.toString('utf-8');
+  if (agentsContent.includes('clckernel update')) return;
+  if (agentsContent.includes('| `clckernel start`')) {
+    agentsContent = agentsContent.replace(
+      '| `clckernel start`',
+      '| `clckernel update` | Maintenance | Non-destructive update: refresh core tools, playbooks & symlinks (preserves SDDs & custom guards). |\n| `clckernel start`'
+    );
+    io.writeFile(agentsPath, agentsContent);
+  } else if (agentsContent.includes('## 3. Universal Command Interface')) {
+    agentsContent += '\n| `clckernel update` | Maintenance | Non-destructive update: refresh core tools, playbooks & symlinks (preserves SDDs & custom guards). |\n';
+    io.writeFile(agentsPath, agentsContent);
+  }
+}
+
+async function runUpdate(targetDir = process.cwd(), options = {}) {
+  const { colors, printBanner, printPlan } = require('./ui');
+  const dryRun = !!options.dryRun;
   printBanner();
 
-  console.log(`\n${colors.cyan}🔄 Actualizando CLC Kernel en:${colors.reset} ${targetDir}\n`);
+  console.log(`\n${colors.cyan}🔄 Actualizando CLC Kernel en:${colors.reset} ${targetDir}${dryRun ? ' (dry run)' : ''}\n`);
 
   try {
-    const result = updateHarness(targetDir);
+    const result = updateHarness(targetDir, { dryRun });
 
-    console.log(`${colors.emerald}✔ Salvaguardas estándar actualizadas en tools/${colors.reset}`);
-    console.log(`${colors.emerald}✔ Playbooks y Skills agénticos actualizados en .agents/skills/${colors.reset}`);
-    console.log(`${colors.emerald}✔ Enlaces simbióticos de IDEs actualizados (Cursor, Claude, Copilot, Antigravity)${colors.reset}`);
-    console.log(`${colors.emerald}✔ Hooks de git sincronizados${colors.reset}`);
-    for (const removedPath of result.legacyCleanup.removed) {
-      console.log(`${colors.emerald}✔ Removed legacy artifact: ${removedPath}${colors.reset}`);
-    }
+    const moveVerb = dryRun ? 'Would move' : 'Moved';
     for (const movedPath of result.guardMigration.moved) {
       const from = `tools/${path.basename(movedPath)}`;
-      console.log(`${colors.emerald}✔ Moved ${from} -> ${movedPath} (now a project guard; the kernel no longer ships it)${colors.reset}`);
+      console.log(`${colors.emerald}✔ ${moveVerb} ${from} -> ${movedPath} (now a project guard; the kernel no longer ships it)${colors.reset}`);
     }
     for (const { path: keptPath, reason } of result.guardMigration.kept) {
       console.log(`${colors.amber}⚠ Kept ${keptPath} (${reason}); move it to ${PROJECT_GUARDS_REL}/ manually to keep running it${colors.reset}`);
@@ -255,11 +275,19 @@ async function runUpdate(targetDir = process.cwd()) {
     for (const { path: keptPath, reason } of result.legacyCleanup.kept) {
       console.log(`${colors.amber}⚠ Kept legacy artifact ${keptPath} (${reason}); review and remove it manually${colors.reset}`);
     }
+    console.log('');
+    printPlan(result.plan, { dryRun });
     console.log(`\n${colors.bold}🔒 ACTIVOS PRESERVADOS AL 100%:${colors.reset}`);
     console.log(`   • ${colors.emerald}sdds/${colors.reset} (Especificaciones locales intactas)`);
     console.log(`   • ${colors.emerald}tools/guards/${colors.reset} (Reglas y salvaguardas personalizadas intactas)`);
     console.log(`   • ${colors.emerald}.clckernel.yaml${colors.reset} (Configuraciones de equipo intactas)\n`);
-    console.log(`${colors.emerald}✨ ¡Proyecto actualizado con éxito a la última versión de CLC Kernel!${colors.reset}\n`);
+    if (dryRun) {
+      console.log(`${colors.cyan}Dry run complete. Run without --dry-run to apply this plan.${colors.reset}\n`);
+    } else if (result.plan.protected.length > 0) {
+      console.log(`${colors.amber}✨ Proyecto actualizado, con ${result.plan.protected.length} archivo(s) protegido(s) para revisar (*${NEW_SUFFIX}).${colors.reset}\n`);
+    } else {
+      console.log(`${colors.emerald}✨ ¡Proyecto actualizado con éxito a la última versión de CLC Kernel!${colors.reset}\n`);
+    }
     return result;
   } catch (err) {
     console.error(`\n❌ Error actualizando el arnés: ${err.message}`);

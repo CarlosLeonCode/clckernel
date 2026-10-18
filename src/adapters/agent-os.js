@@ -10,11 +10,11 @@
 const fs = require('fs');
 const path = require('path');
 const BaseAdapter = require('./base');
+const { currentIO, registeredPaths } = require('../io');
 
 /** Skills the harness installs itself: never a detection signal. */
 const HARNESS_SKILLS = new Set(['clckernel_cli', 'clc_forge_cli']);
 const SKILL_ROOTS = ['skills', '.agents/skills', '.claude/skills'];
-const MANAGED_REGISTRY = 'tools/.clckernel-managed.json';
 const MARKDOWN_SEARCH_DEPTH = 3;
 
 /** Folders that make up an Agent-OS, described in AGENTS.md when present. */
@@ -28,14 +28,9 @@ const LAYER_FOLDERS = [
   { folder: 'templates', text: 'output skeletons; double-brace slots are allowed only here.' },
 ];
 
-/** Paths listed in the harness registry (working copy); empty when absent or malformed. */
+/** Paths listed in the harness registry (working copy, either format); empty when absent or malformed. */
 function managedPaths(targetDir) {
-  try {
-    const list = JSON.parse(fs.readFileSync(path.join(targetDir, MANAGED_REGISTRY), 'utf-8'));
-    return new Set(Array.isArray(list) ? list.filter(f => typeof f === 'string') : []);
-  } catch {
-    return new Set();
-  }
+  return new Set(registeredPaths(targetDir));
 }
 
 /** True when root/<name>/SKILL.md exists for a skill the harness did not install. */
@@ -268,9 +263,10 @@ ${this.getSafeguards().map(s => `- ${s}`).join('\n')}
 
     // Guard: never overwrite a project-customized AGENTS.md (e.g. a law file
     // carrying domain invariants the template cannot know about).
+    const io = currentIO(targetDir);
     const dualAgentsPath = path.join(targetDir, 'AGENTS.md');
-    if (!fs.existsSync(dualAgentsPath)) {
-      fs.writeFileSync(dualAgentsPath, dualLayerAgents, 'utf-8');
+    if (!io.exists(dualAgentsPath)) {
+      io.writeFile(dualAgentsPath, dualLayerAgents);
     }
 
     // 3. Create AI IDE mirror symlinks
@@ -278,8 +274,8 @@ ${this.getSafeguards().map(s => `- ${s}`).join('\n')}
     for (const mirror of mirrors) {
       const mirrorPath = path.join(targetDir, mirror);
       try {
-        if (!fs.existsSync(mirrorPath)) {
-          fs.symlinkSync('AGENTS.md', mirrorPath);
+        if (!io.exists(mirrorPath)) {
+          io.symlink('AGENTS.md', mirrorPath);
         }
       } catch {}
     }

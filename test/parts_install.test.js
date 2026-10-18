@@ -8,7 +8,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
-const { createTmpProject, teardown, git } = require('./helpers');
+const { createTmpProject, teardown, git, registryPaths } = require('./helpers');
 const { autoDetectStack } = require('../src/detector');
 const { generateHarness } = require('../src/generator');
 const { updateHarness } = require('../src/updater');
@@ -53,8 +53,12 @@ describe('install — Next.js at the root + backend/ FastAPI', () => {
       ]) {
         assert.ok(tools.includes(file), `tools/${file} missing: ${tools.join(', ')}`);
       }
-      const registry = JSON.parse(read(dir, 'tools/.clckernel-managed.json'));
-      assert.deepStrictEqual(registry, tools.map((f) => `tools/${f}`).sort());
+      // The hashed registry lists every installed tool (not itself), plus the hook and the skill.
+      const registry = registryPaths(JSON.parse(read(dir, 'tools/.clckernel-managed.json')));
+      assert.deepStrictEqual(
+        registry.filter((p) => p.startsWith('tools/')),
+        tools.filter((f) => f !== '.clckernel-managed.json').map((f) => `tools/${f}`).sort()
+      );
       assert.ok(result.installedGuards.includes('verify_tdd'));
       assert.ok(result.installedGuards.includes('check_db_efficiency'));
     } finally {
@@ -135,7 +139,7 @@ describe('update re-detects the parts', () => {
       const hook = read(dir, '.githooks/pre-commit');
       assert.match(hook, /\( cd 'backend' && if python3 -m pytest --version/);
       assert.ok(hook.includes('python3 tools/verify_tdd.py'));
-      const registry = JSON.parse(read(dir, 'tools/.clckernel-managed.json'));
+      const registry = registryPaths(JSON.parse(read(dir, 'tools/.clckernel-managed.json')));
       assert.ok(registry.includes('tools/verify_tdd.py'));
       assert.ok(registry.includes('tools/audit.py'));
     } finally {

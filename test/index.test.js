@@ -3,7 +3,7 @@ const assert = require('node:assert');
 const path = require('path');
 const fs = require('fs');
 const { execSync, spawnSync } = require('child_process');
-const { createTmpProject, teardown } = require('./helpers');
+const { createTmpProject, teardown, withRegistry } = require('./helpers');
 
 const CLI_PATH = path.join(__dirname, '..', 'bin', 'cli.js');
 
@@ -175,7 +175,8 @@ describe('runCli() preserves existing explicit commands', () => {
     const dir = createTmpProject({
       'package.json': '{}\n',
       'AGENTS.md': '# AGENTS\n',
-      'tools/audit.js': '// outdated audit\n',
+      // An outdated but intact kernel copy: the registry vouches for it.
+      ...withRegistry({ 'tools/audit.js': '// outdated audit\n' }),
     });
     try {
       const res = runCli(['update', dir], { cwd: dir });

@@ -119,8 +119,13 @@ function managedFiles(cwd, mode) {
   }
   if (text === null) return new Set();
   try {
-    const list = JSON.parse(text);
-    if (Array.isArray(list)) return new Set(list.filter(f => typeof f === 'string'));
+    const data = JSON.parse(text);
+    // Older installs wrote a list of paths; current ones { kernelVersion, files: [{ path, sha256 }] }.
+    if (Array.isArray(data)) return new Set(data.filter(f => typeof f === 'string'));
+    if (data && Array.isArray(data.files)) {
+      const paths = data.files.map(f => f && f.path).filter(f => typeof f === 'string');
+      return new Set([...paths, MANAGED_REGISTRY]);
+    }
   } catch {
     // Malformed registry: exclude nothing.
   }
