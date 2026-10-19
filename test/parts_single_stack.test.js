@@ -15,6 +15,9 @@
  * Regenerated for sdds/audit-cli: only AGENTS.md changed — Loop step 5 (and
  * the Agent-OS `feature` row) run the audit with `--change <sdd name>`, since
  * a plain audit no longer writes a report.
+ * Regenerated for sdds/tdd-other-stacks: Go, Rust, Rails and Laravel install
+ * tools/verify_tdd.js and their AGENTS.md safeguard line names the Red→Green
+ * TDD Verifier; hooks and every other stack are byte-identical.
  */
 const { describe, it } = require('node:test');
 const assert = require('node:assert');

@@ -23,7 +23,7 @@ class RailsAdapter extends BaseAdapter {
       'RuboCop Code Style Linter (external CLI)',
       'Brakeman Rails Vulnerability Scanner',
       'Rails Migration Reversibility protocol (agent-enforced; no migration guard installed for this stack)',
-      'TDD protocol (agent-enforced; no verifier installed for this stack)',
+      'Red→Green TDD Verifier (runs changed tests with RSpec or Minitest)',
       'Secret & Private Credential Leak Scanner',
       'Educational Audit Gate (05-audit-report.md)',
       'Memory protocol (agent-enforced; Engram / Graphify optional, not checked by a guard)'
@@ -32,12 +32,13 @@ class RailsAdapter extends BaseAdapter {
 
   /**
    * Returns the tool manifest for Rails projects.
-   * External CLIs only — no custom guard scripts bundled.
+   * External CLIs plus the bundled JS guards (secret scan, TDD verifier, custom rules).
    * @returns {Array<{name: string, language: string, path: string, command: string, description: string, extCLI?: string}>}
    */
   getTools() {
     const baseTools = [
       { name: 'scan_secrets', language: 'js',       path: 'scan_secrets.js', command: 'node tools/scan_secrets.js', description: 'Scans for leaked secrets and API keys' },
+      { name: 'verify_tdd',   language: 'js',       path: 'verify_tdd.js',   command: 'node tools/verify_tdd.js',   description: 'Runs changed tests (RSpec / Minitest) against BASE (must fail) and the staged code (must pass)' },
       { name: 'check_custom', language: 'js',       path: 'check_custom.js', command: 'node tools/check_custom.js', description: 'Runs user-defined custom rules from .clckernel.yaml' },
       { name: 'rubocop',  language: 'external', path: '', command: 'bundle exec rubocop --parallel', description: 'Ruby linter', extCLI: 'rubocop', availableIf: "grep -q '^    rubocop ' Gemfile.lock" },
       { name: 'brakeman', language: 'external', path: '', command: 'bundle exec brakeman -q',        description: 'Rails vulnerability scanner', extCLI: 'brakeman', availableIf: "grep -q '^    brakeman ' Gemfile.lock" },

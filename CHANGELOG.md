@@ -58,6 +58,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Red→Green TDD verification for Go, Rust, Ruby and PHP (sdds/tdd-other-stacks).** `tools/verify_tdd.js`
+  gains language profiles (`go test`, `cargo test --test`, RSpec / Minitest through bundler, Pest / PHPUnit),
+  grouped by the nearest `go.mod` / `Cargo.toml` / `Gemfile` / `composer.json`, and is installed for the Go,
+  Rust, Rails and Laravel stacks: their commits now fail when production code changes without a test that
+  fails on `HEAD` and passes on the staged code. A missing toolchain fails closed with an install hint. Rust
+  unit tests inside `src/` cannot be separated for the red run: a `src/` change needs an integration test.
 - **Wider secret coverage in `scan_secrets` (sdds/secret-patterns).** New labels: `Anthropic API Key`,
   `OpenAI Project Key` (project, service-account and admin keys), `Google API Key`, `Slack Token`, `GitHub Token`
   (OAuth, user, server and refresh prefixes) and `GitHub Fine-Grained PAT`. `Quoted Key Secret` flags a quoted

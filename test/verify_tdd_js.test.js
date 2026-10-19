@@ -177,10 +177,10 @@ describe('verify_tdd.js red→green (node:test)', () => {
     });
   });
 
-  it('passes when no JS/TS production code changed', () => {
+  it('passes when no production code changed', () => {
     withRepo((dir) => {
       stage(dir, { 'README.md': '# calc\n' });
-      assertOutcome(run(dir), 0, /no JS\/TS production code changed/i);
+      assertOutcome(run(dir), 0, /no production code changed/i);
     });
   });
 

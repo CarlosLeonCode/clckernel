@@ -80,7 +80,7 @@ const SAFEGUARD_CATALOG = [
     phase: 'audit', file: 'check_migrations.py', manifest: true, planned: false, lens: 'architecture' },
 
   { name: 'verify_tdd', labels: ['verify_tdd', 'verify_tdd.js', 'verify_tdd.py'],
-    checks: 'red→green (pytest / vitest / jest / node:test): changed tests fail on BASE and pass on the staged code', verify: ['verify_tdd_red_green', 'verify_tdd_evidence'],
+    checks: 'red→green (pytest / vitest / jest / node:test / go test / cargo test / RSpec / Minitest / PHPUnit / Pest): changed tests fail on BASE and pass on the staged code', verify: ['verify_tdd_red_green', 'verify_tdd_evidence'],
     applies_when: 'frontend,backend,agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['tdd', 'exclude_paths'],
     phase: 'audit', file: 'verify_tdd.js+verify_tdd.py', manifest: true, planned: false, lens: 'correctness' },
 

@@ -273,10 +273,10 @@ instalar aplica de inmediato.
 |---|---|---|---|
 | ⚛️ **Next.js** | `next` | Vitest / Jest | Clean Architecture, Reutilización de UI, Tokens Semánticos, RSC, A11y, Responsive, SEO |
 | ⚡ **FastAPI** | `fastapi` | Pytest | Reversibilidad de Migraciones Alembic, Clean Architecture (Python AST), Heurística N+1 (Python AST), Verificador TDD Rojo→Verde (pytest) |
-| 💎 **Rails** | `Gemfile` | RSpec | RuboCop, Seguridad Brakeman |
-| 🐹 **Golang** | `go.mod` | `go test` | `golangci-lint`, Aislamiento de Capas Dominio/Casos de Uso |
-| 🦀 **Rust** | `Cargo.toml` | `cargo test` | `cargo clippy`, `cargo audit`, Seguridad Estricta de Memoria |
-| 🐘 **Laravel** | `artisan` | Pest / PHPUnit | Análisis estático PHPStan |
+| 💎 **Rails** | `Gemfile` | RSpec | RuboCop, Seguridad Brakeman, Verificador TDD Rojo→Verde (RSpec / Minitest) |
+| 🐹 **Golang** | `go.mod` | `go test` | `golangci-lint`, Aislamiento de Capas Dominio/Casos de Uso, Verificador TDD Rojo→Verde (`go test`) |
+| 🦀 **Rust** | `Cargo.toml` | `cargo test` | `cargo clippy`, `cargo audit`, Seguridad Estricta de Memoria, Verificador TDD Rojo→Verde (`cargo test`, tests de integración) |
+| 🐘 **Laravel** | `artisan` | Pest / PHPUnit | Análisis estático PHPStan, Verificador TDD Rojo→Verde (Pest / PHPUnit) |
 | 🎸 **Django** | `manage.py` | `pytest-django` | Ruff, Clean Architecture (Python AST), Heurística N+1 (Python AST), Verificador TDD Rojo→Verde (pytest) |
 | 🚀 **Astro** | `astro.config` | Playwright | Tokens Tailwind v4, Esquemas de Colección, A11y, Responsive, SEO |
 | 🤖 **Agent-OS** | `skills/<nombre>/SKILL.md` (también `.agents/skills/`, `.claude/skills/`), `playbooks/` o `rules/` con Markdown; si el repo también tiene un stack de código, gana el stack de código | Tests de Contrato | AGENTS.md Dual-Layer, marcadores HITL (`check_hitl`), Skills (`check_skills`), Links (`check_links`), Placeholders (`check_placeholders`), Datos JSON (`check_data_files`), Mirrors (`check_symlinks`), Reglas propias (`check_custom`); guards del proyecto en `tools/guards/` |
@@ -300,12 +300,28 @@ otras formas de glob se ignoran.
 - **Herramientas externas** (ruff, pytest, tsc, …) se ejecutan dentro del directorio de su parte; si una no
   está disponible se imprime `clckernel: <herramienta> (<dir>) not available, skipped`.
 - **Verificador TDD Rojo→Verde:** cada archivo cambiado pertenece a su raíz de proyecto más cercana (Python:
-  `pyproject.toml`, `requirements.txt`, `setup.cfg`, `setup.py`, `manage.py`; JS: `package.json`). Cada grupo
+  `pyproject.toml`, `requirements.txt`, `setup.cfg`, `setup.py`, `manage.py`; JS: `package.json`; Go: `go.mod`;
+  Rust: `Cargo.toml`; Ruby: `Gemfile`; PHP: `composer.json`). Cada grupo
   se ejecuta en su raíz (`PYTHONPATH`, runner y `node_modules` de esa raíz, o los `node_modules` de la raíz
   del repositorio si están elevados). El código cambiado en una parte sin un test cambiado en esa misma parte
   falla.
 - **AGENTS.md** lista cada parte (directorio, stack, test runner) con las reglas de su stack; `clckernel
   update` vuelve a detectar las partes.
+
+#### Rojo→Verde en Go, Rust, Ruby y PHP
+
+`tools/verify_tdd.js` (Node existe en todos los stacks) ejecuta los tests cambiados sobre el código staged (deben
+pasar, con al menos un test ejecutado) y sobre `HEAD` más esos tests (deben fallar), en árboles materializados
+desde git: Go `go test -v -count=1` sobre los paquetes de los `*_test.go` cambiados; Rust `cargo test --test <t>`
+por cada test de integración (`tests/`), con un `CARGO_TARGET_DIR` temporal; Ruby `bundle exec rspec`
+(`spec/**/*_spec.rb`) o `bundle exec ruby -Ilib -Itest` (`test/**/*_test.rb`); PHP `vendor/bin/pest`, si no
+`vendor/bin/phpunit` (`tests/**/*Test.php`). El código de producción es `.go` (fuera de `vendor/`),
+`src/**/*.rs`, `app|lib/**/*.rb` y `app|src/**/*.php`. Si falta `go`, `cargo`, `bundle`, `rspec-core` en el
+lock (para specs) o `vendor/bin/{pest,phpunit}`, el chequeo falla con una pista de instalación. Limitaciones:
+los tests unitarios `#[cfg(test)]` de Rust viven dentro del archivo de código y no se pueden separar para la
+corrida roja, así que un cambio en `src/` necesita un test de integración cambiado en `tests/` (o una entrada
+en `tdd.ignore`); Minitest corre con `ruby -Ilib -Itest`, no con `rails test`; Go se verifica por paquete; PHP
+asume los bin proxies de Composer 2.2+.
 
 Fuera de alcance: Agent-OS como parte de un monorepo, repositorios git anidados o submódulos, elegir partes
 manualmente en el prompt interactivo ("Elegir otro stack" instala un solo stack) y los workspaces de

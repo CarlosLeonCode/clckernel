@@ -271,10 +271,10 @@ ignored with a warning. The guards read it through `tools/_config.js` (+ `yaml.j
 |---|---|---|---|
 | ⚛️ **Next.js** | `next` | Vitest / Jest | Clean Arch, UI Reuse, Semantic Tokens, RSC, A11y, Responsive, SEO |
 | ⚡ **FastAPI** | `fastapi` | Pytest | Alembic Migration Reversibility, Clean Arch (Python AST), N+1 Heuristic (Python AST), Red→Green TDD Verifier (pytest) |
-| 💎 **Rails** | `Gemfile` | RSpec | RuboCop, Brakeman Security |
-| 🐹 **Golang** | `go.mod` | `go test` | `golangci-lint`, Domain/UseCase Layer Isolation |
-| 🦀 **Rust** | `Cargo.toml` | `cargo test` | `cargo clippy`, `cargo audit`, Strict Memory Safety |
-| 🐘 **Laravel** | `artisan` | Pest / PHPUnit | PHPStan static analysis |
+| 💎 **Rails** | `Gemfile` | RSpec | RuboCop, Brakeman Security, Red→Green TDD Verifier (RSpec / Minitest) |
+| 🐹 **Golang** | `go.mod` | `go test` | `golangci-lint`, Domain/UseCase Layer Isolation, Red→Green TDD Verifier (`go test`) |
+| 🦀 **Rust** | `Cargo.toml` | `cargo test` | `cargo clippy`, `cargo audit`, Strict Memory Safety, Red→Green TDD Verifier (`cargo test`, integration tests) |
+| 🐘 **Laravel** | `artisan` | Pest / PHPUnit | PHPStan static analysis, Red→Green TDD Verifier (Pest / PHPUnit) |
 | 🎸 **Django** | `manage.py` | `pytest-django` | Ruff, Clean Arch (Python AST), N+1 Heuristic (Python AST), Red→Green TDD Verifier (pytest) |
 | 🚀 **Astro** | `astro.config` | Playwright | Tailwind v4 Tokens, Content Schema, A11y, Responsive, SEO |
 | 🤖 **Agent-OS** | `skills/<name>/SKILL.md` (also `.agents/skills/`, `.claude/skills/`), `playbooks/` or `rules/` with Markdown; a code stack in the same repo wins | Contract Tests | Dual-Layer AGENTS.md, HITL markers (`check_hitl`), Skills (`check_skills`), Links (`check_links`), Placeholders (`check_placeholders`), JSON data (`check_data_files`), Mirrors (`check_symlinks`), Custom rules (`check_custom`); project guards in `tools/guards/` |
@@ -297,11 +297,30 @@ ignored.
 - **External tools** (ruff, pytest, tsc, …) run inside their part's directory; a missing one prints
   `clckernel: <tool> (<dir>) not available, skipped`.
 - **Red→Green TDD Verifier:** each changed file belongs to its nearest project root (Python:
-  `pyproject.toml`, `requirements.txt`, `setup.cfg`, `setup.py`, `manage.py`; JS: `package.json`). Each group
-  runs in its root (`PYTHONPATH`, runner and `node_modules` of that root, or the repository root's
-  `node_modules` when hoisted). Code changed in a part without a changed test in that same part fails.
+  `pyproject.toml`, `requirements.txt`, `setup.cfg`, `setup.py`, `manage.py`; JS: `package.json`; Go: `go.mod`;
+  Rust: `Cargo.toml`; Ruby: `Gemfile`; PHP: `composer.json`). Each group runs in its root (`PYTHONPATH`, runner
+  and `node_modules` of that root, or the repository root's `node_modules` when hoisted). Code changed in a part
+  without a changed test in that same part fails.
 - **AGENTS.md** lists every part (directory, stack, test runner) with each stack's rules; `clckernel update`
   re-detects the parts.
+
+#### Red→Green on Go, Rust, Ruby and PHP
+
+`tools/verify_tdd.js` (Node is present on every stack) runs the changed tests on the staged code (must pass,
+with at least one test executed) and on `HEAD` plus those tests (must fail), from trees materialized from git:
+
+| Language | Tests | Production code | Command |
+|---|---|---|---|
+| Go | `*_test.go` | other `.go` (not `vendor/`) | `go test -v -count=1 ./<pkg>…` (packages of the changed tests) |
+| Rust | `tests/*.rs`, `tests/<t>/main.rs` | `src/**/*.rs` | `cargo test --test <t>…` (temporary `CARGO_TARGET_DIR`) |
+| Ruby | `spec/**/*_spec.rb`, `test/**/*_test.rb` | `app/**/*.rb`, `lib/**/*.rb` | `bundle exec rspec` / `bundle exec ruby -Ilib -Itest` |
+| PHP | `tests/**/*Test.php` | `app/**/*.php`, `src/**/*.php` | `vendor/bin/pest`, else `vendor/bin/phpunit` (one file per run) |
+
+A missing `go`, `cargo`, `bundle`, locked `rspec-core` (for specs) or `vendor/bin/{pest,phpunit}` fails the
+check with an install hint. Limitations: Rust `#[cfg(test)]` unit tests live inside the code file and cannot be
+separated for the red run, so a `src/` change needs a changed integration test under `tests/` (or a
+`tdd.ignore` entry); Minitest runs through plain `ruby -Ilib -Itest`, not `rails test`; Go is verified per
+package; PHP assumes Composer 2.2+ bin proxies. Only committed or staged files exist in the trees (no `.env`).
 
 Not supported: Agent-OS as one part of a monorepo, nested git repositories or submodules, choosing parts by
 hand in the interactive prompt ("Choose another stack" installs a single stack), and Go/Cargo/Composer

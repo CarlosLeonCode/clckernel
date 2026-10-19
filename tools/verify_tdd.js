@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 /**
- * Red -> Green TDD Verifier (vitest / jest / node:test) — twin of verify_tdd.py.
+ * Red -> Green TDD Verifier — twin of verify_tdd.py for every non-Python stack:
+ * JS/TS (vitest / jest / node:test), Go (go test), Rust (cargo test), Ruby
+ * (RSpec / Minitest through bundler) and PHP (Pest / PHPUnit).
  *
- * Proves that a change to JS/TS production code ships with tests that
- * FAIL without the change (red) and PASS with it (green).
+ * Proves that a change to production code ships with tests that FAIL without
+ * the change (red) and PASS with it (green).
  *
  * Two trees are compared:
  *   - something staged:  BASE = HEAD,   CANDIDATE = the index (staged content)
@@ -11,16 +13,22 @@
  * Both trees are materialized from git into temporary directories (the index
  * with `git checkout-index`, commits with `git archive | tar -x`), so the
  * working copy is never evaluated and the caller's index/HEAD/worktree are
- * never touched. The project's node_modules is symlinked into each tree
- * (read-only use; nothing is installed) and only the link is removed.
+ * never touched. The project's installed dependencies are linked into each
+ * tree (read-only use; nothing is installed) and only the links are removed:
+ * node_modules (JS), vendor/ (PHP: autoload.php, composer/ and bin/ copied so
+ * Composer resolves the app from the tree, the packages symlinked), .bundle/
+ * and vendor/bundle (Ruby). Cargo builds into a temporary CARGO_TARGET_DIR,
+ * never the project's target/; Go uses its global module cache.
  *
- * Each changed file belongs to its project root: the nearest ancestor (inside
- * the repository) holding a package.json, else the repository root. Files are
- * grouped by root and each group is verified on its own, with cwd = that root
- * in the temporary tree, the runner of that root's package.json, and that
- * root's node_modules (or the repository root's, for hoisted workspaces). A
+ * Each changed file belongs to a language and a project root. A .go / .rs /
+ * .rb / .php file belongs to its language when an ancestor (inside the
+ * repository) holds go.mod / Cargo.toml / Gemfile / composer.json, the nearest
+ * one being its root; without one it is out of scope. A JS/TS file (or one
+ * listed in tdd.code) belongs to the nearest ancestor holding a package.json,
+ * else the repository root. Files are grouped by (language, root) and each
+ * group is verified on its own, with cwd = that root in the temporary tree. A
  * group whose code changed without a changed test in the same group fails.
- * With a single root the result is the same as a whole-repository run.
+ * With a single group the result is the same as a whole-repository run.
  *
  * The project config (.clckernel.yaml) widens or narrows what counts as
  * production code: a file matching `tdd.code` is code whatever its language
@@ -29,7 +37,7 @@
  * installed next to this file (it is the code of the Python suite).
  *
  * Self-contained: uses only Node.js built-ins. Commands run with argument
- * arrays, never through a shell.
+ * arrays, never through a shell (except .cmd/.bat shims on Windows).
  */
 const fs = require('fs');
 const os = require('os');
@@ -97,6 +105,258 @@ function inScope(rel, rules) {
   return JS_EXTENSIONS.includes(path.posix.extname(rel)) || rules.extra(rel);
 }
 
+/** Absolute path of an executable on PATH (PATHEXT on Windows), or null. */
+function onPath(cmd) {
+  const exts = process.platform === 'win32' ? (process.env.PATHEXT || '.EXE;.CMD;.BAT').split(';') : [''];
+  for (const dir of (process.env.PATH || '').split(path.delimiter)) {
+    if (!dir) continue;
+    for (const ext of exts) {
+      const file = path.join(dir, cmd + ext);
+      try {
+        fs.accessSync(file, fs.constants.X_OK);
+        if (fs.statSync(file).isFile()) return file;
+      } catch { /* not here */ }
+    }
+  }
+  return null;
+}
+
+function missingTool(name, label, hint) {
+  return { name, error: `${label} is not on PATH: red->green cannot be verified. ${hint}` };
+}
+
+/** Sum of the first capture group of every match of re in text; null without a match. */
+function sumMatches(text, re) {
+  let total = null;
+  for (const m of text.matchAll(re)) total = (total || 0) + Number(m[1]);
+  return total;
+}
+
+/** Symlink src into dest unless dest exists or src does not; returns the link or null. */
+function linkIfMissing(src, dest) {
+  if (!fs.existsSync(src) || fs.existsSync(dest)) return null;
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.symlinkSync(src, dest, process.platform === 'win32' ? 'junction' : 'dir');
+  return dest;
+}
+
+const RUBY_LOADER = 'ARGV.dup.tap { ARGV.clear }.each { |f| require File.expand_path(f) }';
+
+/**
+ * Non-JS language profiles. Paths given to classify are relative to the
+ * project root; it returns 'test', 'support', 'code' or null (out of scope).
+ * runner(ctx) returns { name, steps, env?, count } or { name, error }, where
+ * ctx = { repo, root, tree (CANDIDATE root dir), tests (root-relative), tmp }.
+ * A step with `local` runs a path relative to the tree it runs in.
+ */
+const PROFILES = [
+  {
+    lang: 'go',
+    marker: 'go.mod',
+    exts: ['.go'],
+    classify(rel) {
+      const parts = rel.split('/');
+      if (parts.includes('vendor')) return null;
+      if (rel.endsWith('_test.go')) return 'test';
+      if (parts.slice(0, -1).includes('testdata')) return 'support';
+      return 'code';
+    },
+    runner({ tests }) {
+      const go = onPath('go');
+      if (!go) return missingTool('go test', 'go', 'Install Go (https://go.dev/dl/).');
+      const pkgs = [...new Set(tests.map((t) => {
+        const dir = path.posix.dirname(t);
+        return dir === '.' ? '.' : `./${dir}`;
+      }))];
+      return {
+        name: 'go test',
+        steps: [{ command: go, args: ['test', '-v', '-count=1', ...pkgs] }],
+        count: (out) => (out.match(/^\s*--- PASS:/gm) || []).length,
+      };
+    },
+  },
+  {
+    lang: 'rust',
+    marker: 'Cargo.toml',
+    exts: ['.rs'],
+    classify(rel) {
+      const parts = rel.split('/');
+      if (parts[0] === 'tests') {
+        const target = parts.length === 2 || (parts.length === 3 && parts[2] === 'main.rs');
+        return target ? 'test' : 'support';
+      }
+      return parts[0] === 'src' ? 'code' : null;
+    },
+    runner({ tests, tmp }) {
+      const cargo = onPath('cargo');
+      if (!cargo) return missingTool('cargo test', 'cargo', 'Install Rust with rustup (https://rustup.rs).');
+      const targets = [...new Set(tests.map((t) => {
+        const parts = t.split('/');
+        return parts.length === 2 ? path.posix.basename(t, '.rs') : parts[1];
+      }))];
+      return {
+        name: 'cargo test',
+        // One target dir per tree, outside it: with a shared one, cargo's
+        // freshness check (dep-info mtimes of the other tree's sources) would
+        // reuse the green build for the red run.
+        env: (cwd) => ({ CARGO_TARGET_DIR: path.join(tmp, 'cargo-target', path.relative(tmp, cwd).replace(/[\\/]/g, '_')) }),
+        steps: [{ command: cargo, args: ['test', ...targets.flatMap((t) => ['--test', t])] }],
+        count: (out) => sumMatches(out, /^running (\d+) tests?$/gm),
+      };
+    },
+  },
+  {
+    lang: 'ruby',
+    marker: 'Gemfile',
+    exts: ['.rb'],
+    classify(rel) {
+      const parts = rel.split('/');
+      if (parts[0] === 'spec') return rel.endsWith('_spec.rb') ? 'test' : 'support';
+      if (parts[0] === 'test') return rel.endsWith('_test.rb') ? 'test' : 'support';
+      return parts[0] === 'app' || parts[0] === 'lib' ? 'code' : null;
+    },
+    link(repo, tree, root) {
+      return [
+        linkIfMissing(path.join(repo, root, '.bundle'), path.join(tree, '.bundle')),
+        linkIfMissing(path.join(repo, root, 'vendor', 'bundle'), path.join(tree, 'vendor', 'bundle')),
+      ];
+    },
+    runner({ repo, root, tree, tests }) {
+      const specs = tests.filter((t) => t.endsWith('_spec.rb'));
+      const minitests = tests.filter((t) => !t.endsWith('_spec.rb'));
+      const name = [specs.length ? 'rspec' : null, minitests.length ? 'minitest' : null].filter(Boolean).join('+');
+      const bundle = onPath('bundle');
+      if (!bundle) return missingTool(name, 'bundle', 'Install Bundler (`gem install bundler`) and run `bundle install`.');
+      if (specs.length > 0) {
+        const lock = [path.join(tree, 'Gemfile.lock'), path.join(repo, root, 'Gemfile.lock')].find((f) => fs.existsSync(f));
+        const text = lock ? fs.readFileSync(lock, 'utf-8') : '';
+        if (!/^ {4}rspec-core \(/m.test(text)) {
+          return {
+            name,
+            error: 'Spec files changed but rspec-core is not in Gemfile.lock: red->green cannot be verified. ' +
+              'Add rspec to the Gemfile and run `bundle install`.',
+          };
+        }
+      }
+      const steps = [];
+      if (specs.length > 0) steps.push({ command: bundle, args: ['exec', 'rspec', ...specs] });
+      if (minitests.length > 0) {
+        steps.push({ command: bundle, args: ['exec', 'ruby', '-Ilib', '-Itest', '-e', RUBY_LOADER, ...minitests] });
+      }
+      return {
+        name,
+        env: (cwd) => ({ BUNDLE_GEMFILE: path.join(cwd, 'Gemfile') }),
+        steps,
+        count: (out) => {
+          const examples = sumMatches(out, /(\d+) examples?, \d+ failures?/g);
+          const runs = sumMatches(out, /(\d+) runs?, \d+ assertions?/g);
+          return examples === null && runs === null ? null : (examples || 0) + (runs || 0);
+        },
+      };
+    },
+  },
+  {
+    lang: 'php',
+    marker: 'composer.json',
+    exts: ['.php'],
+    classify(rel) {
+      const parts = rel.split('/');
+      if (parts[0] === 'tests') return rel.endsWith('Test.php') ? 'test' : 'support';
+      return parts[0] === 'app' || parts[0] === 'src' ? 'code' : null;
+    },
+    link(repo, tree, root) {
+      return linkVendor(path.join(repo, root, 'vendor'), path.join(tree, 'vendor'));
+    },
+    runner({ tree, tests }) {
+      const bin = ['pest', 'phpunit'].find((b) => fs.existsSync(path.join(tree, 'vendor', 'bin', b)));
+      if (!bin) {
+        return {
+          name: 'phpunit',
+          error: 'vendor/bin/phpunit (or vendor/bin/pest) is missing: red->green cannot be verified. ' +
+            'Install the dependencies with `composer install`.',
+        };
+      }
+      const command = path.join('vendor', 'bin', bin);
+      // PHPUnit 9 accepts a single test path; Pest takes them all.
+      const steps = bin === 'pest'
+        ? [{ command, local: true, args: tests }]
+        : tests.map((t) => ({ command, local: true, args: [t] }));
+      return { name: bin, steps, count: phpTestCount };
+    },
+  },
+];
+
+/** Tests PHPUnit / Pest ran: "OK (N tests", "Tests: N, ..." or Pest's "Tests: ... N passed". */
+function phpTestCount(out) {
+  let total = null;
+  for (const line of out.split(/\r?\n/)) {
+    const m = line.match(/OK \((\d+) tests?/) || line.match(/Tests:.*?(\d+) passed/) || line.match(/Tests: (\d+),/);
+    if (m) total = (total || 0) + Number(m[1]);
+  }
+  return total;
+}
+
+/**
+ * The project's Composer vendor/ in a tree: a real directory where
+ * autoload.php, composer/ and bin/ are copies (Composer derives the app's base
+ * dir from their real path, so a symlink would load the app from the working
+ * copy) and every package is a symlink. Returns the links created.
+ */
+function linkVendor(src, dest) {
+  if (!fs.existsSync(src) || fs.existsSync(dest)) return [];
+  fs.mkdirSync(dest, { recursive: true });
+  const links = [];
+  for (const entry of fs.readdirSync(src)) {
+    const from = path.join(src, entry);
+    const to = path.join(dest, entry);
+    if (['autoload.php', 'composer', 'bin'].includes(entry)) {
+      fs.cpSync(from, to, { recursive: true, dereference: true });
+    } else {
+      fs.symlinkSync(from, to, process.platform === 'win32' ? 'junction' : (fs.statSync(from).isDirectory() ? 'dir' : 'file'));
+      links.push(to);
+    }
+  }
+  return links;
+}
+
+const PROFILE_BY_LANG = new Map(PROFILES.map((p) => [p.lang, p]));
+
+/** Nearest ancestor dir of rel holding marker: '.' for the repository root, null for none. */
+function nearestMarker(rel, files, marker) {
+  const dirs = rel.split('/').slice(0, -1);
+  for (let depth = dirs.length; depth >= 0; depth -= 1) {
+    const root = dirs.slice(0, depth).join('/');
+    if (files.has(root ? `${root}/${marker}` : marker)) return root || '.';
+  }
+  return null;
+}
+
+/**
+ * Language and project root of a changed file, or null when the verifier does
+ * not look at it. A non-JS file is in scope when its profile classifies it
+ * (or tdd.code lists it) and it is not ignored code.
+ * @returns {{ lang: string, root: string }|null}
+ */
+function locate(rel, files, rules) {
+  const ext = path.posix.extname(rel);
+  for (const profile of PROFILES) {
+    if (!profile.exts.includes(ext)) continue;
+    const root = nearestMarker(rel, files, profile.marker);
+    if (root === null) continue;
+    return profileKind(profile, rel, root, rules) ? { lang: profile.lang, root } : null;
+  }
+  if (inScope(rel, rules)) return { lang: 'js', root: projectRoot(rel, files) };
+  return null;
+}
+
+/** 'test' / 'support' / 'code' of a non-JS file in its root, or null. */
+function profileKind(profile, rel, root, rules) {
+  let kind = profile.classify(relative(rel, root));
+  if (kind === null && rules.extra(rel)) kind = 'code';
+  if (kind === 'code' && rules.ignore(rel)) return null;
+  return kind;
+}
+
 function revExists(repo, rev) {
   try {
     git(repo, ['rev-parse', '--verify', '--quiet', `${rev}^{commit}`]);
@@ -115,16 +375,17 @@ function resolveTrees(repo, rules = NO_RULES) {
   const all = changedFiles(repo);
   if (all.mode === null) throw new GitError('could not list the changed files');
   const pure = pureRenames(repo, all.mode);
+  const files = new Set(listFiles(repo, all.mode));
   const changes = { mode: all.mode, files: all.files.filter((f) => !pure.has(f)) };
-  const renamed = all.files.filter((f) => pure.has(f) && inScope(f, rules));
+  const renamed = all.files.filter((f) => pure.has(f) && locate(f, files, rules) !== null);
   const hasHead = revExists(repo, 'HEAD');
 
   if (changes.mode === 'staged') {
     if (!hasHead && changes.files.length === 0) return null; // no commits and nothing staged
-    return { mode: 'staged', base: hasHead ? 'HEAD' : null, candidate: null, changed: changes.files, renamed, snapshot: changes.mode };
+    return { mode: 'staged', base: hasHead ? 'HEAD' : null, candidate: null, changed: changes.files, renamed, snapshot: changes.mode, files };
   }
   const base = revExists(repo, 'HEAD~1') ? 'HEAD~1' : null;
-  return { mode: 'manual', base, candidate: 'HEAD', changed: changes.files, renamed, snapshot: changes.mode };
+  return { mode: 'manual', base, candidate: 'HEAD', changed: changes.files, renamed, snapshot: changes.mode, files };
 }
 
 /** Nearest ancestor dir of rel holding a package.json; '.' for the repository root. */
@@ -137,17 +398,39 @@ function projectRoot(rel, files) {
   return '.';
 }
 
-/** Changed JS/TS (and tdd.code) files grouped by project root (Map, first seen first). */
+/**
+ * Changed in-scope files grouped by (language, project root), first seen
+ * first: a Map of key -> { lang, root, files }.
+ */
 function byRoot(repo, trees, rules = NO_RULES) {
-  const files = new Set(listFiles(repo, trees.snapshot));
+  const files = trees.files || new Set(listFiles(repo, trees.snapshot));
   const roots = new Map();
   for (const rel of trees.changed) {
-    if (!inScope(rel, rules)) continue;
-    const root = projectRoot(rel, files);
-    if (!roots.has(root)) roots.set(root, []);
-    roots.get(root).push(rel);
+    const where = locate(rel, files, rules);
+    if (where === null) continue;
+    const key = `${where.lang}:${where.root}`;
+    if (!roots.has(key)) roots.set(key, { ...where, files: [] });
+    roots.get(key).files.push(rel);
   }
   return roots;
+}
+
+/** classify for a group: the JS rules, or the group's language profile. */
+function classifyGroup(group, rules = NO_RULES) {
+  if (group.lang === 'js') return classify(group.files, rules);
+  const profile = PROFILE_BY_LANG.get(group.lang);
+  const out = { tests: [], support: [], code: [] };
+  const lists = { test: out.tests, support: out.support, code: out.code };
+  for (const rel of group.files) {
+    const kind = profileKind(profile, rel, group.root, rules);
+    if (kind) lists[kind].push(rel);
+  }
+  return out;
+}
+
+/** Label of a group in messages: its root for JS (as before), "root (lang)" otherwise. */
+function groupLabel(group) {
+  return group.lang === 'js' ? group.root : `${group.root} (${group.lang})`;
 }
 
 function relative(rel, root) {
@@ -296,24 +579,40 @@ function nodeTestCount(output, tree, files) {
   return count;
 }
 
+/**
+ * Run the runner's commands in tree, stopping at the first that does not exit
+ * 0; the result carries the last exit code, the output tail and, for runners
+ * that count, the number of tests executed.
+ */
 function runTests(tree, runner) {
   const env = { ...process.env, NODE_ENV: 'test' };
   for (const key of CALLER_GIT_ENV) delete env[key];
   // Set when the verifier itself runs under node --test; a child that inherits
   // it skips running its files ("run() is being called recursively").
   delete env.NODE_TEST_CONTEXT;
-  const res = spawnSync(runner.command, runner.args, {
-    cwd: tree, env, timeout: timeoutMs(), maxBuffer: MAX_BUFFER, encoding: 'utf-8',
-    shell: process.platform === 'win32' && runner.command.endsWith('.cmd'),
-  });
-  const output = `${res.stdout || ''}${res.stderr || ''}`;
-  const timedOut = Boolean(res.error && res.error.code === 'ETIMEDOUT');
+  if (runner.env) Object.assign(env, runner.env(tree));
+  const steps = runner.steps || [{ command: runner.command, args: runner.args }];
+  let output = '';
+  let res = null;
+  let timedOut = false;
+  for (const step of steps) {
+    const command = step.local ? path.join(tree, step.command) : step.command;
+    res = spawnSync(command, step.args, {
+      cwd: tree, env, timeout: timeoutMs(), maxBuffer: MAX_BUFFER, encoding: 'utf-8',
+      shell: process.platform === 'win32' && /\.(cmd|bat)$/i.test(command),
+    });
+    output += `${res.stdout || ''}${res.stderr || ''}`;
+    timedOut = Boolean(res.error && res.error.code === 'ETIMEDOUT');
+    if (res.error && !timedOut) output += res.error.message;
+    if (res.error || res.status !== 0) break;
+  }
   const result = {
     exit_code: timedOut || res.error ? null : res.status,
     timed_out: timedOut,
-    output: tail(res.error && !timedOut ? `${output}${res.error.message}` : output),
+    output: tail(output),
   };
   if (runner.name === 'node:test') result.tests = nodeTestCount(output, tree, runner.files);
+  else if (runner.count) result.tests = runner.count(output);
   return result;
 }
 
@@ -341,21 +640,32 @@ function materializeTrees(repo, trees, tmp, links) {
   return { candidateDir, baseDir };
 }
 
-/** Green on CANDIDATE, then red on BASE + the changed tests, inside one project root. */
-function redGreen(repo, candidateRoot, baseRoot, root, groups, data, links) {
+/**
+ * Green on CANDIDATE, then red on BASE + the changed tests, inside one project
+ * root, with the runner of the group's language.
+ */
+function redGreen(repo, candidateRoot, baseRoot, root, groups, data, links, lang = 'js', tmp = null) {
   const runFiles = groups.tests.map((f) => relative(f, root));
   const overlayFiles = groups.tests.concat(groups.support).map((f) => relative(f, root));
   const candidateDir = path.join(candidateRoot, root);
   const baseDir = path.join(baseRoot, root);
-  if (root !== '.') {
-    fs.mkdirSync(baseDir, { recursive: true });
-    for (const dir of [candidateRoot, baseRoot]) {
-      const link = linkNodeModules(repo, dir, root);
-      if (link) links.push(link);
+  if (root !== '.') fs.mkdirSync(baseDir, { recursive: true });
+  let runner;
+  if (lang === 'js') {
+    if (root !== '.') {
+      for (const dir of [candidateRoot, baseRoot]) {
+        const link = linkNodeModules(repo, dir, root);
+        if (link) links.push(link);
+      }
     }
+    runner = detectRunner(candidateDir, runFiles);
+  } else {
+    const profile = PROFILE_BY_LANG.get(lang);
+    for (const dir of [candidateDir, baseDir]) {
+      if (profile.link) links.push(...[].concat(profile.link(repo, dir, root)).filter(Boolean));
+    }
+    runner = profile.runner({ repo, root, tree: candidateDir, tests: runFiles, tmp });
   }
-
-  const runner = detectRunner(candidateDir, runFiles);
   data.runner = runner.name;
   if (runner.error) {
     data.message = runner.error;
@@ -368,7 +678,7 @@ function redGreen(repo, candidateRoot, baseRoot, root, groups, data, links) {
     data.message = `Changed tests do not pass with the change (${runLabel(runner, green)}).`;
     return result(1, data);
   }
-  if (runner.name === 'node:test' && !(green.tests > 0)) {
+  if ((runner.name === 'node:test' || runner.count) && !(green.tests > 0)) {
     data.message = 'Changed tests do not pass with the change (no tests executed).';
     return result(1, data);
   }
@@ -400,7 +710,7 @@ function withTrees(repo, trees, fn) {
   const links = [];
   try {
     const { candidateDir, baseDir } = materializeTrees(repo, trees, tmp, links);
-    return fn(candidateDir, baseDir, links);
+    return fn(candidateDir, baseDir, links, tmp);
   } finally {
     for (const link of links) {
       try { fs.unlinkSync(link); } catch { /* already gone */ }
@@ -409,9 +719,9 @@ function withTrees(repo, trees, fn) {
   }
 }
 
-function verify(repo, trees, groups, data, root = '.') {
-  return withTrees(repo, trees, (candidateDir, baseDir, links) =>
-    redGreen(repo, candidateDir, baseDir, root, groups, data, links));
+function verify(repo, trees, groups, data, root = '.', lang = 'js') {
+  return withTrees(repo, trees, (candidateDir, baseDir, links, tmp) =>
+    redGreen(repo, candidateDir, baseDir, root, groups, data, links, lang, tmp));
 }
 
 /** Outcome decided without running tests, or null when red/green must run. */
@@ -423,7 +733,7 @@ function precheck(groups, data) {
     } else if (data.pure_renames && data.pure_renames.length > 0) {
       data.message = 'Only pure renames: nothing to verify.';
     } else {
-      data.message = 'No JS/TS production code changed: nothing to verify.';
+      data.message = 'No production code changed: nothing to verify.';
     }
     return result(0, data);
   }
@@ -436,26 +746,30 @@ function precheck(groups, data) {
   return null;
 }
 
-/** Several project roots: each group passes on its own, or the change fails. */
+/** Several groups (language, root): each passes on its own, or the change fails. */
 function verifyRoots(repo, trees, roots, data, rules = NO_RULES) {
-  const entries = [...roots].map(([root, files]) => {
-    const groups = classify(files, rules);
-    const gdata = { root, changed_tests: groups.tests, changed_support: groups.support, changed_code: groups.code };
+  const entries = [...roots.values()].map((group) => {
+    const { root, lang } = group;
+    const groups = classifyGroup(group, rules);
+    const gdata = {
+      root, language: lang, changed_tests: groups.tests, changed_support: groups.support, changed_code: groups.code,
+    };
     const outcome = precheck(groups, gdata);
     if (outcome && outcome.exitCode === 1) {
       gdata.message =
         `No test evidence: ${groups.code.length} production code file(s) changed in ${root} ` +
         `without any changed test file in ${root}.`;
     }
-    return { root, groups, gdata, outcome };
+    return { root, lang, label: groupLabel(group), groups, gdata, outcome };
   });
 
   const pending = entries.filter((e) => e.outcome === null);
   if (pending.length > 0) {
     try {
-      withTrees(repo, trees, (candidateDir, baseDir, links) => {
+      withTrees(repo, trees, (candidateDir, baseDir, links, tmp) => {
         for (const entry of pending) {
-          entry.outcome = redGreen(repo, candidateDir, baseDir, entry.root, entry.groups, entry.gdata, links);
+          entry.outcome = redGreen(
+            repo, candidateDir, baseDir, entry.root, entry.groups, entry.gdata, links, entry.lang, tmp);
         }
       });
     } catch (err) {
@@ -465,9 +779,22 @@ function verifyRoots(repo, trees, roots, data, rules = NO_RULES) {
   }
 
   data.groups = entries.map((e) => ({ ...e.gdata, exit_code: e.outcome.exitCode }));
-  const failed = data.groups.filter((g) => g.exit_code !== 0);
-  data.message = (failed.length > 0 ? failed : data.groups).map((g) => `[${g.root}] ${g.message}`).join(' ');
+  const labelled = entries.map((e, i) => ({ label: e.label, group: data.groups[i] }));
+  const failed = labelled.filter((e) => e.group.exit_code !== 0);
+  data.message = (failed.length > 0 ? failed : labelled).map((e) => `[${e.label}] ${e.group.message}`).join(' ');
   return result(failed.length > 0 ? 1 : 0, data);
+}
+
+/** Every group's tests / support / code, in the order the files changed. */
+function classifyChanged(changed, roots, rules) {
+  const kinds = new Map();
+  for (const group of roots.values()) {
+    const groups = classifyGroup(group, rules);
+    for (const kind of ['tests', 'support', 'code']) for (const rel of groups[kind]) kinds.set(rel, kind);
+  }
+  const out = { tests: [], support: [], code: [] };
+  for (const rel of changed) if (kinds.has(rel)) out[kinds.get(rel)].push(rel);
+  return out;
 }
 
 /**
@@ -498,7 +825,8 @@ function check(targetDir) {
     return result(0, { message: 'No commits and nothing staged: nothing to verify' }, true);
   }
 
-  const groups = classify(trees.changed, rules);
+  const roots = byRoot(repo, trees, rules);
+  const groups = classifyChanged(trees.changed, roots, rules);
   const data = {
     mode: trees.mode,
     base: trees.base || '(empty tree)',
@@ -509,16 +837,16 @@ function check(targetDir) {
   };
   if (trees.renamed.length > 0) data.pure_renames = trees.renamed;
 
-  const roots = byRoot(repo, trees, rules);
   if (roots.size > 1) return verifyRoots(repo, trees, roots, data, rules);
-  const root = roots.size === 1 ? [...roots.keys()][0] : '.';
-  if (root !== '.') data.root = root;
+  const only = roots.size === 1 ? [...roots.values()][0] : { root: '.', lang: 'js' };
+  if (only.root !== '.') data.root = only.root;
+  if (only.lang !== 'js') data.language = only.lang;
 
   const early = precheck(groups, data);
   if (early) return early;
 
   try {
-    return verify(repo, trees, groups, data, root);
+    return verify(repo, trees, groups, data, only.root, only.lang);
   } catch (err) {
     data.message = `Could not materialize the trees to verify: ${err.message}`;
     return result(1, data);
