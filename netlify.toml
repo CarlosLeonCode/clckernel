@@ -6,7 +6,7 @@
   publish = "dist"
 
 [build.environment]
-  NODE_VERSION = "20"
+  NODE_VERSION = "22"
   ASTRO_TELEMETRY_DISABLED = "1"
 
 # Headers for optimal caching and security
