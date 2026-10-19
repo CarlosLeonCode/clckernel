@@ -24,7 +24,7 @@ jobs:
         # that consumer projects rely on.
         python: ['3.9', '3.13']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Guards fall back to HEAD~1 when nothing is staged.
           fetch-depth: 2
