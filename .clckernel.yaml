@@ -13,6 +13,12 @@ exclude_paths:
 # test that fails without it. Because verify_tdd.js is installed next to
 # verify_tdd.py, these .py files are handed to it (verify_tdd.py does not
 # demand pytest tests for them).
+#
+# The website (website/) is a separate Astro project with no test suite of
+# its own; its source is not production code of the kernel, so it is not
+# subject to the red-green check.
 tdd:
   code:
     - "tools/**/*.py"
+  ignore:
+    - "website/**"
