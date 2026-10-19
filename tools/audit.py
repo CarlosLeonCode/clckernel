@@ -16,7 +16,9 @@ disk fails the run. Results are grouped into 4 lenses.
 CLI (sdds/audit-cli): audit.py [targetDir] [--hook] [--change <name>] [--staged]
   (none)           print the 4-lens summary; write nothing
   --change <name>  also write sdds/<name>/05-audit-report.md and
-                   audit-receipt.json (<name>: one safe path segment)
+                   audit-receipt.json (<name>: one safe path segment);
+                   05-audit-report.py.md / audit-receipt.py.json when
+                   tools/audit.js is installed too (mixed stack)
   --hook           one line per guard; write nothing (not with --change)
   --staged         the default snapshot, spelled out: the staged changes, or
                    the last commit when nothing is staged (_changes)
@@ -667,6 +669,19 @@ def _load_severities(dir_path: str) -> dict:
     return _config.load_config(dir_path)["config"].get("severities") or {}
 
 
+def report_names(tools_dir: pathlib.Path) -> tuple[str, str]:
+    """
+    Report and receipt file names. With both orchestrators installed side by
+    side (a mixed stack), each runs its own language's guards and writes its
+    own pair (05-audit-report.py.md, audit-receipt.py.json), so the second run
+    of `clckernel audit --change` does not overwrite the first. A single
+    orchestrator keeps the plain names.
+    """
+    if (pathlib.Path(tools_dir) / "audit.js").is_file():
+        return "05-audit-report.py.md", "audit-receipt.py.json"
+    return "05-audit-report.md", "audit-receipt.json"
+
+
 def main(target_dir: str | None = None, hook: bool = False, change: str | None = None) -> int:
     """
     Run all discovered guards. hook: one line per guard; change: also write the
@@ -705,9 +720,10 @@ def main(target_dir: str | None = None, hook: bool = False, change: str | None =
     if change:
         sdd_dir = pathlib.Path(dir_path) / "sdds" / change
         sdd_dir.mkdir(parents=True, exist_ok=True)
-        report_path = sdd_dir / "05-audit-report.md"
+        report_name, receipt_name = report_names(tools_dir)
+        report_path = sdd_dir / report_name
         report_path.write_text(generate_report(results, sdd_dir), encoding="utf-8")
-        receipt_path = sdd_dir / "audit-receipt.json"
+        receipt_path = sdd_dir / receipt_name
         receipt_path.write_text(json.dumps(generate_receipt(results, dir_path), indent=2) + "\n", encoding="utf-8")
 
     print_summary(results, report_path, receipt_path)

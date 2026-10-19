@@ -11,6 +11,9 @@ Use this playbook when auditing code quality, architecture compliance, or execut
    `audit.(js|py) [targetDir] [--change <name>] [--staged]`.
    - Working on an SDD change (`sdds/<name>/`): pass `--change <name>`. Only then are the report
      (`05-audit-report.md`) and the receipt (`audit-receipt.json`) written, in `sdds/<name>/`.
+     On a mixed stack (both `tools/audit.js` and `tools/audit.py` installed) each orchestrator
+     writes its own pair: `05-audit-report.js.md` + `audit-receipt.js.json` and
+     `05-audit-report.py.md` + `audit-receipt.py.json`. Read both.
    - Without `--change` nothing is written: read the summary from stdout.
    - `--staged` is the default snapshot (staged changes, or the last commit when nothing is staged).
    - An unknown flag exits 2 with the usage line: fix the command, do not report it as a guard failure.

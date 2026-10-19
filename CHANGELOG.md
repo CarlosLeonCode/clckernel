@@ -125,6 +125,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- **Mixed stacks keep both audit reports (sdds/residual-fixes).** When `tools/audit.js` and `tools/audit.py`
+  are both installed, `--change <name>` makes each orchestrator write its own pair:
+  `05-audit-report.js.md` + `audit-receipt.js.json` and `05-audit-report.py.md` + `audit-receipt.py.json`
+  (before, `clckernel audit --change` ran both and the second overwrote the first). Single-orchestrator
+  projects keep `05-audit-report.md` and `audit-receipt.json`.
 - **`update` never adds what the project did not choose.** It refreshes only the guards the project has (in
   the registry or present in `tools/`) and runs only those in the hook; the stack's other guards are listed
   as *available, not installed* and opted in with the new `clckernel update --add-guards <name,...|all>`
@@ -164,6 +169,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Install/update decide from the repository's own (`--local`) `core.hooksPath`: a global or system value
+  (a user-wide hooks dir) no longer blocks setting `.githooks` nor makes a frontend project look like Husky.
+  The local value is set and a note says a global `core.hooksPath` is configured (sdds/residual-fixes).
+- `check_architecture.py` decides Django vs Clean Architecture per changed file, from its nearest project root
+  (`manage.py`, `pyproject.toml`, `setup.cfg`, `requirements*.txt`), so a Django app in `backend/` or
+  `apps/api/` gets the Django rules and a FastAPI part next to it keeps the layer rules (sdds/residual-fixes).
+- `verify_tdd`: a file native to one verifier that matches `tdd.code` is handed to the other-language verifier
+  when both are installed (`.py` to `verify_tdd.js`, JS/TS to `verify_tdd.py`), so "Python tools tested by JS
+  tests" no longer fails `verify_tdd.py` for lack of a pytest test. With one verifier nothing changes
+  (sdds/residual-fixes).
+- Website: no "100% Verified Code" claim; the file-tree hook example is the generated `.githooks/pre-commit`
+  (`audit.js --hook` / `audit.py --hook`, then external tools; `.husky/` only when Husky is active)
+  (sdds/residual-fixes).
 - `scan_secrets.py` matches the assignment rules case-insensitively, as the JS guard always did, and splits
   lines the same way, so both report identical findings.
 - `check_custom`: Python glob translation, JS/Python glob parity and an infinite loop on empty regex matches.

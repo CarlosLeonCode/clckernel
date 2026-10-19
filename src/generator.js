@@ -225,7 +225,9 @@ function configureHooksPath(targetDir) {
     return false;
   }
 
-  const current = runGit(targetDir, ['config', '--get', 'core.hooksPath']).out;
+  // Only the repository's own value means another hook manager owns it; a
+  // global/system value (a user-wide hooks dir) is overridden by a local one.
+  const current = localHooksPath(targetDir);
   if (current === GITHOOKS_DIR) return true;
   if (current) {
     console.warn(
@@ -235,7 +237,20 @@ function configureHooksPath(targetDir) {
     return false;
   }
 
+  const inherited = runGit(targetDir, ['config', '--get', 'core.hooksPath']).out;
+  if (inherited && inherited !== GITHOOKS_DIR) {
+    console.warn(
+      `Note: a global core.hooksPath is configured ("${inherited}"). This repository gets its own local\n` +
+        `  core.hooksPath=${GITHOOKS_DIR}, which overrides it here; hooks in "${inherited}" do not run for this repository.`
+    );
+  }
+
   return currentIO(targetDir).gitConfig(targetDir, 'core.hooksPath', GITHOOKS_DIR);
+}
+
+/** The repository's own (local scope) core.hooksPath; '' when unset. */
+function localHooksPath(targetDir) {
+  return runGit(targetDir, ['config', '--get', '--local', 'core.hooksPath']).out;
 }
 
 /** core.hooksPath values that mean Husky (v9: .husky/_, older: .husky) runs the hooks. */
@@ -243,7 +258,7 @@ const HUSKY_HOOKS_PATHS = new Set(['.husky', '.husky/_']);
 
 /** True when Husky is the active hook manager of the repository at targetDir. */
 function huskyActive(targetDir) {
-  const current = runGit(targetDir, ['config', '--get', 'core.hooksPath']).out.replace(/\/+$/, '');
+  const current = localHooksPath(targetDir).replace(/\/+$/, '');
   return HUSKY_HOOKS_PATHS.has(current);
 }
 

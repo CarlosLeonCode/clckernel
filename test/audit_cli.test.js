@@ -399,3 +399,51 @@ describe('clckernel audit --change (sdds/audit-cli item 10)', () => {
     }
   });
 });
+
+/** A mixed project: both orchestrators (and their config modules) plus one guard per language. */
+function mixedProject(extra = {}) {
+  const files = { ...extra };
+  for (const lang of Object.keys(LANGS)) {
+    const { orchestrator, support, guard } = LANGS[lang];
+    for (const f of [orchestrator, ...support]) files[`tools/${f}`] = fs.readFileSync(path.join(ROOT, 'tools', f), 'utf-8');
+    const [rel, src] = guard(`check_${lang}`, { message: `FROM_${lang.toUpperCase()}` });
+    files[rel] = src;
+  }
+  return createTmpProject(files);
+}
+
+describe('mixed stack: each orchestrator keeps its own report (sdds/residual-fixes item 2)', () => {
+  for (const lang of Object.keys(LANGS)) {
+    it(`${LANGS[lang].orchestrator} next to the other orchestrator writes 05-audit-report.${lang}.md and audit-receipt.${lang}.json`, () => {
+      const dir = mixedProject();
+      try {
+        const res = audit(lang, dir, ['--change', 'mix']);
+        assert.strictEqual(res.status, 0, res.output);
+        assert.deepStrictEqual(sddFiles(dir), [`mix/05-audit-report.${lang}.md`, `mix/audit-receipt.${lang}.json`]);
+        assert.match(res.stdout, new RegExp(`05-audit-report\\.${lang}\\.md`));
+        const other = lang === 'js' ? 'py' : 'js';
+        assert.match(res.stdout, new RegExp(`Discovered 1 guard\\(s\\): check_${lang}\\b`), 'each orchestrator runs its own guards');
+        assert.doesNotMatch(res.stdout, new RegExp(`check_${other}`));
+      } finally {
+        teardown(dir);
+      }
+    });
+  }
+
+  it('clckernel audit --change on a mixed stack leaves both reports and both receipts', () => {
+    const dir = mixedProject();
+    try {
+      const res = spawnSync(process.execPath, [CLI, 'audit', dir, '--change', 'mix'], { cwd: path.dirname(dir), encoding: 'utf-8' });
+      assert.strictEqual(res.status, 0, `${res.stdout}${res.stderr}`);
+      assert.deepStrictEqual(sddFiles(dir), [
+        'mix/05-audit-report.js.md', 'mix/05-audit-report.py.md', 'mix/audit-receipt.js.json', 'mix/audit-receipt.py.json',
+      ]);
+      const js = JSON.parse(fs.readFileSync(path.join(dir, 'sdds', 'mix', 'audit-receipt.js.json'), 'utf-8'));
+      const py = JSON.parse(fs.readFileSync(path.join(dir, 'sdds', 'mix', 'audit-receipt.py.json'), 'utf-8'));
+      assert.strictEqual(js.verdict, 'PASSED');
+      assert.strictEqual(py.verdict, 'PASSED');
+    } finally {
+      teardown(dir);
+    }
+  });
+});

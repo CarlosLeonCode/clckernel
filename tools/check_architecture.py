@@ -6,6 +6,9 @@ Validates that Python code respects architectural layer boundaries:
   - Application layer should not import from Infrastructure or Routes
   - Routes/API should not import from Domain directly (go through Application)
 For Django: checks that models don't import from views, views don't import from urls, etc.
+The framework is decided per changed file, from its nearest project root in the
+snapshot (manage.py / pyproject.toml / setup.cfg / requirements*.txt), so each
+part of a monorepo gets its own rules.
 Self-contained: uses only Python stdlib (ast, pathlib, subprocess, json).
 """
 from __future__ import annotations
@@ -24,22 +27,68 @@ if _TOOLS_DIR not in sys.path:
 import _changes  # noqa: E402
 
 
-def _detect_framework(target_dir: str, mode: str | None) -> str:
-    """Detect whether this is a Django, FastAPI, or generic Python project (from the snapshot)."""
-    if _changes.exists(target_dir, "manage.py", mode):
-        return "django"
+# Files that make their directory a Python project root (requirements*.txt too).
+_ROOT_MARKERS = ("manage.py", "pyproject.toml", "setup.cfg")
 
-    for name in ("pyproject.toml", "requirements.txt"):
-        text = _changes.read_file(target_dir, name, mode)
+
+def _is_requirements(name: str) -> bool:
+    return name.startswith("requirements") and name.endswith(".txt")
+
+
+def _markers_by_dir(target_dir: str, mode: str | None) -> dict[str, list[str]]:
+    """Project-marker file names of the snapshot, by directory ("" for the repository root)."""
+    by_dir: dict[str, list[str]] = {}
+    for rel in _changes.list_files(target_dir, mode):
+        head, _, name = rel.rpartition("/")
+        if name in _ROOT_MARKERS or _is_requirements(name):
+            by_dir.setdefault(head, []).append(name)
+    return by_dir
+
+
+def _framework_of(target_dir: str, mode: str | None, directory: str, names: list[str]) -> str:
+    """Framework of the project rooted at directory, from its marker files (snapshot content)."""
+    if "manage.py" in names:
+        return "django"
+    found = "generic"
+    for name in sorted(names):
+        text = _changes.read_file(target_dir, f"{directory}/{name}" if directory else name, mode)
         if text is None:
             continue
         text = text.lower()
         if "django" in text:
             return "django"
         if "fastapi" in text:
-            return "fastapi"
+            found = "fastapi"
+    return found
 
-    return "generic"
+
+def _nearest_framework(
+    target_dir: str, mode: str | None, filepath: str,
+    markers: dict[str, list[str]], cache: dict[str, str],
+) -> str:
+    """
+    Framework of the nearest project root of a repository path: the file's
+    directory, then each parent up to the repository root; the first one
+    holding a project marker decides (a monorepo part's own manifest wins over
+    the root one). Memoized per directory in cache.
+    """
+    visited: list[str] = []
+    current = filepath.rpartition("/")[0]
+    framework = "generic"
+    while True:
+        if current in cache:
+            framework = cache[current]
+            break
+        visited.append(current)
+        if current in markers:
+            framework = _framework_of(target_dir, mode, current, markers[current])
+            break
+        if not current:
+            break
+        current = current.rpartition("/")[0]
+    for directory in visited:
+        cache[directory] = framework
+    return framework
 
 
 def _package_parts(filepath: str) -> list[str]:
@@ -236,7 +285,9 @@ def check(target_dir: str | None = None) -> dict:
             "data": {"violations": {}, "message": "No Python files changed"},
         }
 
-    framework = _detect_framework(dir_path, mode)
+    # Each file is judged by its own project part (Django in backend/, FastAPI in api/, ...).
+    markers = _markers_by_dir(dir_path, mode)
+    frameworks: dict[str, str] = {}
     violations: dict[str, list[dict]] = {}
 
     for filepath in files:
@@ -249,7 +300,7 @@ def check(target_dir: str | None = None) -> dict:
         except SyntaxError:
             continue
 
-        if framework == "django":
+        if _nearest_framework(dir_path, mode, filepath, markers, frameworks) == "django":
             file_violations = _check_django_layers(filepath, content, tree)
         else:
             file_violations = _check_clean_architecture(filepath, content, tree)

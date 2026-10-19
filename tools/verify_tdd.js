@@ -25,7 +25,8 @@
  * The project config (.clckernel.yaml) widens or narrows what counts as
  * production code: a file matching `tdd.code` is code whatever its language
  * (e.g. Python tools tested by JS tests), a file matching `tdd.ignore` never
- * is.
+ * is. A JS/TS file matching `tdd.code` is handed to verify_tdd.py when it is
+ * installed next to this file (it is the code of the Python suite).
  *
  * Self-contained: uses only Node.js built-ins. Commands run with argument
  * arrays, never through a shell.
@@ -64,23 +65,35 @@ function git(repo, args, options = {}) {
   return res.stdout;
 }
 
+// The other-language verifier: when it is installed next to this one, a JS/TS
+// file listed in tdd.code is its code (e.g. JS scripts tested by pytest).
+const SIBLING_VERIFIER = 'verify_tdd.py';
+
 /**
- * What counts as code beyond JS/TS (tdd.code) and what never does (tdd.ignore).
+ * What counts as code beyond JS/TS (tdd.code), what never does (tdd.ignore),
+ * and which JS/TS files are handed to the sibling verifier: those matching
+ * tdd.code when verify_tdd.py is installed next to this file. Listing a JS/TS
+ * file in tdd.code has no other purpose, and verify_tdd.py already counts it
+ * as code, so each file has exactly one owner.
  * @param {string} repo - Repository root (where the config lives)
- * @returns {{ extra: (rel: string) => boolean, ignore: (rel: string) => boolean }}
+ * @returns {{ extra: (rel: string) => boolean, ignore: (rel: string) => boolean, handed: (rel: string) => boolean }}
  */
 function codeRules(repo) {
   const config = projectConfig(repo);
+  const extra = globMatcher(config ? config.tdd.code : []);
+  const sibling = fs.existsSync(path.join(__dirname, SIBLING_VERIFIER));
   return {
-    extra: globMatcher(config ? config.tdd.code : []),
+    extra,
     ignore: globMatcher(config ? config.tdd.ignore : []),
+    handed: sibling ? (rel) => JS_EXTENSIONS.includes(path.posix.extname(rel)) && extra(rel) : () => false,
   };
 }
 
-const NO_RULES = { extra: () => false, ignore: () => false };
+const NO_RULES = { extra: () => false, ignore: () => false, handed: () => false };
 
-/** True for a file the verifier looks at: JS/TS, or listed in tdd.code. */
+/** True for a file the verifier looks at: JS/TS, or listed in tdd.code (minus handed files). */
 function inScope(rel, rules) {
+  if (rules.handed(rel)) return false;
   return JS_EXTENSIONS.includes(path.posix.extname(rel)) || rules.extra(rel);
 }
 

@@ -16,7 +16,9 @@
  * CLI (sdds/audit-cli): audit.js [targetDir] [--hook] [--change <name>] [--staged]
  *   (none)           print the 4-lens summary; write nothing
  *   --change <name>  also write sdds/<name>/05-audit-report.md and
- *                    audit-receipt.json (<name>: one safe path segment)
+ *                    audit-receipt.json (<name>: one safe path segment);
+ *                    05-audit-report.js.md / audit-receipt.js.json when
+ *                    tools/audit.py is installed too (mixed stack)
  *   --hook           one line per guard; write nothing (not with --change)
  *   --staged         the default snapshot, spelled out: the staged changes,
  *                    or the last commit when nothing is staged (_changes)
@@ -658,6 +660,22 @@ function loadSeverities(dir) {
 }
 
 /**
+ * Report and receipt file names. With both orchestrators installed side by
+ * side (a mixed stack), each runs its own language's guards and writes its own
+ * pair (05-audit-report.js.md, audit-receipt.js.json), so the second run of
+ * `clckernel audit --change` does not overwrite the first. A single
+ * orchestrator keeps the plain names.
+ * @param {string} toolsDir - Directory holding the orchestrators
+ * @returns {{ report: string, receipt: string }}
+ */
+function reportNames(toolsDir) {
+  if (fs.existsSync(path.join(toolsDir, 'audit.py'))) {
+    return { report: '05-audit-report.js.md', receipt: 'audit-receipt.js.json' };
+  }
+  return { report: '05-audit-report.md', receipt: 'audit-receipt.json' };
+}
+
+/**
  * @param {string} [targetDir] - Project root (default: cwd)
  * @param {{ hook?: boolean, change?: string|null }} [options] - hook: one line
  *   per guard; change: write the report and receipt to sdds/<change>/
@@ -702,9 +720,10 @@ async function main(targetDir, options = {}) {
   if (change) {
     const sddDir = path.join(dir, 'sdds', change);
     fs.mkdirSync(sddDir, { recursive: true });
-    reportPath = path.join(sddDir, '05-audit-report.md');
+    const names = reportNames(toolsDir);
+    reportPath = path.join(sddDir, names.report);
     fs.writeFileSync(reportPath, generateReport(results, sddDir), 'utf-8');
-    receiptPath = path.join(sddDir, 'audit-receipt.json');
+    receiptPath = path.join(sddDir, names.receipt);
     fs.writeFileSync(receiptPath, JSON.stringify(generateReceipt(results, dir), null, 2) + '\n', 'utf-8');
   }
 
@@ -754,6 +773,6 @@ if (require.main === module) {
 }
 
 module.exports = {
-  main, parseArgs, applyLevels, discoverGuards, discoverProjectGuards, planGuards, isGuardFile,
+  main, parseArgs, reportNames, applyLevels, discoverGuards, discoverProjectGuards, planGuards, isGuardFile,
   runGuard, runProjectGuard, generateReceipt,
 };

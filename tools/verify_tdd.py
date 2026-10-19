@@ -21,7 +21,9 @@ the result is the same as a whole-repository run.
 
 The project config (.clckernel.yaml) widens or narrows what counts as
 production code: a file matching `tdd.code` is code whatever its language,
-a file matching `tdd.ignore` never is.
+a file matching `tdd.ignore` never is. A .py file matching `tdd.code` is
+handed to verify_tdd.js when it is installed next to this file (it is the
+code of the JS suite, e.g. Python tools tested by JS tests).
 
 Self-contained: Python 3.9+ standard library only.
 """
@@ -62,20 +64,34 @@ def _never(_rel: str) -> bool:
     return False
 
 
-NO_RULES = {"extra": _never, "ignore": _never}
+NO_RULES = {"extra": _never, "ignore": _never, "handed": _never}
+# The other-language verifier: when it is installed next to this one, a .py
+# file listed in tdd.code is its code (e.g. Python tools tested by JS tests).
+SIBLING_VERIFIER = "verify_tdd.js"
 
 
 def _code_rules(repo: str) -> dict:
-    """What counts as code beyond .py (tdd.code) and what never does (tdd.ignore)."""
+    """
+    What counts as code beyond .py (tdd.code), what never does (tdd.ignore),
+    and which .py files are handed to the sibling verifier: those matching
+    tdd.code when verify_tdd.js is installed next to this file. Listing a .py
+    file in tdd.code has no other purpose, and verify_tdd.js already counts it
+    as code, so each file has exactly one owner.
+    """
     config = _changes.project_config(repo)
+    extra = _changes.glob_matcher(config["tdd"]["code"] if config else [])
+    sibling = os.path.isfile(os.path.join(_TOOLS_DIR, SIBLING_VERIFIER))
     return {
-        "extra": _changes.glob_matcher(config["tdd"]["code"] if config else []),
+        "extra": extra,
         "ignore": _changes.glob_matcher(config["tdd"]["ignore"] if config else []),
+        "handed": (lambda rel: rel.endswith(".py") and extra(rel)) if sibling else _never,
     }
 
 
 def _in_scope(rel: str, rules: dict) -> bool:
-    """True for a file the verifier looks at: .py, or listed in tdd.code."""
+    """True for a file the verifier looks at: .py, or listed in tdd.code (minus handed files)."""
+    if rules["handed"](rel):
+        return False
     return rel.endswith(".py") or rules["extra"](rel)
 
 

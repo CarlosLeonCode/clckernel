@@ -10,7 +10,9 @@ exclude_paths:
 
 # The Python guards in tools/ are tested by the JS suite (test/*.test.js):
 # verify_tdd.js counts them as production code, so a change to one needs a
-# test that fails without it.
+# test that fails without it. Because verify_tdd.js is installed next to
+# verify_tdd.py, these .py files are handed to it (verify_tdd.py does not
+# demand pytest tests for them).
 tdd:
   code:
     - "tools/**/*.py"

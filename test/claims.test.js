@@ -39,6 +39,8 @@ const RESIDUAL_FORBIDDEN = [
   '100% compliance',
   '100% de cumplimiento',
   '100% of the CLC Kernel standard',
+  // sdds/residual-fixes item 4: no guard run proves code "100%" correct.
+  '100% Verified',
   // sdds/agent-os-generic: no guard validates data files against a schema.
   /strict schema validation/i,
   /validación estricta de esquemas/i,
@@ -279,6 +281,20 @@ describe('honest claims — website sources', () => {
       assert.deepStrictEqual(findForbidden(text, RESIDUAL_FORBIDDEN), []);
     });
   }
+});
+
+describe('honest claims — website hook example (sdds/residual-fixes item 4)', () => {
+  const text = fs.readFileSync(path.join(ROOT, 'website', 'src', 'components', 'HarnessFileTree.astro'), 'utf-8');
+
+  it('shows the hook the kernel writes: .githooks/pre-commit calling the orchestrators with --hook', () => {
+    assert.match(text, /\.githooks\/pre-commit/);
+    assert.match(text, /node tools\/audit\.js --hook/);
+    assert.match(text, /python3 tools\/audit\.py --hook/);
+  });
+
+  it('no longer presents .husky/pre-commit as the default hook', () => {
+    assert.doesNotMatch(text, /path: '\.husky\/pre-commit'/);
+  });
 });
 
 describe('honest claims — doctor summary', () => {
