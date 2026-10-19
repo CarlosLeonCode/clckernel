@@ -75,11 +75,11 @@ function stage(dir, files) {
   git(dir, 'add', ...Object.keys(files));
 }
 
-function run(dir) {
+function run(dir, extraEnv = {}) {
   const res = spawnSync(process.execPath, [verifyTdd, dir], {
     cwd: dir,
     encoding: 'utf-8',
-    env: { ...process.env, CLC_TDD_TIMEOUT: '60' },
+    env: { ...process.env, CLC_TDD_TIMEOUT: '60', ...extraEnv },
   });
   let parsed = null;
   try {
@@ -127,6 +127,16 @@ describe('verify_tdd.js red→green (node:test)', () => {
       assert.strictEqual(res.result.data.runner, 'node:test');
       assert.deepStrictEqual(res.result.data.changed_tests, ['test/sum.test.js']);
       assert.deepStrictEqual(res.result.data.changed_code, ['lib/sum.js']);
+    });
+  });
+
+  it('still counts executed tests when the terminal forces colored output', () => {
+    // An interactive terminal (or FORCE_COLOR) makes node:test print ANSI
+    // colour codes; the verifier must not mistake that for "no tests ran".
+    withRepo((dir) => {
+      stage(dir, { 'lib/sum.js': MUL_SUM, 'test/sum.test.js': MUL_TEST });
+      const res = run(dir, { FORCE_COLOR: '1' });
+      assertOutcome(res, 0, /red.*green verified/i);
     });
   });
 

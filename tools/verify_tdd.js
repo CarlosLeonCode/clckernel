@@ -590,6 +590,10 @@ function runTests(tree, runner) {
   // Set when the verifier itself runs under node --test; a child that inherits
   // it skips running its files ("run() is being called recursively").
   delete env.NODE_TEST_CONTEXT;
+  // An interactive terminal propagates FORCE_COLOR to child processes; colour
+  // codes would break the summary parsing below, so ask runners for plain text.
+  env.FORCE_COLOR = '0';
+  env.NO_COLOR = '1';
   if (runner.env) Object.assign(env, runner.env(tree));
   const steps = runner.steps || [{ command: runner.command, args: runner.args }];
   let output = '';
@@ -601,7 +605,8 @@ function runTests(tree, runner) {
       cwd: tree, env, timeout: timeoutMs(), maxBuffer: MAX_BUFFER, encoding: 'utf-8',
       shell: process.platform === 'win32' && /\.(cmd|bat)$/i.test(command),
     });
-    output += `${res.stdout || ''}${res.stderr || ''}`;
+    // Strip ANSI escape codes from runners that colour output regardless.
+    output += `${res.stdout || ''}${res.stderr || ''}`.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '');
     timedOut = Boolean(res.error && res.error.code === 'ETIMEDOUT');
     if (res.error && !timedOut) output += res.error.message;
     if (res.error || res.status !== 0) break;
