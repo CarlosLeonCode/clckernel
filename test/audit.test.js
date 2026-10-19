@@ -19,7 +19,7 @@ describe('Audit Orchestrator & 4-Lens RDD Receipt', () => {
 
     try {
       // Run audit.js in the project
-      const stdout = execSync(`node "${auditScript}" "${dir}"`, { encoding: 'utf-8' });
+      const stdout = execSync(`node "${auditScript}" "${dir}" --change audit-run`, { encoding: 'utf-8' });
 
       // 1. Verify stdout contains 4 Canonical Lenses
       assert.ok(stdout.includes('4-LENS RDD AUDIT SUMMARY'), 'Must display 4-Lens header');
@@ -60,7 +60,7 @@ describe('Audit Orchestrator & 4-Lens RDD Receipt', () => {
 
     try {
       try {
-        execSync(`node "${auditScript}" "${dir}"`, { encoding: 'utf-8', stdio: 'pipe' });
+        execSync(`node "${auditScript}" "${dir}" --change audit-run`, { encoding: 'utf-8', stdio: 'pipe' });
         assert.fail('Should have exited with non-zero exit code');
       } catch (err) {
         assert.strictEqual(err.status, 1, 'Must exit with code 1');
@@ -103,7 +103,7 @@ describe('Audit orchestrator fails closed on broken guards', () => {
         assert.strictEqual(result.skipped, false);
         assert.match(result.data.message, /Guard crashed: kaboom/);
 
-        const res = spawnSync('node', [auditJs, dir], { encoding: 'utf-8' });
+        const res = spawnSync('node', [auditJs, dir, '--change', 'audit-run'], { encoding: 'utf-8' });
         assert.notStrictEqual(res.status, 0, 'audit must exit non-zero when a guard crashes');
         assert.strictEqual(readReceipt(dir).verdict, 'FAILED');
       } finally {
@@ -118,7 +118,7 @@ describe('Audit orchestrator fails closed on broken guards', () => {
         assert.strictEqual(result.exitCode, 1);
         assert.strictEqual(result.skipped, false);
 
-        const res = spawnSync('node', [auditJs, dir], { encoding: 'utf-8' });
+        const res = spawnSync('node', [auditJs, dir, '--change', 'audit-run'], { encoding: 'utf-8' });
         assert.notStrictEqual(res.status, 0, 'audit must exit non-zero when a guard is not callable');
         assert.strictEqual(readReceipt(dir).verdict, 'FAILED');
       } finally {
@@ -128,14 +128,14 @@ describe('Audit orchestrator fails closed on broken guards', () => {
   });
 
   describe('audit.py', () => {
-    // audit.py discovers guards next to itself and writes reports under its
-    // parent's sdds/, so it is copied into a temp tools/ directory.
+    // audit.py discovers guards next to itself and, with --change, writes reports under the target's
+    // sdds/<name>/, so it is copied into a temp tools/ directory.
     function runPyAudit(guardSource) {
       const dir = createTmpProject({
         'tools/audit.py': fs.readFileSync(auditPy, 'utf-8'),
         'tools/check_broken.py': guardSource,
       });
-      const res = spawnSync('python3', [path.join(dir, 'tools', 'audit.py'), dir], { cwd: dir, encoding: 'utf-8' });
+      const res = spawnSync('python3', [path.join(dir, 'tools', 'audit.py'), dir, '--change', 'audit-run'], { cwd: dir, encoding: 'utf-8' });
       return { dir, res };
     }
 
@@ -160,7 +160,7 @@ describe('Audit orchestrator fails closed on broken guards', () => {
           + '            "data": {"message": "Container runs as root"}}\n',
       });
       try {
-        const res = spawnSync('python3', [path.join(dir, 'tools', 'audit.py'), dir], { cwd: dir, encoding: 'utf-8' });
+        const res = spawnSync('python3', [path.join(dir, 'tools', 'audit.py'), dir, '--change', 'audit-run'], { cwd: dir, encoding: 'utf-8' });
         assert.notStrictEqual(res.status, 0, `audit.py must exit non-zero: ${res.stdout}${res.stderr}`);
         assert.match(res.stdout, /docker_guard/);
         assert.strictEqual(readReceipt(dir).verdict, 'FAILED');

@@ -334,7 +334,7 @@ describe('audit orchestrators discover tools/guards/', () => {
     it(`${orchestrator} runs and reports every project guard (architecture lens)`, () => {
       const dir = auditFixture(orchestrator);
       try {
-        const res = spawnSync(cmd, [path.join('tools', orchestrator)], { cwd: dir, encoding: 'utf-8' });
+        const res = spawnSync(cmd, [path.join('tools', orchestrator), '--change', 'audit-run'], { cwd: dir, encoding: 'utf-8' });
         assert.strictEqual(res.status, 1, `a failing project guard fails the audit:\n${res.stdout}${res.stderr}`);
         assert.match(res.stdout, /check json fail: JSON_FAIL_MESSAGE/, res.stdout);
         assert.match(res.stdout, /check plain: PLAIN_PY_OUTPUT/, res.stdout);

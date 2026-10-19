@@ -77,7 +77,7 @@ Forged by **CLC Kernel: The AI Agent Governance Engine**.
 2. **Plan** — Write an SDD under \`sdds/{change-name}/\`. SDDs live 100% locally and are gitignored.
 3. **Test** (TDD) — Write failing test first (${this.testRunner}).
 4. **Implement** — Make test pass.
-5. **Verify & Audit** — Run \`node tools/audit.js\` or \`python tools/audit.py\`.
+5. **Verify & Audit** — Run \`node tools/audit.js --change {change-name}\` or \`python tools/audit.py --change {change-name}\` (report + receipt in \`sdds/{change-name}/\`; without \`--change\` nothing is written).
 6. **DoD** — Lint, typecheck, tests, coverage, docs, memory.
 7. **Commit** — Pre-commit hook runs automated guards.
 8. **PR** — Generate PR body.

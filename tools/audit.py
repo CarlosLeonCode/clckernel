@@ -2,8 +2,8 @@
 """
 Modular Audit Orchestrator — Python
 The single place that decides which guards run (sdds/unified-discovery):
-`clckernel audit` runs it to write a report, the pre-commit hook runs it with
---hook. Same discovery, same guards, each exactly once:
+`clckernel audit` and agents run it, the pre-commit hook runs it with --hook.
+Same discovery, same guards, each exactly once:
   - top-level tools/ guards: check_*, scan_*, verify_* or *_guard, .py/.js;
   - every tools/guards/*.py and *.js (project guards).
 audit.py runs the .py guards; the .js ones belong to audit.js, unless
@@ -11,9 +11,19 @@ tools/audit.js is not installed: then audit.py runs them too, with node.
 A top-level guard of this language that defines check() is called in
 process; every other guard runs as a process (exit code decides, a JSON
 result is optional). A guard listed in the managed registry but missing on
-disk fails the run. Without --hook an English report (05-audit-report.md) and
-a receipt (audit-receipt.json) are written; --hook writes nothing and prints
-one line per guard. Self-contained: uses only Python stdlib.
+disk fails the run. Results are grouped into 4 lenses.
+
+CLI (sdds/audit-cli): audit.py [targetDir] [--hook] [--change <name>] [--staged]
+  (none)           print the 4-lens summary; write nothing
+  --change <name>  also write sdds/<name>/05-audit-report.md and
+                   audit-receipt.json (<name>: one safe path segment)
+  --hook           one line per guard; write nothing (not with --change)
+  --staged         the default snapshot, spelled out: the staged changes, or
+                   the last commit when nothing is staged (_changes)
+Unknown input exits 2. A failing guard whose level is 'warning' (its result's
+`level`, overridden by `severities` in .clckernel.yaml) is reported but does
+not fail the run; a guard that crashes always does. Self-contained: Python
+stdlib plus the sibling _config.py (optional).
 """
 from __future__ import annotations
 
@@ -32,6 +42,8 @@ PROJECT_GUARD_RUNNERS = {".py": sys.executable or "python3", ".js": "node"}
 OWN_EXT = ".py"
 SIBLING_EXT, SIBLING_ORCHESTRATOR = ".js", "audit.js"
 REGISTRY_FILE = ".clckernel-managed.json"
+USAGE = "usage: audit.py [targetDir] [--hook] [--change <name>] [--staged]"
+CHANGE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 GUARD_STEM = re.compile(r"^(check|scan|verify)_")
 
 # Runs a JS guard that exports a function (module contract) as a process:
@@ -42,7 +54,8 @@ JS_MODULE_RUNNER = (
     "const fn = typeof m === 'function' ? m : Object.values(m || {}).find(v => typeof v === 'function');"
     "if (!fn) { console.error('does not export a function'); process.exit(1); }"
     "Promise.resolve(fn(process.cwd())).then(r => {"
-    " console.log(JSON.stringify(r)); process.exitCode = (r && r.exitCode) || 0; },"
+    " if (!r || typeof r !== 'object') { console.error('returned ' + (r === null ? 'null' : typeof r)); process.exitCode = 1; return; }"
+    " console.log(JSON.stringify(r)); process.exitCode = r.exitCode || 0; },"
     " e => { console.error(e && e.message); process.exitCode = 1; });"
 )
 
@@ -92,20 +105,6 @@ def get_lens(guard_name: str) -> str:
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
-
-def find_active_sdd(change_name: str | None = None) -> pathlib.Path | None:
-    """Find the active SDD directory by name or pick the sole candidate."""
-    sdds_dir = REPO_ROOT / "sdds"
-    if not sdds_dir.exists():
-        return None
-    if change_name:
-        target = sdds_dir / change_name
-        return target if target.is_dir() else None
-    candidates = [p for p in sdds_dir.iterdir() if p.is_dir()]
-    if len(candidates) == 1:
-        return candidates[0]
-    return None
-
 
 def is_guard_file(name: str) -> bool:
     """A top-level guard file name: check_*, scan_*, verify_* or *_guard, .py or .js."""
@@ -201,7 +200,7 @@ def plan_guards(tools_dir: pathlib.Path) -> list[dict]:
 def _missing_guard_result(entry: dict) -> dict:
     name = os.path.splitext(entry["label"])[0]
     return {
-        "exit_code": 1, "skipped": False, "name": name, "lens": get_lens(name),
+        "exit_code": 1, "skipped": False, "crashed": True, "name": name, "lens": get_lens(name),
         "data": {"message": (
             f"Kernel guard missing: tools/{entry['label']} is listed in tools/{REGISTRY_FILE} "
             "but not on disk; restore it with `clckernel update`"
@@ -233,13 +232,15 @@ def run_project_guard(guard_path: pathlib.Path, target_dir: str) -> dict:
     (non-zero fails); a JSON result with the standard shape
     ({name, skipped, lens?, data: {message, violations}}) is used for the
     report, plain output is reported by its last line. A .js guard that
-    exports a function is called through that contract. Lens: the JSON's,
-    else the guard name's, else architecture.
+    exports a function is called through that contract; when it exits
+    non-zero without a JSON result it crashed. Lens: the JSON's, else the
+    guard name's, else architecture; level: the JSON's `level`.
     """
     fallback_name = guard_path.stem
     fallback_lens = get_lens(fallback_name)
     runner = PROJECT_GUARD_RUNNERS[guard_path.suffix]
-    if guard_path.suffix == ".js" and _exports_module(guard_path):
+    module_contract = guard_path.suffix == ".js" and _exports_module(guard_path)
+    if module_contract:
         args = [runner, "-e", JS_MODULE_RUNNER, str(guard_path)]
     else:
         args = [runner, str(guard_path)]
@@ -247,11 +248,17 @@ def run_project_guard(guard_path: pathlib.Path, target_dir: str) -> dict:
         proc = subprocess.run(args, cwd=target_dir, capture_output=True, text=True)
     except OSError as exc:
         return {
-            "exit_code": 1, "skipped": False, "name": fallback_name, "lens": fallback_lens,
+            "exit_code": 1, "skipped": False, "crashed": True, "name": fallback_name, "lens": fallback_lens,
             "data": {"message": f"Guard crashed: {exc}"},
         }
     exit_code = proc.returncode
     output = (proc.stdout or "") + (proc.stderr or "")
+    if exit_code < 0:
+        return {
+            "exit_code": 1, "skipped": False, "crashed": True, "name": fallback_name, "lens": fallback_lens,
+            "data": {"message": f"Guard crashed: killed by signal {-exit_code}"},
+            "output": output,
+        }
     result = _parse_guard_json(proc.stdout)
     if result is not None:
         data = result.get("data") if isinstance(result.get("data"), dict) else result
@@ -259,15 +266,22 @@ def run_project_guard(guard_path: pathlib.Path, target_dir: str) -> dict:
         return {
             "exit_code": exit_code,
             "skipped": exit_code == 0 and bool(result.get("skipped", False)),
+            "crashed": False,
+            "level": result.get("level"),
             "name": name if isinstance(name, str) and name else fallback_name,
             "lens": result.get("lens") if result.get("lens") in LENSES else fallback_lens,
             "data": data,
             "output": output,
         }
     line = _last_line(proc.stdout) if exit_code == 0 else (_last_line(proc.stderr) or _last_line(proc.stdout))
+    crashed = module_contract and exit_code != 0
+    if crashed:
+        message = f"Guard crashed: {line or f'exited with code {exit_code}'}"
+    else:
+        message = line or ("Passed" if exit_code == 0 else f"Exited with code {exit_code}")
     return {
-        "exit_code": exit_code, "skipped": False, "name": fallback_name, "lens": fallback_lens,
-        "data": {"message": line or ("Passed" if exit_code == 0 else f"Exited with code {exit_code}")},
+        "exit_code": exit_code, "skipped": False, "crashed": crashed, "name": fallback_name, "lens": fallback_lens,
+        "data": {"message": message},
         "output": output,
     }
 
@@ -283,7 +297,7 @@ def run_guard(guard_path: pathlib.Path, target_dir: str) -> dict:
         spec = importlib.util.spec_from_file_location(guard_name, str(guard_path))
         if spec is None or spec.loader is None:
             return {
-                "exit_code": 1, "skipped": False, "name": guard_name,
+                "exit_code": 1, "skipped": False, "crashed": True, "name": guard_name,
                 "lens": get_lens(guard_name),
                 "data": {"message": f"Guard crashed: cannot load module spec for {guard_name}"},
             }
@@ -294,7 +308,7 @@ def run_guard(guard_path: pathlib.Path, target_dir: str) -> dict:
         fn = getattr(mod, "check", None)
         if fn is None or not callable(fn):
             return {
-                "exit_code": 1, "skipped": False, "name": guard_name,
+                "exit_code": 1, "skipped": False, "crashed": True, "name": guard_name,
                 "lens": get_lens(guard_name),
                 "data": {"message": f"Guard crashed: {guard_name} does not export a check() function"},
             }
@@ -304,7 +318,7 @@ def run_guard(guard_path: pathlib.Path, target_dir: str) -> dict:
         # Normalize result shape
         if not isinstance(result, dict):
             return {
-                "exit_code": 1, "skipped": False, "name": guard_name,
+                "exit_code": 1, "skipped": False, "crashed": True, "name": guard_name,
                 "lens": get_lens(guard_name),
                 "data": {"message": f"Guard crashed: {guard_name} returned non-dict: {type(result).__name__}"},
             }
@@ -312,6 +326,8 @@ def run_guard(guard_path: pathlib.Path, target_dir: str) -> dict:
         return {
             "exit_code": result.get("exit_code", 0),
             "skipped": bool(result.get("skipped", False)),
+            "crashed": False,
+            "level": result.get("level"),
             "name": result.get("name", guard_name),
             "lens": get_lens(guard_name),
             "data": result.get("data", result),
@@ -320,10 +336,65 @@ def run_guard(guard_path: pathlib.Path, target_dir: str) -> dict:
     except Exception as exc:
         # A guard that cannot run must never approve a commit (fail closed).
         return {
-            "exit_code": 1, "skipped": False, "name": guard_name,
+            "exit_code": 1, "skipped": False, "crashed": True, "name": guard_name,
             "lens": get_lens(guard_name),
             "data": {"message": f"Guard crashed: {exc}"},
         }
+
+
+# ── Result levels (sdds/audit-cli) ───────────────────────────────────────────
+
+def _is_failed(r: dict) -> bool:
+    """A guard that ran and did not pass (skipped guards never fail)."""
+    return not r.get("skipped") and r.get("exit_code", 0) != 0
+
+
+def _is_warning(r: dict) -> bool:
+    """A failure reported but not blocking: effective level 'warning'."""
+    return _is_failed(r) and r.get("level") == "warning"
+
+
+def _is_blocking(r: dict) -> bool:
+    """A failure that fails the run."""
+    return _is_failed(r) and r.get("level") != "warning"
+
+
+def apply_levels(results: list[dict], severities: dict | None = None) -> list[dict]:
+    """
+    Set each result's effective level: severities[name] (or [file stem]) from
+    .clckernel.yaml, else the guard's own `level` ('warning' only), else
+    'error'. A crash is always 'error' (fail closed).
+    """
+    severities = severities or {}
+    for result in results:
+        level = "warning" if result.get("level") == "warning" else "error"
+        name, stem = result.get("name"), result.get("stem")
+        if isinstance(name, str) and name in severities:
+            level = severities[name]
+        elif isinstance(stem, str) and stem in severities:
+            level = severities[stem]
+        result["level"] = "error" if result.get("crashed") else level
+    return results
+
+
+def _status_of(result: dict) -> tuple:
+    if result.get("skipped"):
+        return "⏭️", "SKIPPED"
+    if not _is_failed(result):
+        return "✅", "PASSED"
+    return ("⚠️", "WARNING") if _is_warning(result) else ("❌", "FAILED")
+
+
+def _verdict_of(results: list[dict]) -> str:
+    """FAILED on a blocking failure, PASSED_WITH_WARNINGS on warnings only."""
+    if any(_is_blocking(r) for r in results):
+        return "FAILED"
+    return "PASSED_WITH_WARNINGS" if any(_is_warning(r) for r in results) else "PASSED"
+
+
+def _message(result: dict, default: str = "") -> str:
+    data = result.get("data") if isinstance(result.get("data"), dict) else {}
+    return data.get("message") or default
 
 
 # ── Report Generation ────────────────────────────────────────────────────────
@@ -333,17 +404,11 @@ def _format_guard_section(name: str, result: dict) -> str:
     lines: list[str] = []
     skipped = result.get("skipped", False)
     exit_code = result.get("exit_code", 0)
-    data = result.get("data", {})
-
-    if skipped:
-        icon, status = "\u23ed\ufe0f", "SKIPPED"
-    elif exit_code == 0:
-        icon, status = "\u2705", "PASSED"
-    else:
-        icon, status = "\u274c", "FAILED"
+    data = result.get("data") if isinstance(result.get("data"), dict) else {}
+    icon, status = _status_of(result)
 
     title = name.replace("_", " ").title()
-    lines.append(f"### {icon} {title} \u2014 {status}")
+    lines.append(f"### {icon} {title} — {status}")
     lines.append("")
 
     if skipped:
@@ -360,7 +425,7 @@ def _format_guard_section(name: str, result: dict) -> str:
         for key in ("unrelated", "warnings", "authorized"):
             items = data.get(key, [])
             if isinstance(items, list) and items:
-                icon_map = {"unrelated": "\u274c", "warnings": "\u26a0\ufe0f", "authorized": "\u2705"}
+                icon_map = {"unrelated": "❌", "warnings": "⚠️", "authorized": "✅"}
                 label_map = {"unrelated": "Not in SDD scope", "warnings": "Related warnings", "authorized": "Authorized"}
                 lines.append(f"\n{icon_map.get(key, '')} **{label_map.get(key, key)}:**")
                 for f in items:
@@ -373,7 +438,8 @@ def generate_report(results: list[dict], sdd_dir: pathlib.Path) -> str:
     """Generate the 05-audit-report.md from aggregated guard results grouped by 4 RDD lenses."""
     task_name = sdd_dir.name
     passed = sum(1 for r in results if not r.get("skipped") and r.get("exit_code") == 0)
-    failed = sum(1 for r in results if not r.get("skipped") and r.get("exit_code") != 0)
+    failed = sum(1 for r in results if _is_blocking(r))
+    warnings = [r for r in results if _is_warning(r)]
     skipped = sum(1 for r in results if r.get("skipped"))
     total = len(results)
 
@@ -382,6 +448,8 @@ def generate_report(results: list[dict], sdd_dir: pathlib.Path) -> str:
     sections.append("")
     sections.append("> **Review-Driven Development (RDD) Report:**")
     sections.append("> Results grouped into 4 lenses (Correctness, Security, Architecture, Performance).")
+    sections.append("")
+    sections.append(f"**Verdict:** {_verdict_of(results)}")
     sections.append("")
     sections.append("---")
     sections.append("")
@@ -392,12 +460,23 @@ def generate_report(results: list[dict], sdd_dir: pathlib.Path) -> str:
     sections.append(f"| Total guards | {total} |")
     sections.append(f"| Passed | {passed} |")
     sections.append(f"| Failed | {failed} |")
+    sections.append(f"| Warnings | {len(warnings)} |")
     sections.append(f"| Skipped | {skipped} |")
     sections.append("")
     sections.append("---")
     sections.append("")
 
-    lenses = ["correctness", "security", "architecture", "performance"]
+    if warnings:
+        sections.append("## ⚠️ Warnings")
+        sections.append("")
+        sections.append("_Failed, but not blocking (level `warning`)._")
+        sections.append("")
+        for r in warnings:
+            sections.append(f"- **{r.get('name', 'unknown')}** [{str(r.get('lens', 'architecture')).upper()}]: {_message(r, 'Issues found')}")
+        sections.append("")
+        sections.append("---")
+        sections.append("")
+
     headers = {
         "correctness": "## 🎯 Correctness Lens",
         "security": "## 🛡️ Security Lens",
@@ -405,7 +484,7 @@ def generate_report(results: list[dict], sdd_dir: pathlib.Path) -> str:
         "performance": "## ⚡ Performance Lens",
     }
 
-    for lens in lenses:
+    for lens in LENSES:
         sections.append(headers[lens])
         sections.append("")
         lens_results = [r for r in results if r.get("lens") == lens]
@@ -422,25 +501,22 @@ def generate_report(results: list[dict], sdd_dir: pathlib.Path) -> str:
 
 
 def generate_receipt(results: list[dict], target_dir: str) -> dict:
-    """Generate an immutable machine-readable audit receipt (audit-receipt.json)."""
+    """
+    Generate an immutable machine-readable audit receipt (audit-receipt.json).
+    verdict: FAILED | PASSED_WITH_WARNINGS | PASSED; `failed` counts blocking
+    failures, `warnings` the non-blocking ones (listed in `warnings`).
+    """
     import datetime
 
-    lenses = ["correctness", "security", "architecture", "performance"]
     lens_summary = {}
-    has_failure = False
-
-    for lens in lenses:
+    for lens in LENSES:
         lens_results = [r for r in results if r.get("lens") == lens]
-        passed = sum(1 for r in lens_results if not r.get("skipped") and r.get("exit_code") == 0)
-        failed = sum(1 for r in lens_results if not r.get("skipped") and r.get("exit_code") != 0)
-        skipped = sum(1 for r in lens_results if r.get("skipped"))
-        if failed > 0:
-            has_failure = True
         lens_summary[lens] = {
-            "status": "FAILED" if failed > 0 else "PASSED",
-            "passed": passed,
-            "failed": failed,
-            "skipped": skipped,
+            "status": _verdict_of(lens_results),
+            "passed": sum(1 for r in lens_results if not r.get("skipped") and r.get("exit_code") == 0),
+            "failed": sum(1 for r in lens_results if _is_blocking(r)),
+            "warnings": sum(1 for r in lens_results if _is_warning(r)),
+            "skipped": sum(1 for r in lens_results if r.get("skipped")),
         }
 
     commit_hash = "UNKNOWN"
@@ -462,8 +538,12 @@ def generate_receipt(results: list[dict], target_dir: str) -> dict:
         "contract": "clckernel.audit-receipt/v1",
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "commitHash": commit_hash,
-        "verdict": "FAILED" if has_failure else "PASSED",
+        "verdict": _verdict_of(results),
         "lenses": lens_summary,
+        "warnings": [
+            {"name": r.get("name", "unknown"), "lens": r.get("lens", "architecture"), "message": _message(r)}
+            for r in results if _is_warning(r)
+        ],
         "generator": "clckernel",
         "gentle_ai": {
             "compatible": True,
@@ -475,13 +555,16 @@ def generate_receipt(results: list[dict], target_dir: str) -> dict:
 
 # ── Console Summary ──────────────────────────────────────────────────────────
 
-def print_summary(results: list[dict], report_path: pathlib.Path, receipt_path: pathlib.Path | None = None) -> None:
-    """Print an educational summary to the terminal."""
+def print_summary(results: list[dict], report_path: pathlib.Path | None = None,
+                  receipt_path: pathlib.Path | None = None) -> None:
+    """
+    Print the 4-lens summary. report_path/receipt_path: where they were
+    written, or None when no --change was given (then a hint says how).
+    """
     print("\n" + "=" * 65)
     print("  CLC KERNEL — 4-LENS RDD AUDIT SUMMARY")
     print("=" * 65 + "\n")
 
-    lenses = ["correctness", "security", "architecture", "performance"]
     labels = {
         "correctness": "🎯 CORRECTNESS LENS",
         "security": "🛡️ SECURITY LENS",
@@ -489,24 +572,27 @@ def print_summary(results: list[dict], report_path: pathlib.Path, receipt_path: 
         "performance": "⚡ PERFORMANCE LENS",
     }
 
-    for lens in lenses:
+    for lens in LENSES:
         lens_results = [r for r in results if r.get("lens") == lens]
         print(f"  {labels[lens]}:")
         if not lens_results:
             print("     — No guards active for this lens")
         else:
             for result in lens_results:
-                skipped = result.get("skipped", False)
                 exit_code = result.get("exit_code", 0)
                 name = result.get("name", "unknown").replace("_", " ")
-                msg = result.get("data", {}).get("message", "Passed" if exit_code == 0 else "Failed")
-                icon = "⏭️" if skipped else ("✅" if exit_code == 0 else "❌")
+                msg = _message(result, "Passed" if exit_code == 0 else "Failed")
+                icon, _ = _status_of(result)
                 print(f"     {icon} {name}: {msg}")
         print("")
 
-    print(f"📄 Full report: {report_path}")
-    if receipt_path:
-        print(f"🧾 Audit receipt: {receipt_path}")
+    print(f"Verdict: {_verdict_of(results)}")
+    if report_path:
+        print(f"📄 Full report: {report_path}")
+        if receipt_path:
+            print(f"🧾 Audit receipt: {receipt_path}")
+    else:
+        print("No report written: pass --change <name> to write sdds/<name>/05-audit-report.md and audit-receipt.json.")
     print("=" * 65 + "\n")
 
 
@@ -535,53 +621,75 @@ def _violation_lines(data: dict) -> list[str]:
 
 
 def _run_plan(plan: list[dict], dir_path: str) -> list[dict]:
+    """Run every planned guard once, in plan order; each result keeps its file stem."""
     results: list[dict] = []
     for entry in plan:
         if entry["mode"] == "missing":
-            results.append(_missing_guard_result(entry))
+            result = _missing_guard_result(entry)
         elif entry["mode"] == "module":
-            results.append(run_guard(entry["file"], dir_path))
+            result = run_guard(entry["file"], dir_path)
         else:
-            results.append(run_project_guard(entry["file"], dir_path))
+            result = run_project_guard(entry["file"], dir_path)
+        result["stem"] = pathlib.Path(entry["file"]).stem
+        results.append(result)
     return results
 
 
 def _print_hook_summary(results: list[dict]) -> None:
-    """--hook output: one line per guard; a failed one also prints its violations or raw output."""
+    """--hook output: one line per guard (ok, skip, WARN, FAIL); a failed one also prints its violations or raw output."""
     for result in results:
-        skipped = result.get("skipped", False)
-        exit_code = result.get("exit_code", 0)
         data = result.get("data") if isinstance(result.get("data"), dict) else {}
-        status = "skip" if skipped else ("ok  " if exit_code == 0 else "FAIL")
+        if result.get("skipped"):
+            status = "skip"
+        elif not _is_failed(result):
+            status = "ok  "
+        else:
+            status = "WARN" if _is_warning(result) else "FAIL"
         print(f"clckernel: {status} {result.get('name', 'unknown')}: {data.get('message', '')}")
-        if skipped or exit_code == 0:
+        if not _is_failed(result):
             continue
         details = _violation_lines(data) or [l for l in (result.get("output") or "").rstrip().split("\n") if l]
         for line in details:
             print(f"    {line}")
 
 
-def main(target_dir: str | None = None, hook: bool = False) -> int:
-    """Run all discovered guards; without --hook also write the report and receipt."""
+def _load_severities(dir_path: str) -> dict:
+    """
+    `severities` from the project's .clckernel.yaml, read with the sibling
+    _config.py; {} when that module is not installed. An invalid config raises.
+    """
+    tools_dir = str(pathlib.Path(__file__).resolve().parent)
+    if not (pathlib.Path(tools_dir) / "_config.py").is_file():
+        return {}
+    if tools_dir not in sys.path:
+        sys.path.insert(0, tools_dir)
+    import _config  # noqa: E402
+    return _config.load_config(dir_path)["config"].get("severities") or {}
+
+
+def main(target_dir: str | None = None, hook: bool = False, change: str | None = None) -> int:
+    """
+    Run all discovered guards. hook: one line per guard; change: also write the
+    report and receipt to sdds/<change>/. Returns 1 when a guard failed with
+    level error, else 0.
+    """
     tools_dir = pathlib.Path(__file__).resolve().parent
-    dir_path = target_dir or os.getcwd()
+    dir_path = os.path.abspath(target_dir or os.getcwd())
     plan = plan_guards(tools_dir)
 
+    try:
+        severities = _load_severities(dir_path)
+    except ValueError as exc:  # _config.ConfigError
+        print(f"clckernel: {exc}", file=sys.stderr)
+        return 1
+
     if hook:
-        results = _run_plan(plan, dir_path)
+        results = apply_levels(_run_plan(plan, dir_path), severities)
         sys.stdout.flush()
         _print_hook_summary(results)
-        return 1 if any(not r.get("skipped") and r.get("exit_code", 0) != 0 for r in results) else 0
+        return 1 if any(_is_blocking(r) for r in results) else 0
 
-    sdd_dir = find_active_sdd()
-    if sdd_dir is None:
-        # Create a default SDD dir for the report
-        sdds_dir = REPO_ROOT / "sdds"
-        sdds_dir.mkdir(parents=True, exist_ok=True)
-        sdd_dir = sdds_dir / "audit-run"
-        sdd_dir.mkdir(parents=True, exist_ok=True)
-
-    print(f"\nRunning CLC Kernel audit for: {sdd_dir.name}\n")
+    print("\nRunning CLC Kernel audit...\n")
 
     if not plan:
         print("No guard tools found in tools/. Nothing to audit.")
@@ -590,35 +698,64 @@ def main(target_dir: str | None = None, hook: bool = False) -> int:
     names = [os.path.splitext(e["label"])[0] if e["label"].endswith(OWN_EXT) else e["label"] for e in plan]
     print(f"Discovered {len(names)} guard(s): " + ", ".join(names) + "\n")
 
-    results = _run_plan(plan, dir_path)
+    results = apply_levels(_run_plan(plan, dir_path), severities)
+    sys.stdout.flush()
 
-    # Generate and write report
-    report_content = generate_report(results, sdd_dir)
-    report_path = sdd_dir / "05-audit-report.md"
-    report_path.write_text(report_content, encoding="utf-8")
+    report_path = receipt_path = None
+    if change:
+        sdd_dir = pathlib.Path(dir_path) / "sdds" / change
+        sdd_dir.mkdir(parents=True, exist_ok=True)
+        report_path = sdd_dir / "05-audit-report.md"
+        report_path.write_text(generate_report(results, sdd_dir), encoding="utf-8")
+        receipt_path = sdd_dir / "audit-receipt.json"
+        receipt_path.write_text(json.dumps(generate_receipt(results, dir_path), indent=2) + "\n", encoding="utf-8")
 
-    # Generate and write receipt
-    receipt = generate_receipt(results, dir_path)
-    receipt_path = sdd_dir / "audit-receipt.json"
-    receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
-
-    # Print summary
     print_summary(results, report_path, receipt_path)
 
-    # Exit with failure if any guard failed (not skipped)
-    has_failure = any(
-        not r.get("skipped") and r.get("exit_code", 0) != 0
-        for r in results
-    )
-    return 1 if has_failure else 0
+    return 1 if any(_is_blocking(r) for r in results) else 0
+
+
+def parse_args(argv: list[str]) -> dict:
+    """
+    argv: [targetDir] [--hook] [--change <name>] [--staged], in any order.
+    Returns {target_dir, hook, change, staged}, or {error} on invalid input.
+    """
+    out = {"target_dir": None, "hook": False, "change": None, "staged": False}
+    i = 0
+    while i < len(argv):
+        arg = argv[i]
+        if arg == "--hook":
+            out["hook"] = True
+        elif arg == "--staged":
+            out["staged"] = True
+        elif arg == "--change":
+            if i + 1 >= len(argv):
+                return {"error": "--change needs a name"}
+            i += 1
+            name = argv[i]
+            if not CHANGE_NAME.match(name):
+                return {"error": f"invalid --change name {json.dumps(name)}: use one path segment (letters, digits, ., _, -)"}
+            out["change"] = name
+        elif arg.startswith("-"):
+            return {"error": f"unknown option {arg}"}
+        elif out["target_dir"] is not None:
+            return {"error": f"unexpected argument {arg}"}
+        else:
+            out["target_dir"] = arg
+        i += 1
+    if out["hook"] and out["change"]:
+        return {"error": "--hook writes nothing; it cannot be combined with --change"}
+    return out
 
 
 if __name__ == "__main__":
-    # argv: [target_dir] [--hook], in any order. Any crash fails closed.
+    # Unknown input exits 2. Any crash fails closed.
+    parsed = parse_args(sys.argv[1:])
+    if "error" in parsed:
+        print(f"audit.py: {parsed['error']}\n{USAGE}", file=sys.stderr)
+        sys.exit(2)
     try:
-        args = sys.argv[1:]
-        target = next((a for a in args if not a.startswith("--")), None)
-        sys.exit(main(target, hook="--hook" in args))
+        sys.exit(main(parsed["target_dir"], hook=parsed["hook"], change=parsed["change"]))
     except Exception:
         traceback.print_exc()
         sys.exit(1)

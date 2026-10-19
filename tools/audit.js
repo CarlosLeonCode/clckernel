@@ -2,8 +2,8 @@
 /**
  * Modular Audit Orchestrator — JS
  * The single place that decides which guards run (sdds/unified-discovery):
- * `clckernel audit` runs it to write a report, the pre-commit hook runs it
- * with --hook. Same discovery, same guards, each exactly once:
+ * `clckernel audit` and agents run it, the pre-commit hook runs it with --hook.
+ * Same discovery, same guards, each exactly once:
  *   - top-level tools/ guards: check_*, scan_*, verify_* or *_guard, .js/.py;
  *   - every tools/guards/*.js and *.py (project guards).
  * audit.js runs the .js guards; the .py ones belong to audit.py, unless
@@ -11,10 +11,19 @@
  * A top-level guard of this language that exports a function is called in
  * process; every other guard runs as a process (exit code decides, a JSON
  * result is optional). A guard listed in the managed registry but missing on
- * disk fails the run. Results are grouped into 4 lenses; without --hook an
- * English report (05-audit-report.md) and a machine-readable receipt
- * (audit-receipt.json) are written. --hook writes nothing and prints one line
- * per guard. Self-contained: uses only Node.js built-ins.
+ * disk fails the run. Results are grouped into 4 lenses.
+ *
+ * CLI (sdds/audit-cli): audit.js [targetDir] [--hook] [--change <name>] [--staged]
+ *   (none)           print the 4-lens summary; write nothing
+ *   --change <name>  also write sdds/<name>/05-audit-report.md and
+ *                    audit-receipt.json (<name>: one safe path segment)
+ *   --hook           one line per guard; write nothing (not with --change)
+ *   --staged         the default snapshot, spelled out: the staged changes,
+ *                    or the last commit when nothing is staged (_changes)
+ * Unknown input exits 2. A failing guard whose level is 'warning' (its result's
+ * `level`, overridden by `severities` in .clckernel.yaml) is reported but does
+ * not fail the run; a guard that crashes always does. Self-contained: Node.js
+ * built-ins plus the sibling _config.js (optional).
  */
 
 const fs = require('fs');
@@ -28,6 +37,8 @@ const MAX_BUFFER = 64 * 1024 * 1024;
 const OWN_EXT = '.js';
 const SIBLING = { ext: '.py', orchestrator: 'audit.py' };
 const REGISTRY_FILE = '.clckernel-managed.json';
+const USAGE = 'usage: audit.js [targetDir] [--hook] [--change <name>] [--staged]';
+const CHANGE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
 /**
  * Runs a Python guard that defines check() (module contract) as a process:
@@ -99,24 +110,6 @@ function getLensForGuard(guardName) {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-function getActiveSddDir(baseDir) {
-  const root = baseDir || REPO_ROOT;
-  const sddsDir = path.join(root, 'sdds');
-  if (!fs.existsSync(sddsDir)) {
-    fs.mkdirSync(sddsDir, { recursive: true });
-  }
-  const dirs = fs.readdirSync(sddsDir).filter(f => {
-    try { return fs.statSync(path.join(sddsDir, f)).isDirectory(); }
-    catch { return false; }
-  });
-  if (dirs.length > 0) {
-    return path.join(sddsDir, dirs[0]);
-  }
-  const defaultDir = path.join(sddsDir, 'audit-run');
-  fs.mkdirSync(defaultDir, { recursive: true });
-  return defaultDir;
-}
 
 /** True for a top-level guard file name: check_*, scan_*, verify_* or *_guard, .js or .py. */
 function isGuardFile(name) {
@@ -236,7 +229,7 @@ function planGuards(toolsDir) {
 function missingGuardResult(entry) {
   const name = path.basename(entry.label, path.extname(entry.label));
   return {
-    exitCode: 1, skipped: false, name, lens: getLensForGuard(name),
+    exitCode: 1, skipped: false, crashed: true, name, lens: getLensForGuard(name),
     data: { message: `Kernel guard missing: tools/${entry.label} is listed in tools/${REGISTRY_FILE} but not on disk; restore it with \`clckernel update\`` },
   };
 }
@@ -265,8 +258,9 @@ function lastLine(text) {
  * runs. The exit code decides (non-zero fails); a JSON result with the
  * standard shape ({ name, skipped, lens?, data: { message, violations } }) is
  * used for the report, plain output is reported by its last line. A .py guard
- * that defines check() is called through that contract. Lens: the JSON's,
- * else the guard name's, else architecture.
+ * that defines check() is called through that contract; when it exits non-zero
+ * without a JSON result it crashed. Lens: the JSON's, else the guard name's,
+ * else architecture; level: the JSON's `level`.
  * @param {string} guardPath - Absolute path to the guard
  * @param {string} targetDir - Project root
  * @returns {object} Normalized result (`output`: the guard's raw output)
@@ -274,23 +268,33 @@ function lastLine(text) {
 function runProjectGuard(guardPath, targetDir) {
   const ext = path.extname(guardPath);
   const fallbackName = path.basename(guardPath, ext);
-  const args = ext === '.py' && definesCheck(guardPath) ? ['-c', PY_MODULE_RUNNER, guardPath] : [guardPath];
+  const moduleContract = ext === '.py' && definesCheck(guardPath);
+  const args = moduleContract ? ['-c', PY_MODULE_RUNNER, guardPath] : [guardPath];
   const res = spawnSync(PROJECT_GUARD_RUNNERS[ext], args, { cwd: targetDir, encoding: 'utf-8', maxBuffer: MAX_BUFFER });
   const fallbackLens = getLensForGuard(fallbackName);
   if (res.error) {
     return {
-      exitCode: 1, skipped: false, name: fallbackName, lens: fallbackLens,
+      exitCode: 1, skipped: false, crashed: true, name: fallbackName, lens: fallbackLens,
       data: { message: `Guard crashed: ${res.error.message}` },
     };
   }
-  const exitCode = typeof res.status === 'number' ? res.status : 1;
   const output = `${res.stdout || ''}${res.stderr || ''}`;
+  if (typeof res.status !== 'number') {
+    return {
+      exitCode: 1, skipped: false, crashed: true, name: fallbackName, lens: fallbackLens,
+      data: { message: `Guard crashed: killed by ${res.signal || 'a signal'}` },
+      output,
+    };
+  }
+  const exitCode = res.status;
   const json = parseGuardJson(res.stdout);
   if (json) {
     const data = json.data && typeof json.data === 'object' ? json.data : json;
     return {
       exitCode,
       skipped: exitCode === 0 && Boolean(json.skipped),
+      crashed: false,
+      level: json.level,
       name: typeof json.name === 'string' && json.name ? json.name : fallbackName,
       lens: LENSES.includes(json.lens) ? json.lens : fallbackLens,
       data,
@@ -298,9 +302,10 @@ function runProjectGuard(guardPath, targetDir) {
     };
   }
   const line = exitCode === 0 ? lastLine(res.stdout) : (lastLine(res.stderr) || lastLine(res.stdout));
+  const crashed = moduleContract && exitCode !== 0;
   return {
-    exitCode, skipped: false, name: fallbackName, lens: fallbackLens,
-    data: { message: line || (exitCode === 0 ? 'Passed' : `Exited with code ${exitCode}`) },
+    exitCode, skipped: false, crashed, name: fallbackName, lens: fallbackLens,
+    data: { message: crashed ? `Guard crashed: ${line || `exited with code ${exitCode}`}` : (line || (exitCode === 0 ? 'Passed' : `Exited with code ${exitCode}`)) },
     output,
   };
 }
@@ -319,15 +324,23 @@ async function runGuard(guardPath, targetDir) {
     const fn = typeof mod === 'function' ? mod : Object.values(mod)[0];
     if (typeof fn !== 'function') {
       return {
-        exitCode: 1, skipped: false, name: guardName, lens,
+        exitCode: 1, skipped: false, crashed: true, name: guardName, lens,
         data: { message: `Guard crashed: ${guardName} does not export a function` },
       };
     }
     const result = await fn(targetDir);
+    if (!result || typeof result !== 'object') {
+      return {
+        exitCode: 1, skipped: false, crashed: true, name: guardName, lens,
+        data: { message: `Guard crashed: ${guardName} returned ${result === null ? 'null' : typeof result}` },
+      };
+    }
     // Normalize result shape
     return {
       exitCode: result.exitCode || 0,
       skipped: Boolean(result.skipped),
+      crashed: false,
+      level: result.level,
       name: result.name || guardName,
       lens,
       data: result.data || result,
@@ -335,7 +348,7 @@ async function runGuard(guardPath, targetDir) {
   } catch (e) {
     // A guard that cannot run must never approve a commit (fail closed).
     return {
-      exitCode: 1, skipped: false, name: guardName, lens,
+      exitCode: 1, skipped: false, crashed: true, name: guardName, lens,
       data: { message: `Guard crashed: ${e.message}` },
     };
   }
@@ -366,13 +379,55 @@ function violationLines(result) {
   return lines;
 }
 
+// ── Result levels (sdds/audit-cli) ───────────────────────────────────────────
+
+/** A guard that ran and did not pass (skipped guards never fail). */
+const isFailed = (r) => !r.skipped && r.exitCode !== 0;
+/** A failure reported but not blocking: effective level 'warning'. */
+const isWarning = (r) => isFailed(r) && r.level === 'warning';
+/** A failure that fails the run. */
+const isBlocking = (r) => isFailed(r) && r.level !== 'warning';
+
+/**
+ * Sets each result's effective level: severities[name] (or [file stem]) from
+ * .clckernel.yaml, else the guard's own `level` ('warning' only), else
+ * 'error'. A crash is always 'error' (fail closed).
+ * @param {object[]} results - Normalized results (with `stem`)
+ * @param {Record<string, 'error'|'warning'>} severities
+ * @returns {object[]} The same results
+ */
+function applyLevels(results, severities = {}) {
+  const has = (key) => typeof key === 'string' && Object.prototype.hasOwnProperty.call(severities, key);
+  for (const result of results) {
+    let level = result.level === 'warning' ? 'warning' : 'error';
+    if (has(result.name)) level = severities[result.name];
+    else if (has(result.stem)) level = severities[result.stem];
+    result.level = result.crashed ? 'error' : level;
+  }
+  return results;
+}
+
+/** [icon, STATUS] of a result. */
+function statusOf(result) {
+  if (result.skipped) return ['⏭️', 'SKIPPED'];
+  if (!isFailed(result)) return ['✅', 'PASSED'];
+  return isWarning(result) ? ['⚠️', 'WARNING'] : ['❌', 'FAILED'];
+}
+
+/** Lens/verdict status: FAILED on a blocking failure, PASSED_WITH_WARNINGS on warnings only. */
+function verdictOf(results) {
+  if (results.some(isBlocking)) return 'FAILED';
+  return results.some(isWarning) ? 'PASSED_WITH_WARNINGS' : 'PASSED';
+}
+
+// ── Report Generation ────────────────────────────────────────────────────────
+
 /**
  * Format a single guard result into a markdown section.
  */
 function formatGuardSection(name, result) {
   const lines = [];
-  const icon = result.skipped ? '⏭️' : result.exitCode === 0 ? '✅' : '❌';
-  const status = result.skipped ? 'SKIPPED' : result.exitCode === 0 ? 'PASSED' : 'FAILED';
+  const [icon, status] = statusOf(result);
   const lensBadge = (result.lens || 'architecture').toUpperCase();
 
   lines.push(`### ${icon} ${name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} [${lensBadge}] — ${status}`);
@@ -397,7 +452,8 @@ function formatGuardSection(name, result) {
 function generateReport(results, sddDir) {
   const taskName = path.basename(sddDir);
   const passed = results.filter(r => !r.skipped && r.exitCode === 0).length;
-  const failed = results.filter(r => !r.skipped && r.exitCode !== 0).length;
+  const failed = results.filter(isBlocking).length;
+  const warnings = results.filter(isWarning);
   const skipped = results.filter(r => r.skipped).length;
   const total = results.length;
 
@@ -408,6 +464,8 @@ function generateReport(results, sddDir) {
   sections.push('> **Review-Driven Development (RDD) Report:**');
   sections.push('> Results grouped into 4 lenses (Correctness, Security, Architecture, Performance).');
   sections.push('');
+  sections.push(`**Verdict:** ${verdictOf(results)}`);
+  sections.push('');
   sections.push('---');
   sections.push('');
   sections.push('## Summary');
@@ -417,12 +475,23 @@ function generateReport(results, sddDir) {
   sections.push(`| Total guards | ${total} |`);
   sections.push(`| Passed | ${passed} |`);
   sections.push(`| Failed | ${failed} |`);
+  sections.push(`| Warnings | ${warnings.length} |`);
   sections.push(`| Skipped | ${skipped} |`);
   sections.push('');
   sections.push('---');
   sections.push('');
 
-  const lenses = ['correctness', 'security', 'architecture', 'performance'];
+  if (warnings.length > 0) {
+    sections.push('## ⚠️ Warnings');
+    sections.push('');
+    sections.push('_Failed, but not blocking (level `warning`)._');
+    sections.push('');
+    for (const result of warnings) sections.push(`- **${result.name}** [${result.lens.toUpperCase()}]: ${result.data?.message || 'Issues found'}`);
+    sections.push('');
+    sections.push('---');
+    sections.push('');
+  }
+
   const lensHeaders = {
     correctness: '## 🎯 Correctness Lens',
     security: '## 🛡️ Security Lens',
@@ -430,7 +499,7 @@ function generateReport(results, sddDir) {
     performance: '## ⚡ Performance Lens',
   };
 
-  for (const lens of lenses) {
+  for (const lens of LENSES) {
     sections.push(lensHeaders[lens]);
     sections.push('');
     const lensResults = results.filter(r => r.lens === lens);
@@ -451,24 +520,20 @@ function generateReport(results, sddDir) {
 
 /**
  * Generate an immutable machine-readable audit receipt (audit-receipt.json).
+ * verdict: FAILED | PASSED_WITH_WARNINGS | PASSED; `failed` counts blocking
+ * failures, `warnings` the non-blocking ones (listed in `warnings`).
  */
 function generateReceipt(results, targetDir) {
-  const lenses = ['correctness', 'security', 'architecture', 'performance'];
   const lensSummary = {};
 
-  let hasFailure = false;
-  for (const lens of lenses) {
+  for (const lens of LENSES) {
     const lensResults = results.filter(r => r.lens === lens);
-    const passed = lensResults.filter(r => !r.skipped && r.exitCode === 0).length;
-    const failed = lensResults.filter(r => !r.skipped && r.exitCode !== 0).length;
-    const skipped = lensResults.filter(r => r.skipped).length;
-    if (failed > 0) hasFailure = true;
-
     lensSummary[lens] = {
-      status: failed > 0 ? 'FAILED' : 'PASSED',
-      passed,
-      failed,
-      skipped,
+      status: verdictOf(lensResults),
+      passed: lensResults.filter(r => !r.skipped && r.exitCode === 0).length,
+      failed: lensResults.filter(isBlocking).length,
+      warnings: lensResults.filter(isWarning).length,
+      skipped: lensResults.filter(r => r.skipped).length,
     };
   }
 
@@ -490,8 +555,9 @@ function generateReceipt(results, targetDir) {
     contract: 'clckernel.audit-receipt/v1',
     timestamp: new Date().toISOString(),
     commitHash,
-    verdict: hasFailure ? 'FAILED' : 'PASSED',
+    verdict: verdictOf(results),
     lenses: lensSummary,
+    warnings: results.filter(isWarning).map(r => ({ name: r.name, lens: r.lens, message: r.data?.message || '' })),
     generator: 'clckernel',
     gentle_ai: {
       compatible: true,
@@ -503,12 +569,15 @@ function generateReceipt(results, targetDir) {
 
 // ── Console Summary ──────────────────────────────────────────────────────────
 
+/**
+ * The 4-lens summary. reportPath/receiptPath: where they were written, or
+ * null when no --change was given (then a hint says how to write them).
+ */
 function printSummary(results, reportPath, receiptPath) {
   console.log('\n=================================================================');
   console.log('  CLC KERNEL — 4-LENS RDD AUDIT SUMMARY');
   console.log('=================================================================\n');
 
-  const lenses = ['correctness', 'security', 'architecture', 'performance'];
   const lensLabels = {
     correctness: '🎯 CORRECTNESS LENS',
     security: '🛡️ SECURITY LENS',
@@ -516,14 +585,14 @@ function printSummary(results, reportPath, receiptPath) {
     performance: '⚡ PERFORMANCE LENS',
   };
 
-  for (const lens of lenses) {
+  for (const lens of LENSES) {
     const lensResults = results.filter(r => r.lens === lens);
     console.log(`  ${lensLabels[lens]}:`);
     if (lensResults.length === 0) {
       console.log('     — No guards active for this lens');
     } else {
       for (const result of lensResults) {
-        const icon = result.skipped ? '⏭️' : result.exitCode === 0 ? '✅' : '❌';
+        const [icon] = statusOf(result);
         const label = result.name.replace(/_/g, ' ');
         const msg = result.data?.message || (result.exitCode === 0 ? 'Passed' : 'Failed');
         console.log(`     ${icon} ${label}: ${msg}`);
@@ -532,35 +601,41 @@ function printSummary(results, reportPath, receiptPath) {
     console.log('');
   }
 
-  console.log(`📄 Full report: ${reportPath}`);
-  if (receiptPath) {
-    console.log(`🧾 Audit receipt: ${receiptPath}`);
+  console.log(`Verdict: ${verdictOf(results)}`);
+  if (reportPath) {
+    console.log(`📄 Full report: ${reportPath}`);
+    if (receiptPath) console.log(`🧾 Audit receipt: ${receiptPath}`);
+  } else {
+    console.log('No report written: pass --change <name> to write sdds/<name>/05-audit-report.md and audit-receipt.json.');
   }
   console.log('=================================================================\n');
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
-/** Runs every planned guard once, in plan order. */
+/** Runs every planned guard once, in plan order; each result keeps its file stem. */
 async function runPlan(plan, dir) {
   const results = [];
   for (const entry of plan) {
-    if (entry.mode === 'missing') results.push(missingGuardResult(entry));
-    else if (entry.mode === 'module') results.push(await runGuard(entry.file, dir));
-    else results.push(runProjectGuard(entry.file, dir));
+    let result;
+    if (entry.mode === 'missing') result = missingGuardResult(entry);
+    else if (entry.mode === 'module') result = await runGuard(entry.file, dir);
+    else result = runProjectGuard(entry.file, dir);
+    result.stem = path.basename(entry.file, path.extname(entry.file));
+    results.push(result);
   }
   return results;
 }
 
 /**
- * --hook output: one line per guard; a failed guard also prints its
- * violations, or its raw output when it reported none.
+ * --hook output: one line per guard (ok, skip, WARN, FAIL); a failed guard
+ * also prints its violations, or its raw output when it reported none.
  */
 function printHookSummary(results) {
   for (const result of results) {
-    const status = result.skipped ? 'skip' : result.exitCode === 0 ? 'ok  ' : 'FAIL';
+    const status = result.skipped ? 'skip' : !isFailed(result) ? 'ok  ' : isWarning(result) ? 'WARN' : 'FAIL';
     console.log(`clckernel: ${status} ${result.name}: ${result.data?.message || ''}`);
-    if (result.skipped || result.exitCode === 0) continue;
+    if (!isFailed(result)) continue;
     const details = violationLines(result);
     const lines = details.length > 0 ? details : String(result.output || '').trimEnd().split('\n').filter(Boolean);
     for (const line of lines) console.log(`    ${line}`);
@@ -568,24 +643,48 @@ function printHookSummary(results) {
 }
 
 /**
+ * `severities` from the project's .clckernel.yaml, read with the sibling
+ * _config.js; {} when that module is not installed. An invalid config throws.
+ */
+function loadSeverities(dir) {
+  let configModule;
+  try {
+    configModule = require(path.join(__dirname, '_config.js'));
+  } catch (err) {
+    if (err && err.code === 'MODULE_NOT_FOUND') return {};
+    throw err;
+  }
+  return configModule.loadConfig(dir).config.severities || {};
+}
+
+/**
  * @param {string} [targetDir] - Project root (default: cwd)
- * @param {{ hook?: boolean }} [options] - hook: write nothing, print one line per guard
- * @returns {Promise<number>} 1 when a guard failed, else 0
+ * @param {{ hook?: boolean, change?: string|null }} [options] - hook: one line
+ *   per guard; change: write the report and receipt to sdds/<change>/
+ * @returns {Promise<number>} 1 when a guard failed with level error, else 0
  */
 async function main(targetDir, options = {}) {
   const hook = Boolean(options.hook);
+  const change = options.change || null;
   const dir = targetDir ? path.resolve(targetDir) : process.cwd();
   const targetTools = path.join(dir, 'tools');
   const toolsDir = fs.existsSync(targetTools) ? targetTools : __dirname;
   const plan = planGuards(toolsDir);
 
-  if (hook) {
-    const results = await runPlan(plan, dir);
-    printHookSummary(results);
-    return results.some(r => !r.skipped && r.exitCode !== 0) ? 1 : 0;
+  let severities;
+  try {
+    severities = loadSeverities(dir);
+  } catch (err) {
+    console.error(`clckernel: ${err.message}`);
+    return 1;
   }
 
-  const sddDir = getActiveSddDir(dir);
+  if (hook) {
+    const results = applyLevels(await runPlan(plan, dir), severities);
+    printHookSummary(results);
+    return results.some(isBlocking) ? 1 : 0;
+  }
+
   console.log('\nRunning CLC Kernel audit...\n');
 
   if (plan.length === 0) {
@@ -596,45 +695,65 @@ async function main(targetDir, options = {}) {
   const names = plan.map(entry => entry.label.replace(/\.js$/, ''));
   console.log(`Discovered ${names.length} guard(s): ${names.join(', ')}\n`);
 
-  const results = await runPlan(plan, dir);
+  const results = applyLevels(await runPlan(plan, dir), severities);
 
-  // Generate report
-  const reportContent = generateReport(results, sddDir);
-  const reportPath = path.join(sddDir, '05-audit-report.md');
-  fs.writeFileSync(reportPath, reportContent, 'utf-8');
+  let reportPath = null;
+  let receiptPath = null;
+  if (change) {
+    const sddDir = path.join(dir, 'sdds', change);
+    fs.mkdirSync(sddDir, { recursive: true });
+    reportPath = path.join(sddDir, '05-audit-report.md');
+    fs.writeFileSync(reportPath, generateReport(results, sddDir), 'utf-8');
+    receiptPath = path.join(sddDir, 'audit-receipt.json');
+    fs.writeFileSync(receiptPath, JSON.stringify(generateReceipt(results, dir), null, 2) + '\n', 'utf-8');
+  }
 
-  // Generate receipt
-  const receipt = generateReceipt(results, dir);
-  const receiptPath = path.join(sddDir, 'audit-receipt.json');
-  fs.writeFileSync(receiptPath, JSON.stringify(receipt, null, 2) + '\n', 'utf-8');
-
-  // Print summary
   printSummary(results, reportPath, receiptPath);
 
-  // Exit with failure if any guard failed (not skipped)
-  return results.some(r => !r.skipped && r.exitCode !== 0) ? 1 : 0;
+  return results.some(isBlocking) ? 1 : 0;
 }
 
-/** argv: [targetDir] [--hook], in any order. */
+/**
+ * argv: [targetDir] [--hook] [--change <name>] [--staged], in any order.
+ * @returns {{ targetDir?: string, hook: boolean, change: string|null, staged: boolean } | { error: string }}
+ */
 function parseArgs(argv) {
-  const hook = argv.includes('--hook');
-  const targetDir = argv.find(arg => !arg.startsWith('--'));
-  return { targetDir, hook };
+  const out = { targetDir: undefined, hook: false, change: null, staged: false };
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === '--hook') out.hook = true;
+    else if (arg === '--staged') out.staged = true;
+    else if (arg === '--change') {
+      if (i + 1 >= argv.length) return { error: '--change needs a name' };
+      const name = argv[i += 1];
+      if (!CHANGE_NAME.test(name)) return { error: `invalid --change name ${JSON.stringify(name)}: use one path segment (letters, digits, ., _, -)` };
+      out.change = name;
+    } else if (arg.startsWith('-')) return { error: `unknown option ${arg}` };
+    else if (out.targetDir !== undefined) return { error: `unexpected argument ${arg}` };
+    else out.targetDir = arg;
+  }
+  if (out.hook && out.change) return { error: '--hook writes nothing; it cannot be combined with --change' };
+  return out;
 }
 
 // Support both require() and direct execution. Any crash fails closed.
 if (require.main === module) {
-  const { targetDir, hook } = parseArgs(process.argv.slice(2));
-  main(targetDir, { hook }).then(code => {
-    // exitCode, not exit(): a piped stdout is flushed before the process ends.
-    process.exitCode = code;
-  }, err => {
-    console.error(`Audit orchestrator error: ${err && err.message}`);
-    process.exit(1);
-  });
+  const args = parseArgs(process.argv.slice(2));
+  if (args.error) {
+    console.error(`audit.js: ${args.error}\n${USAGE}`);
+    process.exitCode = 2;
+  } else {
+    main(args.targetDir, { hook: args.hook, change: args.change }).then(code => {
+      // exitCode, not exit(): a piped stdout is flushed before the process ends.
+      process.exitCode = code;
+    }, err => {
+      console.error(`Audit orchestrator error: ${err && err.message}`);
+      process.exit(1);
+    });
+  }
 }
 
 module.exports = {
-  main, getActiveSddDir, discoverGuards, discoverProjectGuards, planGuards, isGuardFile,
+  main, parseArgs, applyLevels, discoverGuards, discoverProjectGuards, planGuards, isGuardFile,
   runGuard, runProjectGuard, generateReceipt,
 };

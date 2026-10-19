@@ -83,9 +83,18 @@ CLC Kernel structures all verification and audit gates around **Review-Driven De
 └─────────────────────┴───────────────────┴───────────────────┴───────────────┘
 ```
 
-When you run `clckernel audit` (or `node tools/audit.js`), CLC Kernel generates:
-1. **Human-Readable Educational Report (`05-audit-report.md`):** Explains exactly what passed, failed, or was skipped grouped by lens.
-2. **Machine-Readable Audit Receipt (`audit-receipt.json`):** An immutable JSON receipt bound to the active `commitHash` certifying the verdict for automated review gates (such as Gentle AI).
+`clckernel audit` (or `node tools/audit.js` / `python3 tools/audit.py`) prints the 4-lens summary and writes
+nothing. Pass the SDD change it belongs to — `clckernel audit --change <name>` (or
+`node tools/audit.js --change <name>`) — and it also writes, in `sdds/<name>/` only:
+1. **Human-Readable Educational Report (`05-audit-report.md`):** Explains exactly what passed, failed, warned, or was skipped grouped by lens.
+2. **Machine-Readable Audit Receipt (`audit-receipt.json`):** An immutable JSON receipt bound to the active `commitHash` certifying the verdict (`PASSED`, `PASSED_WITH_WARNINGS` or `FAILED`) for automated review gates (such as Gentle AI).
+
+Orchestrator CLI: `audit.(js|py) [targetDir] [--hook] [--change <name>] [--staged]`. `<name>` must be one path
+segment (letters, digits, `.`, `_`, `-`); `--staged` spells out the default snapshot (the staged changes, or
+the last commit when nothing is staged); `--hook` (used by the pre-commit hook) prints one line per guard and
+cannot be combined with `--change`; any other flag exits 2 with the usage. A failing guard whose level is
+`warning` — set by the guard (`level: 'warning'` in its result) or by `severities` in `.clckernel.yaml` — is
+printed as `WARN` and does not fail the audit or the commit; a guard that crashes always fails.
 
 ---
 
@@ -120,7 +129,7 @@ The agent autonomously executes the complete AIUP cycle:
 3. **HIT Review:** Requests your review and approval on proposed contracts.
 4. **TDD Red Phase:** Writes a failing regression test proving the requirement.
 5. **Clean Implementation (Green Phase):** Writes minimal code to pass tests while respecting layer isolation.
-6. **Audit Gate:** Runs `node tools/audit.js` and outputs the verification summary.
+6. **Audit Gate:** Runs `node tools/audit.js --change <name>` and outputs the verification summary (report in `sdds/<name>/`).
 
 ### 4️⃣ Step 4: Deterministic Guard Verification (Git Commit)
 ```bash
@@ -149,7 +158,7 @@ CLC Kernel provides a deterministic command grammar supported natively by **Clau
 | `clckernel feature <name>` | Feature | Full AIUP cycle: Research -> Local Spec (`sdds/{name}/spec.md`) -> HIT review -> TDD Red Phase -> Green Implementation -> Audit. |
 | `clckernel fix <issue>` | Bug Fix | Root-cause analysis (no direct code edits) -> Failing regression test -> Surgical clean fix -> Audit gate. |
 | `clckernel test` | Verification | Runs repository test suite in the native stack runner and confirms clean pass. |
-| `clckernel audit` | Verification | Runs `node tools/audit.js` or `python tools/audit.py` and emits the Educational Summary. |
+| `clckernel audit` | Verification | Runs `node tools/audit.js` or `python tools/audit.py` and emits the Educational Summary; with `--change <name>` it also writes the report and receipt to `sdds/<name>/`. |
 | `clckernel doctor` | Diagnostics | Checks Git pre-commit hooks, IDE mirror symlinks, and guard script integrity. |
 | `clckernel commit <message>` | Version Control | Pre-flight audit, verifies diff vs SDD scope, and commits with Conventional Commits (zero AI attribution). |
 | `clckernel guard create <name>` | Safeguards | Scaffolds a new guard script in the stack's native language in `tools/guards/`; the pre-commit hook and the audit run every project guard (`tools/guards/*.js`/`*.py`, and unmanaged `check_*`/`scan_*`/`verify_*` files at the top of `tools/`). |
@@ -231,6 +240,7 @@ with `Invalid .clckernel.yaml: key "<key>" — <reason>` (nothing is written, th
 | `update.exclude` | Root-relative globs install and update never write, move or remove; listed as *excluded by config* | none | install/update |
 | `tdd.code` | Extra globs counted as production code (any language), e.g. Python tools tested by JS tests | none | `verify_tdd.js/.py` |
 | `tdd.ignore` | Globs never counted as production code | none | `verify_tdd.js/.py` |
+| `severities` | `{ <guard name>: warning \| error }`: a failing guard at `warning` is reported (`WARN`, verdict `PASSED_WITH_WARNINGS`) but does not block; `error` blocks even when the guard reports `level: 'warning'`. A crash always blocks | each guard's own level (`error` unless it reports `warning`) | `audit.js` / `audit.py` (audit and pre-commit hook) |
 
 ```yaml
 exclude_paths: ["vendor/**"]
@@ -243,9 +253,11 @@ update:
   exclude: [AGENTS.md]
 tdd:
   code: ["tools/**/*.py"]
+severities:
+  check_seo: warning
 ```
 
-Keys earlier releases accepted without any effect — `active_guards`, `phases`, `gate_mode`, `severities`,
+Keys earlier releases accepted without any effect — `active_guards`, `phases`, `gate_mode`,
 `layers`, `scope` — are ignored with a deprecation warning; remove them. An unknown top-level key is
 ignored with a warning. The guards read it through `tools/_config.js` (+ `yaml.js`) and `tools/_config.py`
 (+ `_yaml.py`), installed next to `_changes.js/.py`, so a file created after install applies at once.

@@ -12,6 +12,7 @@ Self-contained: Python 3.9+ standard library only (PyYAML optional).
 """
 from __future__ import annotations
 
+import json
 import os
 import posixpath
 import sys
@@ -25,13 +26,13 @@ import _yaml  # noqa: E402
 # Lookup order: the canonical name first, then older names kept for compatibility.
 CONFIG_NAMES = ['.clckernel.yaml', '.clckernel.yml', '.clc-forge.yaml', '.clc-forge.yml']
 
-KEYS = ["rules", "exclude_paths", "mirrors", "hitl", "update", "tdd"]
+KEYS = ["rules", "exclude_paths", "mirrors", "hitl", "update", "tdd", "severities"]
+LEVELS = ["error", "warning"]
 
 DEPRECATED_KEYS = {
     "active_guards": "guards are chosen by the stack, the registry and `clckernel update --add-guards`",
     "phases": "the workflow phases are agent instructions in AGENTS.md",
     "gate_mode": "every installed guard blocks the commit when it fails",
-    "severities": "per-guard warning levels are not supported yet",
     "layers": "layer rules live in the architecture guards",
     "scope": "use exclude_paths to keep paths out of the guards",
 }
@@ -57,6 +58,7 @@ def default_config() -> dict:
         "hitl": {"markers": None, "paths": None, "optOut": None},
         "update": {"exclude": []},
         "tdd": {"code": [], "ignore": []},
+        "severities": {},
     }
 
 
@@ -117,6 +119,22 @@ def _validate_rules(rules: Any, file: str) -> list:
         if severity is not None and severity not in ("error", "warning"):
             raise ConfigError(f"rules[{i}].severity", f'invalid severity "{severity}"', file, ["error", "warning"])
     return rules
+
+
+def _validate_severities(value: Any, file: str) -> dict:
+    """severities: a mapping of guard name -> 'error' | 'warning'."""
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ConfigError("severities", f"expected a mapping of guard name to level, got {_type_name(value)}", file)
+    out = {}
+    for name, level in value.items():
+        if not isinstance(name, str) or name.strip() == "":
+            raise ConfigError("severities", "guard names must be non-empty", file)
+        if not isinstance(level, str) or level not in LEVELS:
+            raise ConfigError(f"severities.{name}", f"invalid level {json.dumps(level)}", file, LEVELS)
+        out[name] = level
+    return out
 
 
 def _check_mirror_path(item: str, key: str, file: str) -> None:
@@ -180,6 +198,8 @@ def validate_config(raw: Any, file: str = CONFIG_NAMES[0]) -> tuple:
         config["tdd"]["code"] = _string_list(tdd["code"], "tdd.code", file)
     if tdd.get("ignore") is not None:
         config["tdd"]["ignore"] = _string_list(tdd["ignore"], "tdd.ignore", file)
+
+    config["severities"] = _validate_severities(raw.get("severities"), file)
 
     return config, warnings
 

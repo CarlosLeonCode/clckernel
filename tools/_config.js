@@ -17,6 +17,9 @@
  *   update.exclude    globs install/update never write
  *   tdd.code          extra globs verify_tdd counts as production code
  *   tdd.ignore        globs verify_tdd never counts as production code
+ *   severities        { <guard name>: warning | error }: the level of a failing
+ *                     guard in the audit orchestrators (warning = reported,
+ *                     not blocking; a crash is always an error)
  *
  * Removed keys (no effect) produce a deprecation warning; unknown top-level
  * keys a warning; an invalid value throws ConfigError naming file and key.
@@ -29,14 +32,14 @@ const { parseYaml, globToRegex } = require('./yaml.js');
 // Lookup order: the canonical name first, then older names kept for compatibility.
 const CONFIG_NAMES = ['.clckernel.yaml', '.clckernel.yml', '.clc-forge.yaml', '.clc-forge.yml'];
 
-const KEYS = ['rules', 'exclude_paths', 'mirrors', 'hitl', 'update', 'tdd'];
+const KEYS = ['rules', 'exclude_paths', 'mirrors', 'hitl', 'update', 'tdd', 'severities'];
+const LEVELS = ['error', 'warning'];
 
 /** Keys earlier releases documented that never had an effect, with the reason. */
 const DEPRECATED_KEYS = {
   active_guards: 'guards are chosen by the stack, the registry and `clckernel update --add-guards`',
   phases: 'the workflow phases are agent instructions in AGENTS.md',
   gate_mode: 'every installed guard blocks the commit when it fails',
-  severities: 'per-guard warning levels are not supported yet',
   layers: 'layer rules live in the architecture guards',
   scope: 'use exclude_paths to keep paths out of the guards',
 };
@@ -69,6 +72,7 @@ function defaultConfig() {
     hitl: { markers: null, paths: null, optOut: null },
     update: { exclude: [] },
     tdd: { code: [], ignore: [] },
+    severities: {},
   };
 }
 
@@ -113,6 +117,19 @@ function validateRules(rules, file) {
     }
   });
   return rules;
+}
+
+/** severities: a mapping of guard name -> 'error' | 'warning'. */
+function validateSeverities(value, file) {
+  if (value === undefined || value === null) return {};
+  if (!isMapping(value)) throw new ConfigError('severities', `expected a mapping of guard name to level, got ${typeName(value)}`, file);
+  const out = {};
+  for (const [name, level] of Object.entries(value)) {
+    if (name.trim() === '') throw new ConfigError('severities', 'guard names must be non-empty', file);
+    if (!LEVELS.includes(level)) throw new ConfigError(`severities.${name}`, `invalid level ${JSON.stringify(level)}`, file, LEVELS);
+    out[name] = level;
+  }
+  return out;
 }
 
 function checkMirrorPath(item, key, file) {
@@ -186,6 +203,8 @@ function validateConfig(raw, file = CONFIG_NAMES[0]) {
   const tdd = section(raw, 'tdd', ['code', 'ignore'], file);
   if (tdd.code !== undefined && tdd.code !== null) config.tdd.code = stringList(tdd.code, 'tdd.code', file);
   if (tdd.ignore !== undefined && tdd.ignore !== null) config.tdd.ignore = stringList(tdd.ignore, 'tdd.ignore', file);
+
+  config.severities = validateSeverities(raw.severities, file);
 
   return { config, warnings };
 }

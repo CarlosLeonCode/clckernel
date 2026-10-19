@@ -41,13 +41,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `./_changes`), leaves the registry, and `update` reports it as "retired kernel guard kept as project guard".
   `updateHarness()` returns `retiredGuards` instead of `guardMigration`.
 - **`.clckernel.yaml` is read by install, update and the guards; keys without an effect are gone
-  (sdds/config-foundation).** `active_guards`, `phases`, `gate_mode`, `severities`, `layers` and `scope` never
-  changed anything: they now print a deprecation warning and are ignored (per-guard warning levels are left for
-  a later change). The config-driven metadata path (`.clckernel.resolved.json`, `CLCKERNEL_SEVERITIES`) is
+  (sdds/config-foundation).** `active_guards`, `phases`, `gate_mode`, `layers` and `scope` never
+  changed anything: they now print a deprecation warning and are ignored (`severities` got a real effect in
+  sdds/audit-cli, below). The config-driven metadata path (`.clckernel.resolved.json`, `CLCKERNEL_SEVERITIES`) is
   removed. An invalid value now stops install, update and every guard with
   `Invalid .clckernel.yaml: key "<key>" — <reason>`.
+- **The audit writes a report only when told where (sdds/audit-cli).** `node tools/audit.js`,
+  `python3 tools/audit.py` and `clckernel audit` used to write `05-audit-report.md` and `audit-receipt.json`
+  into a guessed folder (the first directory under `sdds/`, or `sdds/audit-run/`), i.e. into an unrelated spec.
+  Now a plain run only prints the summary; `--change <name>` (also `clckernel audit [dir] --change <name>`)
+  writes both files to `sdds/<name>/`, creating that folder only then. `<name>` must be one path segment.
+  The orchestrators take `[targetDir] [--hook] [--change <name>] [--staged]`; any other flag, a second
+  positional or `--hook` with `--change` exits 2 with the usage (unknown flags used to be ignored). The Python
+  orchestrator now resolves `sdds/` against the target directory, like the JS one. Agents that need the report
+  must pass `--change <sdd name>`: re-run `clckernel update` to get the AGENTS.md and playbook wording.
 
 ### Added
+
+- **Non-blocking warnings in the audit and the pre-commit hook (sdds/audit-cli).** A guard result may carry
+  `level: 'warning'`, and `.clckernel.yaml` `severities: { <guard name>: warning | error }` sets it per guard
+  (overriding the guard; values are validated — the key is no longer deprecated). A failing guard at `warning`
+  prints `WARN`, does not change the exit code, and is listed separately in the report and in the receipt's
+  `warnings`; the verdict is `PASSED_WITH_WARNINGS` when only warnings failed. A guard that crashes (throws,
+  returns no result, cannot run, or is missing) always blocks, whatever its severity. `--staged` is accepted as
+  an explicit name for the default snapshot (staged changes, else the last commit).
 
 - **Configuration keys with a real effect (sdds/config-foundation).** `exclude_paths` (paths no diff-based guard
   evaluates), `mirrors.list` / `mirrors.required` (mirrors install creates and `check_symlinks` verifies),

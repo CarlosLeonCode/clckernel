@@ -330,7 +330,8 @@ describe('config: validateConfig', () => {
     const { config, warnings } = validateConfig(loadConfig(LEGACY_FULL_YAML));
     assert.deepStrictEqual(config.exclude_paths, ['**/*.min.js']);
     assert.strictEqual(config.rules[0].name, 'no-debugger');
-    const removed = ['active_guards', 'phases', 'gate_mode', 'severities', 'layers', 'scope'];
+    assert.deepStrictEqual(config.severities, { check_custom: 'warning', scan_secrets: 'error' });
+    const removed = ['active_guards', 'phases', 'gate_mode', 'layers', 'scope'];
     assert.deepStrictEqual(warnings.map((w) => /key "(\w+)"/.exec(w)[1]), removed);
   });
 

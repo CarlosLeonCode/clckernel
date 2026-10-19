@@ -56,6 +56,7 @@ const DEFAULTS = {
   hitl: { markers: null, paths: null, optOut: null },
   update: { exclude: [] },
   tdd: { code: [], ignore: [] },
+  severities: {},
 };
 
 // ── 1. Schema ────────────────────────────────────────────────────────────
@@ -68,7 +69,7 @@ describe('item 1: schema (tools/_config.js and tools/_config.py)', () => {
 
   it('each removed key warns as deprecated and has no effect', () => {
     const { validateConfig } = loadConfigModule();
-    for (const key of ['active_guards', 'phases', 'gate_mode', 'severities', 'layers', 'scope']) {
+    for (const key of ['active_guards', 'phases', 'gate_mode', 'layers', 'scope']) {
       const { config, warnings } = validateConfig({ [key]: ['x'] }, '.clckernel.yaml');
       assert.deepStrictEqual(config, DEFAULTS, key);
       assert.strictEqual(warnings.length, 1, key);
@@ -587,7 +588,7 @@ describe('item 8: the config readers are installed with the snapshot helpers', (
 // ── 9. Documentation ─────────────────────────────────────────────────────
 
 describe('item 9: the README config tables list every key', () => {
-  const KEYS = ['rules', 'exclude_paths', 'mirrors.list', 'mirrors.required', 'hitl.markers', 'hitl.paths', 'hitl.optOut', 'update.exclude', 'tdd.code', 'tdd.ignore'];
+  const KEYS = ['rules', 'exclude_paths', 'mirrors.list', 'mirrors.required', 'hitl.markers', 'hitl.paths', 'hitl.optOut', 'update.exclude', 'tdd.code', 'tdd.ignore', 'severities'];
   for (const file of ['README.md', 'README.es.md']) {
     it(file, () => {
       const text = fs.readFileSync(path.join(ROOT, file), 'utf-8');

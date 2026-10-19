@@ -7,10 +7,17 @@ Use this playbook when auditing code quality, architecture compliance, or execut
 1. **Locate Audit Tool:** Check available audit scripts:
    - `node tools/audit.js` (JavaScript / Node environment)
    - `python tools/audit.py` (Python / Backend environment)
-2. **Execute Audit:** Run the tool within project workspace.
+2. **Execute Audit:** Run the tool within the project workspace. CLI (both scripts):
+   `audit.(js|py) [targetDir] [--change <name>] [--staged]`.
+   - Working on an SDD change (`sdds/<name>/`): pass `--change <name>`. Only then are the report
+     (`05-audit-report.md`) and the receipt (`audit-receipt.json`) written, in `sdds/<name>/`.
+   - Without `--change` nothing is written: read the summary from stdout.
+   - `--staged` is the default snapshot (staged changes, or the last commit when nothing is staged).
+   - An unknown flag exits 2 with the usage line: fix the command, do not report it as a guard failure.
 3. **Educational Summary:** Output the educational audit summary highlighting:
    - Architectural conformance (layer-boundary guards)
    - TDD compliance & test coverage
    - Security & Secrets scan results
    - Performance / DB efficiency checks
 4. **Actionable Feedback:** If any guard fails, explain the exact violation, why it breaches architectural invariants, and how to remediate it.
+5. **Warnings:** A guard marked `WARN` / ⚠️ (level `warning`, from the guard or `severities` in `.clckernel.yaml`) failed but does not block: the verdict is `PASSED_WITH_WARNINGS`. Report it and propose the fix; do not hide it. A guard that crashed always blocks.

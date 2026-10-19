@@ -140,8 +140,8 @@ describe('audit reports never contain the secret', () => {
   }
 
   const AUDITS = {
-    js: { files: ['audit.js', 'scan_secrets.js', '_changes.js'], cmd: (dir) => [process.execPath, [path.join(dir, 'tools', 'audit.js'), dir]] },
-    py: { files: ['audit.py', 'scan_secrets.py', '_changes.py'], cmd: (dir) => ['python3', [path.join(dir, 'tools', 'audit.py'), dir]] },
+    js: { files: ['audit.js', 'scan_secrets.js', '_changes.js'], cmd: (dir) => [process.execPath, [path.join(dir, 'tools', 'audit.js'), dir, '--change', 'audit-run']] },
+    py: { files: ['audit.py', 'scan_secrets.py', '_changes.py'], cmd: (dir) => ['python3', [path.join(dir, 'tools', 'audit.py'), dir, '--change', 'audit-run']] },
   };
 
   for (const [lang, { files, cmd }] of Object.entries(AUDITS)) {

@@ -82,8 +82,11 @@ READ-ONLY COMMANDS (do not modify your project's code or config)
   help, --help, -h        Show this help
   version, --version, -v  Print the installed version
   doctor [targetDir]      Run diagnostics on a project
-  audit [targetDir]       Run the installed audit orchestrators (tools/audit.js
-                          and/or tools/audit.py); they only write reports to sdds/
+  audit [targetDir] [--change <name>]
+                          Run the installed audit orchestrators (tools/audit.js
+                          and/or tools/audit.py) and print the summary. Writes
+                          nothing, unless --change <name>: then the report and
+                          receipt go to sdds/<name>/ (only there)
                           Checks staged changes, or the last commit if none
 
 WRITES TO THE TARGET PROJECT
@@ -109,6 +112,7 @@ EXAMPLES
   clckernel --help
   clckernel doctor .
   clckernel audit .
+  clckernel audit . --change my-feature
   clckernel update .
   clckernel update . --dry-run
   clckernel update . --add-guards check_skills
@@ -167,13 +171,15 @@ function resolveExistingDir(input) {
 }
 
 /**
- * `clckernel audit [dir]`: runs every orchestrator installed in dir/tools
- * (audit.js, then audit.py) with cwd = dir. A mixed stack has both, and each
- * only discovers guards of its own language, so all of them must run.
+ * `clckernel audit [dir] [--change <name>]`: runs every orchestrator installed
+ * in dir/tools (audit.js, then audit.py) with cwd = dir. A mixed stack has
+ * both, and each only discovers guards of its own language, so all of them
+ * must run. --change is passed through (the orchestrators validate the name).
  * @param {string|undefined} input - Target directory argument
+ * @param {string|null} [change] - SDD change name for the report, or null
  * @returns {number} Exit code: the first non-zero orchestrator status, else 0
  */
-function runAudit(input) {
+function runAudit(input, change = null) {
   const dir = resolveExistingDir(input);
   if (!dir) return 1;
 
@@ -192,7 +198,8 @@ function runAudit(input) {
 
   let exitCode = 0;
   for (const orchestrator of orchestrators) {
-    const res = spawnSync(orchestrator.cmd, [path.join('tools', orchestrator.file)], {
+    const orchestratorArgs = [path.join('tools', orchestrator.file), ...(change ? ['--change', change] : [])];
+    const res = spawnSync(orchestrator.cmd, orchestratorArgs, {
       cwd: dir,
       stdio: 'inherit',
     });
@@ -206,6 +213,29 @@ function runAudit(input) {
     if (status !== 0 && exitCode === 0) exitCode = status;
   }
   return exitCode;
+}
+
+/**
+ * `audit` arguments: at most one target dir and one `--change <name>`.
+ * @param {string[]} rest - Arguments after `audit`
+ * @returns {{ targetDir?: string, change: string|null } | null} null on unknown input
+ */
+function parseAuditArgs(rest) {
+  const out = { targetDir: undefined, change: null };
+  for (let i = 0; i < rest.length; i += 1) {
+    const arg = rest[i];
+    if (arg === '--change') {
+      const name = rest[i + 1];
+      if (out.change !== null || name === undefined || name.startsWith('-')) return null;
+      out.change = name;
+      i += 1;
+    } else if (arg.startsWith('-') || out.targetDir !== undefined) {
+      return null;
+    } else {
+      out.targetDir = arg;
+    }
+  }
+  return out;
 }
 
 async function runCli() {
@@ -233,11 +263,12 @@ async function runCli() {
   }
 
   if (command === 'audit') {
-    if (args.length > 2 || args.slice(1).some((a) => a.startsWith('-'))) {
+    const parsed = parseAuditArgs(args.slice(1));
+    if (!parsed) {
       process.exitCode = rejectUnknownInput(args);
       return;
     }
-    process.exitCode = runAudit(args[1]);
+    process.exitCode = runAudit(parsed.targetDir, parsed.change);
     return;
   }
 

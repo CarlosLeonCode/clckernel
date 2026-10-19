@@ -33,6 +33,6 @@ Guide the developer through implementing a new feature strictly governed by the 
 3. Re-run tests to confirm 100% green pass.
 
 ### Step 6: Mandatory Audit Gate
-1. Execute \`node tools/audit.js\` or \`python tools/audit.py\`.
+1. Execute \`node tools/audit.js --change <name>\` or \`python tools/audit.py --change <name>\` (writes the report and receipt to \`sdds/<name>/\`).
 2. Output the Educational Summary table to stdout.
 3. Verify zero secret findings, zero layer violations, and zero N+1 heuristic findings.

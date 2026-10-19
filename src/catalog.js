@@ -5,7 +5,8 @@
  * framework knows about: descriptions and audit lenses (tools/audit.js).
  * It does not choose what install puts in a project (the
  * adapters' manifests do) and its severity/gate_mode fields are not
- * configurable (sdds/config-foundation: `severities` is left for a later spec).
+ * configurable here: the audit honours the guard's own `level` and the
+ * `severities` key of .clckernel.yaml instead (sdds/audit-cli).
  *
  * Entry shape (design §1.2, additive fields noted):
  *   name        {string}        guard script basename WITHOUT extension
