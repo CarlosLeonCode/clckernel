@@ -11,6 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const BaseAdapter = require('./base');
 const { currentIO, registeredPaths } = require('../io');
+const { FIRST_SESSION_SECTION } = require('../onboarding');
 
 /** Skills the harness installs itself: never a detection signal. */
 const HARNESS_SKILLS = new Set(['clckernel_cli', 'clc_forge_cli']);
@@ -259,7 +260,10 @@ When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`,
 
 ## 🛡️ Core AI Safeguards
 ${this.getSafeguards().map(s => `- ${s}`).join('\n')}
-`;
+
+---
+
+${FIRST_SESSION_SECTION}`;
 
     // Guard: never overwrite a project-customized AGENTS.md (e.g. a law file
     // carrying domain invariants the template cannot know about).

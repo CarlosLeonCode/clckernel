@@ -316,6 +316,10 @@ async function runUpdate(targetDir = process.cwd(), options = {}) {
     } else {
       console.log(`${colors.emerald}✨ ¡Proyecto actualizado con éxito a la última versión de CLC Kernel!${colors.reset}\n`);
     }
+    // sdds/onboarding: a short Next steps block, only when something needs attention.
+    const { updateNextStepsLines } = require('./ui');
+    const steps = dryRun ? [] : updateNextStepsLines(result.plan);
+    if (steps.length > 0) console.log(`${steps.join('\n')}\n`);
     return result;
   } catch (err) {
     console.error(`\n❌ Error actualizando el arnés: ${err.message}`);

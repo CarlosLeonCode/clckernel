@@ -234,6 +234,90 @@ function planLines(plan, { dryRun = false } = {}) {
   return lines;
 }
 
+/**
+ * AI harnesses by the AGENTS.md mirror they read (sdds/onboarding). Agents
+ * that read AGENTS.md itself (Codex, OpenCode, ...) need no mirror.
+ */
+const HARNESS_MIRRORS = [
+  { name: 'Claude Code (CLAUDE.md)', match: (p) => p === 'CLAUDE.md' },
+  { name: 'Gemini (GEMINI.md)', match: (p) => p === 'GEMINI.md' },
+  { name: 'Cursor', match: (p) => p === '.cursorrules' || p.startsWith('.cursor/') },
+  { name: 'Copilot', match: (p) => p === '.github/copilot-instructions.md' },
+  { name: 'Antigravity', match: (p) => p.startsWith('.antigravity/') },
+  { name: 'Windsurf', match: (p) => p === '.windsurfrules' },
+];
+
+/**
+ * Harness names whose mirror the run wrote or found up to date.
+ * @param {object} plan - io.plan()
+ * @returns {string[]}
+ */
+function harnessNames(plan) {
+  const paths = [...(plan.written || []), ...(plan.unchanged || [])].map((entry) => entry.split(' -> ')[0]);
+  return HARNESS_MIRRORS.filter((h) => paths.some(h.match)).map((h) => h.name);
+}
+
+/**
+ * "Next steps" after a real install (sdds/onboarding), true to what was
+ * installed: the hook file and whether git runs it (or the command that
+ * activates it), the harness mirrors written and the parts. English, like
+ * the plan listing.
+ * @param {{ file: string, active: boolean, activate?: string|null }|undefined} hook
+ * @param {object} plan - io.plan()
+ * @param {object} [config] - Final project config
+ * @returns {string[]}
+ */
+function nextStepsLines(hook, plan, config = {}) {
+  const c = colors;
+  const cmd = (text) => `${c.cyan}${text}${c.reset}`;
+  const lines = [`${c.bold}Next steps${c.reset}`];
+  const commit = cmd('git add -A && git commit -m "chore: install clckernel"');
+  const parts = Array.isArray(config.parts) && config.parts.length > 0
+    ? `     The hook runs the checks of every part (${config.parts.map((p) => p.dir).join(', ')}) from the repository root.`
+    : null;
+  if (hook && hook.active) {
+    lines.push(`  1. Review and commit the harness: ${commit}`);
+    lines.push(`     The pre-commit hook (${hook.file}) runs on this commit.`);
+  } else if (hook) {
+    lines.push(`  1. The pre-commit hook (${hook.file}) is not active yet. Activate it: ${cmd(hook.activate || 'git config core.hooksPath .githooks')}`);
+    lines.push(`     Then review and commit the harness: ${commit}`);
+  } else {
+    lines.push(`  1. Review and commit the harness: ${commit} (no pre-commit hook was written)`);
+  }
+  if (hook && parts) lines.push(parts);
+  const harnesses = harnessNames(plan || {});
+  const agents = harnesses.length > 0
+    ? `AGENTS.md mirrors written for: ${harnesses.join(', ')}.`
+    : 'No AGENTS.md mirrors written: use an agent that reads AGENTS.md itself.';
+  lines.push(`  2. Open your AI agent and ask it to run ${cmd('clckernel start')} to tailor the rules (.clckernel.yaml),`);
+  lines.push('     or just start working: it follows AGENTS.md.');
+  lines.push(`     ${agents}`);
+  lines.push(`  3. Run ${cmd('npx clckernel audit')} anytime to see every guard's result.`);
+  lines.push('  4. Project-specific checks go in tools/guards/ (the hook and the audit run them).');
+  lines.push(`  5. Later, preview kernel updates with ${cmd('npx clckernel update --dry-run')}.`);
+  return lines;
+}
+
+/**
+ * Shorter "Next steps" after an update: only what needs attention
+ * (protected files to merge, guards available but not installed); empty
+ * when nothing does.
+ * @param {object} plan - io.plan()
+ * @returns {string[]}
+ */
+function updateNextStepsLines(plan) {
+  const c = colors;
+  const steps = [];
+  for (const entry of plan.protected || []) {
+    steps.push(`Review ${entry.newPath}, merge what you want into ${entry.path}, then delete the copy.`);
+  }
+  if ((plan.available || []).length > 0) {
+    steps.push(`Optional guards: ${c.cyan}npx clckernel update --add-guards ${plan.available.join(',')}${c.reset}`);
+  }
+  if (steps.length === 0) return [];
+  return [`${c.bold}Next steps${c.reset}`, ...steps.map((step, i) => `  ${i + 1}. ${step}`)];
+}
+
 /** Prints planLines. */
 function printPlan(plan, options) {
   console.log(planLines(plan, options).join('\n'));
@@ -241,6 +325,9 @@ function printPlan(plan, options) {
 
 module.exports = {
   planLines,
+  nextStepsLines,
+  updateNextStepsLines,
+  harnessNames,
   printPlan,
   colors,
   printBanner,

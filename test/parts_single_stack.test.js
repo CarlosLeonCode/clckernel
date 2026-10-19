@@ -23,6 +23,9 @@
  * `--change`, the audit/doctor/update rows name the CLI (`--change`,
  * `--dry-run`, `--add-guards`) and `start` no longer materializes
  * .clckernel.yaml; hooks, config and tools/ are byte-identical.
+ * Regenerated for sdds/onboarding: only AGENTS.md changed — every template
+ * ends with the "First session after install" section (src/onboarding.js);
+ * hooks, config and tools/ are byte-identical.
  */
 const { describe, it } = require('node:test');
 const assert = require('node:assert');

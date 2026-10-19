@@ -5,7 +5,9 @@ description: >-
   Use when the user issues a clckernel command (e.g. clckernel feature, clckernel fix,
   clckernel audit, clckernel doctor, clckernel commit, clckernel update, clckernel start)
   or /clckernel, or asks to initiate a feature, fix a bug, audit architecture, run tests,
-  diagnose health, or commit changes in a project governed by CLC Kernel.
+  diagnose health, or commit changes in a project governed by CLC Kernel. Also use in the
+  first session after install (tools/.clckernel-managed.json present, no .clckernel.yaml) to
+  orient the user and offer the start playbook.
 ---
 
 # 🤖 CLC Kernel — Agent Governance Engine
@@ -43,7 +45,11 @@ When the developer issues a \`clckernel <command>\` or \`/clckernel <command>\` 
    - *"Auditar / verificar arquitectura"* -> Route to `audit` ([reference/audit.md](reference/audit.md))
    - *"Revisar estado / diagnóstico"* -> Route to `doctor` ([reference/doctor.md](reference/doctor.md))
    - *"Commitear / guardar cambios"* -> Route to `commit` ([reference/commit.md](reference/commit.md))
-4. **Mandatory Audit Gate:** Never declare success on code changes without running the audit gate and outputting the summary.
+4. **First session after install** (`tools/.clckernel-managed.json` exists, `.clckernel.yaml` does not):
+   follow the "First session after install" section of AGENTS.md. The user's own request comes first;
+   otherwise explain briefly what is installed, ask ONE question (run [reference/start.md](reference/start.md)
+   or keep the defaults) and STOP.
+5. **Mandatory Audit Gate:** Never declare success on code changes without running the audit gate and outputting the summary.
 
 ## Human checkpoint
 

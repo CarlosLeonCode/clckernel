@@ -58,6 +58,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Onboarding after install (sdds/onboarding).** A real install ends with a "Next steps" block true to that
+  install: commit the harness (or the exact command that activates the hook when it is not active), the AI
+  harnesses whose mirrors were written, `clckernel start`, `npx clckernel audit`, `tools/guards/` and
+  `npx clckernel update --dry-run`. An update prints a short one only when protected `*.clckernel-new` files or
+  available guards need attention. Every generated AGENTS.md gains a "First session after install" section, and
+  the skill triggers on it: the user's request comes first; otherwise the agent explains what is installed, asks
+  one question (run the `start` playbook or keep the defaults) and stops.
 - **Red→Green TDD verification for Go, Rust, Ruby and PHP (sdds/tdd-other-stacks).** `tools/verify_tdd.js`
   gains language profiles (`go test`, `cargo test --test`, RSpec / Minitest through bundler, Pest / PHPUnit),
   grouped by the nearest `go.mod` / `Cargo.toml` / `Gemfile` / `composer.json`, and is installed for the Go,
@@ -175,6 +182,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A fresh install no longer adds `.agents/skills/clc_forge_cli/`, `.clckernel.resolved.json` or
+  `.clc-forge.resolved.json` to `.gitignore`; each is added only when that artifact exists in the project.
 - `check_scope.py` reads paths that start with a dot (`.agents/...`, `.clckernel.yaml`,
   `.github/workflows/ci.yml`; extension-less dotfiles such as `` `.gitignore` `` in backticks) and no longer
   truncates table cells (`| src/foo.js |` was read as `oo.js`) (sdds/final-sweep).

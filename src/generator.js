@@ -8,6 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const { readProjectConfig, globMatcher } = require('./config.js');
 const { createIO, runWithIO, activeIO, currentIO, registeredPaths, MANAGED_REGISTRY } = require('./io');
+const { FIRST_SESSION_SECTION } = require('./onboarding');
 
 /**
  * Shell condition that decides at commit time whether an external tool runs.
@@ -206,35 +207,48 @@ function runGit(cwd, args) {
  * @returns {boolean} true when core.hooksPath is (now) .githooks
  */
 function configureHooksPath(targetDir) {
+  return configureHooksPathWithCommand(targetDir).active;
+}
+
+/**
+ * configureHooksPath, also returning the command that activates the hook
+ * when it was left inactive (sdds/onboarding: the Next steps repeat it).
+ * @param {string} targetDir - Target project root
+ * @returns {{ active: boolean, activate: string|null }}
+ */
+function configureHooksPathWithCommand(targetDir) {
   const toplevel = runGit(targetDir, ['rev-parse', '--show-toplevel']);
   if (!toplevel.ok || !toplevel.out) {
+    const activate = `git init && git config core.hooksPath ${GITHOOKS_DIR}`;
     console.warn(
       `Warning: ${targetDir} is not inside a git repository; core.hooksPath was not set.\n` +
         `  After \`git init\`, enable the hooks with: git config core.hooksPath ${GITHOOKS_DIR}`
     );
-    return false;
+    return { active: false, activate };
   }
 
   const root = fs.realpathSync(toplevel.out);
   if (root !== fs.realpathSync(targetDir)) {
     const rel = path.join(path.relative(root, fs.realpathSync(targetDir)), GITHOOKS_DIR);
+    const activate = `git -C "${root}" config core.hooksPath ${rel}`;
     console.warn(
       `Warning: ${targetDir} is not the root of its git repository (${root}); core.hooksPath was not set.\n` +
-        `  To use these hooks for the whole repository run: git -C "${root}" config core.hooksPath ${rel}`
+        `  To use these hooks for the whole repository run: ${activate}`
     );
-    return false;
+    return { active: false, activate };
   }
 
   // Only the repository's own value means another hook manager owns it; a
   // global/system value (a user-wide hooks dir) is overridden by a local one.
   const current = localHooksPath(targetDir);
-  if (current === GITHOOKS_DIR) return true;
+  if (current === GITHOOKS_DIR) return { active: true, activate: null };
   if (current) {
+    const activate = `git config core.hooksPath ${GITHOOKS_DIR}`;
     console.warn(
       `Warning: core.hooksPath is already set to "${current}" (another hook manager?); it was left unchanged.\n` +
-        `  To run the CLC Kernel hooks instead run: git config core.hooksPath ${GITHOOKS_DIR}`
+        `  To run the CLC Kernel hooks instead run: ${activate}`
     );
-    return false;
+    return { active: false, activate };
   }
 
   const inherited = runGit(targetDir, ['config', '--get', 'core.hooksPath']).out;
@@ -245,7 +259,8 @@ function configureHooksPath(targetDir) {
     );
   }
 
-  return currentIO(targetDir).gitConfig(targetDir, 'core.hooksPath', GITHOOKS_DIR);
+  const active = currentIO(targetDir).gitConfig(targetDir, 'core.hooksPath', GITHOOKS_DIR);
+  return { active, activate: active ? null : `git config core.hooksPath ${GITHOOKS_DIR}` };
 }
 
 /** The repository's own (local scope) core.hooksPath; '' when unset. */
@@ -271,8 +286,9 @@ function huskyActive(targetDir) {
  * @param {boolean} isFront - Frontend project (may use Husky)
  * @param {string[]} commands - External tool lines
  * @param {string} banner - Text echoed when the hook starts
- * @returns {{ file: string, active: boolean }} Hook path relative to targetDir,
- *   and whether git runs it
+ * @returns {{ file: string, active: boolean, activate: string|null }} Hook path
+ *   relative to targetDir, whether git runs it and, when not, the command that
+ *   activates it
  */
 function writeHook(targetDir, isFront, commands, banner) {
   const useHusky = isFront && huskyActive(targetDir);
@@ -302,8 +318,8 @@ function writeHook(targetDir, isFront, commands, banner) {
   const file = path.posix.join(useHusky ? '.husky' : GITHOOKS_DIR, 'pre-commit');
   const status = currentIO(targetDir).writeManaged(file, lines.join('\n') + '\n', { mode: '755' });
 
-  const active = useHusky ? true : configureHooksPath(targetDir);
-  return { file, active, status };
+  const { active, activate } = useHusky ? { active: true, activate: null } : configureHooksPathWithCommand(targetDir);
+  return { file, active, status, activate };
 }
 
 /**
@@ -674,7 +690,8 @@ ${rows}
 
 ${sections}
 
-${commandTable(testRunner)}`;
+${commandTable(testRunner)}
+${FIRST_SESSION_SECTION}`;
 }
 
 /**
@@ -820,7 +837,8 @@ ${isFront ? `- UI Component Reuse First (components/ui/ & semantic tokens)
 - Migration Reversibility protocol (agent-enforced; no migration guard installed for this stack)
 - Memory protocol (agent-enforced; Engram / Graphify optional, not checked by a guard)`}
 
-${commandTable(testRunner)}`;
+${commandTable(testRunner)}
+${FIRST_SESSION_SECTION}`;
     // Guard: never overwrite an existing project-customized AGENTS.md.
     // This prevents clckernel update from replacing project-specific
     // invariants the template cannot know about.

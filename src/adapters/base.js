@@ -6,6 +6,7 @@
 
 const path = require('path');
 const { currentIO } = require('../io');
+const { FIRST_SESSION_SECTION } = require('../onboarding');
 
 class BaseAdapter {
   constructor(name, projectType, testRunner) {
@@ -84,7 +85,8 @@ Forged by **CLC Kernel: The AI Agent Governance Engine**.
 
 ## 2. Core AI Safeguards (${this.name})
 ${this.getSafeguards().map(s => `- ${s}`).join('\n')}
-`;
+
+${FIRST_SESSION_SECTION}`;
     // Guard: never overwrite a project-customized AGENTS.md.
     if (skipAgentsMd) {
       return;

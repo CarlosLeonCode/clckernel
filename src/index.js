@@ -386,6 +386,9 @@ async function runCli() {
   }
   printSuccess(targetDir, hook, finalConfig, installedGuards);
   if (plan) printPlan(plan);
+  // sdds/onboarding: what to do next, true to this install.
+  const { nextStepsLines } = require('./ui');
+  console.log(`\n${nextStepsLines(hook, plan, finalConfig).join('\n')}\n`);
 }
 
 module.exports = { runCli };

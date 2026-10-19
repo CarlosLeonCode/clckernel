@@ -1,6 +1,7 @@
 # Playbook: Start / Initialize CLC Kernel
 
 Use this playbook when the user wants to initialize, start, or set up governance in a project (via `/clc start`, `/clckernel start`, or conversational request like *"inicializar el proyecto con clc"*).
+It is also the playbook offered in the first session after install (AGENTS.md, "First session after install").
 
 ## Sequence
 
@@ -27,8 +28,11 @@ Present detected stack and proposal clearly:
    `npx clckernel . --yes` (`--dry-run` first to show the plan). The CLI writes the guards, the
    pre-commit hook (`.githooks/pre-commit`, or `.husky/pre-commit` when Husky already runs the
    repository's hooks), the playbooks and the IDE mirrors. Never write the hook by hand.
-2. `.clckernel.yaml` is optional: without it every default applies. Write it only when the user chose
-   a customization, only with the keys the README "Configuration" table lists (`rules`,
+2. `.clckernel.yaml` is optional: without it every default applies. Write keys only when the user
+   chose a customization, only with the keys the README "Configuration" table lists (`rules`,
    `exclude_paths`, `mirrors`, `hitl`, `update`, `tdd`, `severities`) and only what differs from the
    defaults.
-3. Confirm completion with a concise summary.
+3. If the user keeps the defaults, write a `.clckernel.yaml` that holds only a comment (for example
+   `# CLC Kernel: defaults accepted. Add keys only for settings that differ.`). It parses to the
+   defaults and ends the first-session onboarding, so the question is not asked again.
+4. Confirm completion with a concise summary.

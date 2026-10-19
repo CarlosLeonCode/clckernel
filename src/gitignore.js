@@ -35,6 +35,11 @@ function trackedEntries(targetDir, entries) {
   return new Set(literal.filter((e) => files.some((f) => f === bare(e) || f.startsWith(`${bare(e)}/`))));
 }
 
+/**
+ * Managed entries per section. An `{ entry, ifExists: true }` item names an
+ * artifact of an older release (sdds/onboarding): it is added only when that
+ * path exists in the project, so a fresh install names no retired artifact.
+ */
 const MANAGED_GITIGNORE_SECTIONS = [
   {
     header: '# CLC Kernel: Local AI IDE Mirror Symlinks (SSOT: AGENTS.md)',
@@ -52,7 +57,7 @@ const MANAGED_GITIGNORE_SECTIONS = [
     header: '# CLC Kernel: CLI Agent Skills & Playbooks',
     entries: [
       '.agents/skills/clckernel_cli/',
-      '.agents/skills/clc_forge_cli/',
+      { entry: '.agents/skills/clc_forge_cli/', ifExists: true },
     ],
   },
   {
@@ -62,8 +67,8 @@ const MANAGED_GITIGNORE_SECTIONS = [
       '!sdds/.gitkeep',
       'openspec/*',
       '!openspec/.gitkeep',
-      '.clckernel.resolved.json',
-      '.clc-forge.resolved.json',
+      { entry: '.clckernel.resolved.json', ifExists: true },
+      { entry: '.clc-forge.resolved.json', ifExists: true },
       '.husky/_/',
       '.ruff_cache/',
       '*.clckernel-new',
@@ -97,15 +102,19 @@ function ensureGitignoreEntries(targetDir) {
   const sectionsToAppend = [];
   const added = [];
 
+  const entriesOf = (section) => section.entries
+    .filter(item => typeof item === 'string' || io.exists(path.join(targetDir, item.entry)))
+    .map(item => (typeof item === 'string' ? item : item.entry));
+
   // A path the project tracks is never ignored behind its back: the entry is
   // left out and reported instead.
-  const candidates = MANAGED_GITIGNORE_SECTIONS.flatMap(section => section.entries)
+  const candidates = MANAGED_GITIGNORE_SECTIONS.flatMap(entriesOf)
     .filter(entry => !existingLines.has(entry.trim()));
   const tracked = trackedEntries(targetDir, candidates);
   for (const entry of tracked) io.noteTrackedNotIgnored(entry);
 
   for (const section of MANAGED_GITIGNORE_SECTIONS) {
-    const missingEntries = section.entries.filter(entry => !existingLines.has(entry.trim()) && !tracked.has(entry));
+    const missingEntries = entriesOf(section).filter(entry => !existingLines.has(entry.trim()) && !tracked.has(entry));
     if (missingEntries.length > 0) {
       sectionsToAppend.push(`${section.header}\n${missingEntries.join('\n')}`);
       added.push(...missingEntries);

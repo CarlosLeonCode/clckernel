@@ -37,11 +37,10 @@ The last command activates this repository's own pre-commit hook.
 
 So every change to JS code needs a test that fails before your change and passes after it.
 
-**Python files under `tools/` are a gap.** They are tested from the JS suite (for example
-`test/check_migrations_reversibility.test.js` runs the Python guard), but `verify_tdd.js` only treats JS/TS
-files as code, so it does not prove red→green for a Python-only change. When you change a `.py` guard, run your
-new test against the old code yourself (e.g. `git stash` the fix, run the test, see it fail, restore) and say
-so in the pull request.
+**Python files under `tools/` are covered too.** They are tested from the JS suite (for example
+`test/check_migrations_reversibility.test.js` runs the Python guard), and this repo's `.clckernel.yaml` sets
+`tdd.code: ["tools/**/*.py"]`, so `verify_tdd.js` treats them as code: a change to a `.py` guard needs a changed
+JS test that fails before the change and passes after it.
 
 `git commit --no-verify` skips the hook; CI runs the same tests on every push and pull request, so skipped
 checks still surface there.
