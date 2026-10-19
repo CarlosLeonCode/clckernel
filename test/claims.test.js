@@ -398,3 +398,146 @@ describe('honest claims — no business domain in the kernel', () => {
     }
   });
 });
+
+// sdds/final-sweep item 1: every website page describes the hook the kernel
+// writes (src/generator.js writeHook): .githooks/pre-commit (.husky only when
+// Husky already owns core.hooksPath) calling the audit orchestrators with
+// --hook; install is `npx clckernel` / `npx clckernel . --yes` (the CLI
+// rejects `start`, an agent command); config examples use real keys.
+describe('honest claims — website hook, install command and config (sdds/final-sweep)', () => {
+  const files = listWebsiteSources(path.join(ROOT, 'website', 'src'));
+  const read = (file) => fs.readFileSync(file, 'utf-8');
+  const rel = (file) => path.relative(ROOT, file);
+  const HOOK_EXAMPLE_RE = /Hook (installed|instalado)|pre-commit — git hook|Pre-commit lock/;
+
+  it('website pages that show a hook example show the orchestrators with --hook', () => {
+    const shown = files.filter((file) => HOOK_EXAMPLE_RE.test(read(file)));
+    assert.ok(shown.length > 0, 'expected hook examples in website/src');
+    const offenders = shown.filter((file) => !/tools\/audit\.(js|py) --hook/.test(read(file))).map(rel);
+    assert.deepStrictEqual(offenders, []);
+  });
+
+  it('no website page presents .husky/pre-commit as the installed hook', () => {
+    const offenders = files.flatMap((file) => read(file).split('\n').flatMap((line, i) => {
+      if (!line.includes('.husky/pre-commit')) return [];
+      // Allowed only where the text states the Husky exception.
+      if (/Husky/.test(line.replace('.husky/pre-commit', ''))) return [];
+      return [`${rel(file)}:${i + 1}: ${line.trim()}`];
+    }));
+    assert.deepStrictEqual(offenders, []);
+  });
+
+  it('no website page lists single guards as the hook body', () => {
+    const offenders = files.filter((file) => /Hook (installed|instalado): [^\n]*-> (node|python3) tools\/(scan_|check_)/.test(read(file))).map(rel);
+    assert.deepStrictEqual(offenders, []);
+  });
+
+  it('neither the website nor the READMEs present `npx clckernel start` (the CLI rejects it)', () => {
+    const docs = [...files, path.join(ROOT, 'README.md'), path.join(ROOT, 'README.es.md')];
+    const offenders = docs.filter((file) => /npx clckernel start/.test(read(file))).map(rel);
+    assert.deepStrictEqual(offenders, []);
+  });
+
+  it('website .clckernel.yaml examples use only keys tools/_config.js knows', () => {
+    const invented = /^(version|framework|test_runner|safeguards|custom_guards|project_type|execution_phases):/m;
+    const offenders = files.filter((file) => invented.test(read(file))).map(rel);
+    assert.deepStrictEqual(offenders, []);
+  });
+
+  it('no website page shows an audit flag the orchestrators do not have', () => {
+    const offenders = files.filter((file) => /tools\/audit\.(js|py) --strict/.test(read(file))).map(rel);
+    assert.deepStrictEqual(offenders, []);
+  });
+});
+
+// sdds/final-sweep item 3: the READMEs state their known limitations.
+describe('honest claims — known limitations (sdds/final-sweep)', () => {
+  const cases = [
+    ['README.md', /## [^\n]*Known limitations/],
+    ['README.es.md', /## [^\n]*Limitaciones conocidas/],
+  ];
+  for (const [file, heading] of cases) {
+    it(`${file} has a known-limitations section with the facts`, () => {
+      const text = fs.readFileSync(path.join(ROOT, file), 'utf-8');
+      assert.match(text, heading);
+      const section = text.slice(text.search(heading)).split(/\n## /)[0];
+      assert.match(section, /Windows/);
+      assert.match(section, /Git Bash/);
+      assert.match(section, /tools\/\.clckernel-managed\.json/);
+      assert.match(section, /lint-staged/);
+      assert.match(section, /#\[cfg\(test\)\]|Rust/);
+    });
+  }
+
+  it('CONTRIBUTING.md has a known-limitations section', () => {
+    const text = fs.readFileSync(path.join(ROOT, 'CONTRIBUTING.md'), 'utf-8');
+    assert.match(text, /## Known limitations/);
+    assert.match(text, /Windows/);
+  });
+});
+
+// sdds/final-sweep item 4: the shipped playbooks and the AGENTS.md templates
+// describe the current CLI and config.
+describe('honest claims — playbooks and AGENTS.md vs the CLI (sdds/final-sweep)', () => {
+  const SKILL_DIR = path.join(ROOT, '.agents', 'skills', 'clckernel_cli');
+  const skill = (rel) => fs.readFileSync(path.join(SKILL_DIR, rel), 'utf-8');
+  const START_MATERIALIZES = /materiali[sz]e `?\.clckernel\.yaml|initiali[sz]e `?\.clckernel\.yaml/i;
+
+  function generatedAgentsMd() {
+    const texts = loadAdapters().map(({ adapter }) => {
+      const dir = createTmpProject({});
+      try {
+        adapter.provision(dir, {});
+        return fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8');
+      } finally {
+        teardown(dir);
+      }
+    });
+    const dir = createTmpProject({});
+    try {
+      generateHarness(dir, { projectType: 'backend', framework: 'Generic', testRunner: 'npm test', adapter: null });
+      texts.push(fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8'));
+    } finally {
+      teardown(dir);
+    }
+    return texts;
+  }
+
+  it('AGENTS.md templates name the real CLI options and never say start materializes the config', () => {
+    const texts = generatedAgentsMd();
+    for (const text of texts) assert.doesNotMatch(text, START_MATERIALIZES);
+    // Only the templates with a command table (fallback, multi-part, Agent-OS) describe commands.
+    const withTable = texts.filter((text) => text.includes('Universal Command Interface'));
+    assert.ok(withTable.length >= 2, 'expected the fallback and Agent-OS command tables');
+    for (const text of withTable) {
+      assert.match(text, /clckernel audit \[dir\] \[--change <name>\]/);
+      assert.match(text, /--dry-run/);
+      assert.match(text, /--add-guards/);
+      assert.match(text, /npx clckernel \. --yes/);
+    }
+  });
+
+  it('the skill never says start initializes the config', () => {
+    assert.doesNotMatch(skill('SKILL.md'), START_MATERIALIZES);
+  });
+
+  it('playbooks list every config key, severities included', () => {
+    for (const rel of ['reference/start.md', 'reference/doctor.md']) {
+      assert.match(skill(rel), /`severities`/, rel);
+    }
+  });
+
+  it('update.md runs the CLI and does not claim retired guards are moved', () => {
+    const text = skill('reference/update.md');
+    assert.match(text, /npx clckernel update/);
+    assert.match(text, /--dry-run/);
+    assert.match(text, /--add-guards/);
+    assert.doesNotMatch(text, /moved into `tools\/guards\/`/);
+    assert.match(text, /--hook/);
+  });
+
+  it('audit.md and doctor.md name the CLI entry points', () => {
+    assert.match(skill('reference/audit.md'), /clckernel audit \[dir\] \[--change <name>\]/);
+    assert.match(skill('reference/doctor.md'), /npx clckernel doctor/);
+  });
+});

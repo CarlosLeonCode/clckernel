@@ -15,21 +15,41 @@ const sections = [
         id: "installation",
         title: "Installation & Instant Setup",
         desc: "Provisions a complete AI agent governance harness in seconds, saving weeks of repetitive configuration and thousands of context tokens.",
-        code: `$ npx clckernel start
+        code: `$ npx clckernel            # interactive: shows the detected stack, asks before writing
+$ npx clckernel . --yes    # non-interactive (--dry-run prints the plan, writes nothing)
 
-# Scans project signature, creates .clckernel.yaml, links AI rules, and installs git hooks.`,
+# Detects the stack, writes AGENTS.md, the guards in tools/, the pre-commit hook,
+# the playbooks and the IDE mirrors. .clckernel.yaml is optional (defaults apply without it).`,
       },
       {
         id: "doctor",
         title: "Health Diagnostic (Doctor)",
-        desc: "Validates active git pre-commit hooks, test runners, and zero-dependency guard scripts.",
+        desc: "Checks AGENTS.md, sdds/, docs/Journal/, tools/, the pre-commit hook, that each tools/check_* guard loads (JS) or parses (Python), and the orchestrators' imports.",
         code: `$ npx clckernel doctor
 
-# Output:
-✔ Git pre-commit hook active (.husky/pre-commit)
-✔ Test runner operational (npm test / pytest)
-✔ Guard audit engine ready (Node.js & Python native)
-🟢 100% HEALTHY: System is fully governed.`,
+  ✔ [PASS] AGENTS.md law document
+  ✔ [PASS] sdds/ local spec directory
+  ✔ [PASS] docs/Journal/ ADR directory
+  ✔ [PASS] tools/ safeguard suite
+  ✔ [PASS] pre-commit git hooks
+  ✔ [PASS] tool/check_architecture.js loads
+  ...
+  HEALTHY  All 12 doctor checks passed.`,
+      },
+      {
+        id: "pre-commit-hook",
+        title: "The Pre-Commit Hook",
+        desc: "Written to .githooks/pre-commit (core.hooksPath is set to .githooks), or to .husky/pre-commit when Husky already runs the repository's hooks. It lists no guards: the audit orchestrators run every kernel and project guard once (tools/guards/ and unmanaged check_*/scan_*/verify_* files in tools/), the same set as clckernel audit. Then the stack's external tools run when they are available. Generated for a Next.js project:",
+        code: `#!/usr/bin/env bash
+set -e
+echo "Running CLC Kernel Next.js (App Router) Safeguards..."
+
+# Guards: the audit orchestrators run every guard in tools/ once (kernel and project guards).
+[ -f tools/audit.js ] || [ -f tools/audit.py ] || { echo "clckernel: no audit orchestrator in tools/" >&2; exit 1; }
+if [ -f tools/audit.js ]; then node tools/audit.js --hook; fi
+if [ -f tools/audit.py ]; then python3 tools/audit.py --hook; fi
+if [ -x node_modules/.bin/tsc ] >/dev/null 2>&1; then npx tsc --noEmit; else echo "clckernel: tsc not available, skipped"; fi
+if [ -x node_modules/.bin/lint-staged ] >/dev/null 2>&1; then npx lint-staged; else echo "clckernel: lint not available, skipped"; fi`,
       },
       {
         id: "rule-zero",
@@ -51,12 +71,12 @@ AI agents are STRICTLY FORBIDDEN from modifying source code directly without:
 $ clckernel feature <name>   -> Full AIUP cycle (Spec -> HIT -> TDD -> Implementation -> Audit)
 $ clckernel fix <issue>      -> Root cause investigation -> Failing regression test -> Fix -> Audit
 $ clckernel test             -> Runs stack test runner and verifies clean pass
-$ clckernel audit            -> Runs node tools/audit.js or audit.py and outputs summary
+$ clckernel audit            -> npx clckernel audit [dir] [--change <name>]: every installed orchestrator
 $ clckernel doctor           -> Checks git pre-commit hooks, IDE symlinks & guard scripts
 $ clckernel commit <message> -> Pre-flight audit, SDD scope check & Conventional Commit
 $ clckernel guard create <n> -> Scaffolds custom guard script in stack native language
-$ clckernel update           -> Non-destructive update of tools, playbooks & symlinks
-$ clckernel start            -> Auto-detects stack & generates .clckernel.yaml`,
+$ clckernel update           -> npx clckernel update [dir] [--dry-run] [--add-guards <a,b|all>]
+$ clckernel start            -> Agent: detects the stack, installs the harness if missing (npx clckernel . --yes)`,
       },
       {
         id: "update-project",
@@ -69,8 +89,9 @@ $ npx clckernel update
 > clckernel update
 
 # Non-Destructive Guarantee:
-✔ Refreshes: tools/audit.js, standard guards, .agents/skills/, IDE symlinks
-🔒 100% Preserved: sdds/ (specs), tools/guards/ (custom guards), .clckernel.yaml (config)`,
+✔ Refreshes: the kernel files you have (tools/, pre-commit hook, .agents/skills/, IDE mirrors)
+🔒 Kept: sdds/, project guards (tools/guards/), .clckernel.yaml, and kernel files you edited
+   (the new version is written next to them as <file>.clckernel-new)`,
       }
     ]
   },
@@ -121,23 +142,21 @@ $ npx clckernel update
       {
         id: "config-yaml",
         title: "Configuration (.clckernel.yaml)",
-        desc: "Enable, disable, or adjust thresholds for any safeguard layer in your repository manifest.",
-        code: `# .clckernel.yaml
-version: "1.2"
-framework: "rails" # or fastapi, django, nextjs, astro, golang, etc.
-test_runner: "bundle exec rspec"
-
-safeguards:
-  scan_secrets: true
-  check_architecture: true
-  check_db_efficiency: true
-  check_responsive: false # disable if backend-only
-  check_seo: false
-
-# Custom guard scripts (written in your stack's native language):
-custom_guards:
-  - name: "check_naming_conventions"
-    command: "ruby tools/guards/naming_guard.rb"`,
+        desc: "Optional. Keys: rules, exclude_paths, mirrors, hitl, update, tdd, severities (see the README Configuration table). Guards are chosen by the stack, not by this file; add more with clckernel update --add-guards.",
+        code: `# .clckernel.yaml (optional; every key below is optional)
+rules:
+  - name: no-console-log
+    pattern: 'console\\.log\\('
+    message: "Remove console.log before committing"
+exclude_paths: ["vendor/**"]
+mirrors:
+  list: [CLAUDE.md, .github/copilot-instructions.md]
+update:
+  exclude: [AGENTS.md]
+tdd:
+  ignore: ["scripts/**"]
+severities:
+  check_seo: warning`,
       },
       {
         id: "authoring-guards",

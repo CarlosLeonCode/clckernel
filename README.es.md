@@ -26,6 +26,7 @@ Los agentes de programación con IA (Cursor, Claude Code, Windsurf, Copilot) cod
 - [🔄 Actualización de Proyectos Existentes](#-actualización-de-proyectos-existentes)
 - [⚙️ Configuración (`.clckernel.yaml`)](#configuracion)
 - [🌐 Ecosistemas Soportados y Arquetipos](#-ecosistemas-soportados-y-arquetipos)
+- [⚠️ Limitaciones conocidas](#limitaciones-conocidas)
 - [🏛️ Arquitectura: Standalone vs. Simbiosis con Gentle AI](#-arquitectura-standalone-vs-simbiosis-con-gentle-ai)
 - [🧩 Herramientas Complementarias (Opcionales)](#-herramientas-complementarias-opcionales)
 - [📖 Glosario de Términos Clave](#-glosario-de-términos-clave)
@@ -109,7 +110,8 @@ npx clckernel   ───►   clckernel start   ───►   "Feature X con h
 
 ### 1️⃣ Paso 1: Inicializar el Repositorio (Terminal)
 ```bash
-npx clckernel start
+npx clckernel            # interactivo: muestra el stack detectado y pregunta antes de escribir
+npx clckernel . --yes    # no interactivo (con --dry-run solo muestra el plan)
 ```
 Detecta el framework, genera `AGENTS.md`, crea symlinks dinámicos para todos los IDEs (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`), provisiona hooks pre-commit e instala scripts de guards nativos en `tools/`.
 
@@ -117,7 +119,7 @@ Detecta el framework, genera `AGENTS.md`, crea symlinks dinámicos para todos lo
 Abrí Cursor, Claude Code, Gemini CLI, Windsurf o Copilot y escribí:
 > `clckernel start`
 
-El agente escanea tu código en silencio, propone un plan de gobernanza adaptado a tu stack y genera `.clckernel.yaml`.
+`start` es un comando del agente (la CLI lo rechaza): el agente escanea tu código, propone un plan de gobernanza adaptado a tu stack, instala el arnés con `npx clckernel . --yes` si falta y escribe `.clckernel.yaml` solo para los ajustes que quieras cambiar (el archivo es opcional).
 
 ### 3️⃣ Paso 3: Desarrollar con el Arnés AIUP
 Al solicitar una funcionalidad o corrección, indicá al agente:
@@ -163,7 +165,7 @@ CLC Kernel provee una gramática de comandos determinista soportada de forma nat
 | `clckernel commit <mensaje>` | Control de Versiones | Auditoría pre-flight, verificación de scope diff vs SDD y commit con Conventional Commits (cero atribución de IA). |
 | `clckernel guard create <nombre>` | Salvaguardas | Genera el scaffold de un nuevo script de guard en el lenguaje nativo del stack en `tools/guards/`; el hook de pre-commit y el audit ejecutan cada guard del proyecto (`tools/guards/*.js`/`*.py`, y los archivos `check_*`/`scan_*`/`verify_*` no gestionados en la raíz de `tools/`). |
 | `clckernel update` | Mantenimiento | Actualización no destructiva: refresca herramientas core, skills y symlinks de IDEs sin sobreescribir SDDs, guards personalizados ni `.clckernel.yaml`. |
-| `clckernel start` | Configuración | Detecta el stack automáticamente, propone el ciclo de vida AIUP y genera `.clckernel.yaml`. |
+| `clckernel start` | Configuración | Comando del agente: detecta el stack, propone el ciclo de vida AIUP e instala el arnés (`npx clckernel . --yes`) si falta; `.clckernel.yaml` es opcional y solo se escribe para ajustes distintos de los valores por defecto. |
 
 ---
 
@@ -308,6 +310,7 @@ otras formas de glob se ignoran.
 - **AGENTS.md** lista cada parte (directorio, stack, test runner) con las reglas de su stack; `clckernel
   update` vuelve a detectar las partes.
 
+<a id="rojo-verde-otros-stacks"></a>
 #### Rojo→Verde en Go, Rust, Ruby y PHP
 
 `tools/verify_tdd.js` (Node existe en todos los stacks) ejecuta los tests cambiados sobre el código staged (deben
@@ -326,6 +329,22 @@ asume los bin proxies de Composer 2.2+.
 Fuera de alcance: Agent-OS como parte de un monorepo, repositorios git anidados o submódulos, elegir partes
 manualmente en el prompt interactivo ("Elegir otro stack" instala un solo stack) y los workspaces de
 Go/Cargo/Composer (sus partes solo se detectan por los directorios convencionales).
+
+---
+
+<a id="limitaciones-conocidas"></a>
+## ⚠️ Limitaciones conocidas
+
+- **Windows no está probado.** El hook de pre-commit es un script de shell (`#!/usr/bin/env bash`, o `sh`
+  con Husky): en Windows necesita un bash/sh como Git Bash.
+- **La configuración propia de lint-staged / ESLint puede analizar los archivos del arnés en `tools/`.** Los
+  archivos del kernel están listados en `tools/.clckernel-managed.json`; conviene excluir `tools/` (o esas rutas)
+  en la configuración del linter.
+- **Tests unitarios inline de Rust** (`#[cfg(test)]`): no se pueden separar para la corrida roja; ver
+  [Rojo→Verde en Go, Rust, Ruby y PHP](#rojo-verde-otros-stacks).
+- **Los linters y test runners externos solo corren cuando están disponibles.** El hook ejecuta cada uno (tsc,
+  ruff, pytest, golangci-lint, cargo, …) cuando el proyecto lo tiene al momento del commit y, si no, imprime
+  `clckernel: <tool> not available, skipped`; los guards de `tools/` corren siempre.
 
 ---
 

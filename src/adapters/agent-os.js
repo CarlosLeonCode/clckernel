@@ -248,12 +248,12 @@ When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`,
 | \`clckernel feature <name>\` | New Feature | 1. Research affected layers.<br>2. Author local spec in \`sdds/{name}/spec.md\`.<br>3. Present HIT review to user and wait for approval.<br>4. Write failing test (Red Phase).<br>5. Implement clean code (Green Phase).<br>6. Run \`node tools/audit.js --change {name}\` (or \`audit.py --change {name}\`). |
 | \`clckernel fix <issue>\` | Bug Fix | 1. Investigate root cause (no code edits).<br>2. Reproduce with failing test (Red Phase).<br>3. Minimal surgical fix respecting Clean Arch (Green Phase).<br>4. Run audit gate without skipping. |
 | \`clckernel test\` | Verification | Run test suite and verify clean pass (exit code 0). |
-| \`clckernel audit\` | Verification | Run \`node tools/audit.js\` or \`python tools/audit.py\` and output the Educational Summary. |
-| \`clckernel doctor\` | Diagnostics | Check git pre-commit hooks, IDE symlinks, and guard script integrity. |
+| \`clckernel audit\` | Verification | Run \`npx clckernel audit [dir] [--change <name>]\` (every installed orchestrator: \`tools/audit.js\` and/or \`tools/audit.py\`) and output the Educational Summary; only \`--change\` writes the report to \`sdds/<name>/\`. |
+| \`clckernel doctor\` | Diagnostics | Run \`npx clckernel doctor [dir]\`: checks AGENTS.md, sdds/, tools/, the pre-commit hook and that the guard scripts load. |
 | \`clckernel commit <message>\` | Version Control | Run full audit, verify tests pass, ensure no changes outside SDD scope, and commit with conventional commits (never add AI attribution). |
 | \`clckernel guard create <name>\` | Safeguards | Scaffold a new guard script in the stack's native language in \`tools/guards/\`. |
-| \`clckernel update\` | Maintenance | Non-destructive update: refresh core tools, playbooks & symlinks (preserves SDDs & custom guards). |
-| \`clckernel start\` | Setup | Scan codebase, propose governance plan, and materialize \`.clckernel.yaml\`. |
+| \`clckernel update\` | Maintenance | Non-destructive update: run \`npx clckernel update [dir]\` (\`--dry-run\` previews, \`--add-guards <a,b\\|all>\` adds guards); refreshes kernel tools, hook, playbooks & symlinks (preserves SDDs, project guards, edited files & \`.clckernel.yaml\`). |
+| \`clckernel start\` | Setup | Scan codebase and propose a governance plan; if the harness is missing, install it with \`npx clckernel . --yes\`. \`.clckernel.yaml\` is optional: write it only for settings that differ from the defaults. |
 
 ---
 

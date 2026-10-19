@@ -102,6 +102,14 @@ Work follows the loop described in [AGENTS.md](AGENTS.md): research, plan, test,
 matrix covers Node 18, 20 and 22 with Python 3.9 and 3.13 (pytest installed, PyYAML deliberately absent). Each
 job runs `npm ci` and `npm test`; the Node 22 / Python 3.13 job also runs `node tools/audit.js`.
 
+## Known limitations
+
+- **Windows is not tested.** CI runs on Linux (ubuntu-latest); the generated hooks and this repository's
+  hook are bash/sh scripts, so on Windows they need Git Bash. Report Windows problems as issues.
+- The limitations users see (lint-staged/ESLint and `tools/`, Rust inline unit tests, external tools that
+  run only when available) are listed in [README → Known limitations](README.md#known-limitations); keep that
+  list current when a change adds or removes one.
+
 ## License
 
 By contributing, you agree that your contributions are licensed under the [MIT License](LICENSE).

@@ -22,9 +22,11 @@ const stacks = isEs ? [
     snippet: `// Detected: Next.js App Router (TypeScript)
 // Initialized: .cursorrules, CLAUDE.md, AGY rules
 // Audit Engine: Node.js pattern-based guards
-✔ Hook installed: .husky/pre-commit -> node tools/scan_secrets.js,
-  check_a11y, check_responsive, check_seo, check_ui_reuse,
-  check_architecture, check_performance, check_custom
+✔ Hook instalado: .githooks/pre-commit (.husky/pre-commit si Husky ya ejecuta los hooks)
+  -> node tools/audit.js --hook: scan_secrets, check_a11y, check_responsive, check_seo,
+     check_ui_reuse, check_architecture, check_performance,
+     verify_tdd, check_custom + tools/guards/
+✔ Luego, si están disponibles: npx tsc --noEmit, npx lint-staged
 ✔ Enforcing: Mobile-first CSS & Clean Layer Isolation`,
   },
   {
@@ -39,9 +41,10 @@ const stacks = isEs ? [
     snippet: `# Detected: FastAPI Backend (Python 3.11+)
 # Initialized: GEMINI.md, CLAUDE.md, .cursorrules
 # Audit Engine: Python Native ast Module
-✔ Hook installed: .githooks/pre-commit -> python3 tools/scan_secrets.py,
-  check_architecture, check_db_efficiency, check_migrations,
-  verify_tdd, check_custom
+✔ Hook instalado: .githooks/pre-commit
+  -> python3 tools/audit.py --hook: scan_secrets, check_architecture, check_db_efficiency,
+     check_migrations, verify_tdd, check_custom + tools/guards/
+✔ Luego, si están disponibles: python3 -m ruff check ., python3 -m pytest
 ✔ Enforcing: Red→Green TDD Verifier & N+1 Heuristic`,
   },
   {
@@ -56,8 +59,10 @@ const stacks = isEs ? [
     snippet: `# Detected: Django Enterprise Stack
 # Initialized: CLAUDE.md, .antigravity/rules.md
 # Audit Engine: Python Native ast Module
-✔ Hook installed: .githooks/pre-commit -> python3 tools/scan_secrets.py,
-  check_architecture, check_db_efficiency, verify_tdd, check_custom
+✔ Hook instalado: .githooks/pre-commit
+  -> python3 tools/audit.py --hook: scan_secrets, check_architecture, check_db_efficiency,
+     verify_tdd, check_custom + tools/guards/
+✔ Luego, si están disponibles: python3 -m ruff check ., python3 manage.py test
 ✔ Enforcing: Red→Green TDD Verifier & N+1 Heuristic`,
   },
   {
@@ -72,7 +77,10 @@ const stacks = isEs ? [
     snippet: `// Detected: Astro Islands Architecture
 // Initialized: .cursor/rules/*.mdc, CLAUDE.md
 // Audit Engine: Node.js pattern-based guards
-✔ Hook installed: .husky/pre-commit
+✔ Hook instalado: .githooks/pre-commit (.husky/pre-commit si Husky ya ejecuta los hooks)
+  -> node tools/audit.js --hook: scan_secrets, check_a11y, check_responsive, check_seo,
+     verify_tdd, check_custom + tools/guards/
+✔ Luego, si están disponibles: npx astro check, npx vitest run
 ✔ Enforcing: Zero-JS Defaults & 44x44px Touch Targets`,
   },
   {
@@ -82,15 +90,16 @@ const stacks = isEs ? [
     icon: "💎",
     detection: "Gemfile (rails)",
     runner: "bundle exec rspec",
-    gate: ".githooks/pre-commit",
+    gate: "node tools/audit.js",
     rules: "Custom Rules + RuboCop / Brakeman (when installed)",
     snippet: `# Detected: Ruby on Rails Application (Ruby 3.2+)
 # Initialized: .cursorrules, CLAUDE.md, .antigravity/rules.md
 # Audit Engine: RuboCop + Brakeman (external CLIs)
-✔ Hook installed: .githooks/pre-commit -> node tools/check_custom.js
-✔ Added when installed: bundle exec rubocop --parallel,
+✔ Hook instalado: .githooks/pre-commit
+  -> node tools/audit.js --hook: scan_secrets, verify_tdd, check_custom + tools/guards/
+✔ Luego, si están disponibles: bundle exec rubocop --parallel,
   bundle exec brakeman -q, bundle exec rspec
-✔ Enforcing: Custom rules (.clckernel.yaml) & TDD protocol (agent-enforced)`,
+✔ Enforcing: Custom rules (.clckernel.yaml) & Red→Green TDD Verifier`,
   },
   {
     id: "golang",
@@ -99,13 +108,14 @@ const stacks = isEs ? [
     icon: "🔷",
     detection: "go.mod",
     runner: "go test ./...",
-    gate: ".githooks/pre-commit",
+    gate: "node tools/audit.js",
     rules: "Custom Rules + golangci-lint (when installed)",
     snippet: `// Detected: Go Microservices Suite (Go 1.22+)
 // Initialized: CLAUDE.md, .antigravity/rules.md
 // Audit Engine: golangci-lint (external CLI)
-✔ Hook installed: .githooks/pre-commit -> node tools/check_custom.js
-✔ Added when installed: golangci-lint run, go test ./...
+✔ Hook instalado: .githooks/pre-commit
+  -> node tools/audit.js --hook: scan_secrets, verify_tdd, check_custom + tools/guards/
+✔ Luego, si están disponibles: golangci-lint run, go test ./...
 ✔ Enforcing: Custom rules (.clckernel.yaml) & Scope protocol (agent-enforced)`,
   },
   {
@@ -115,14 +125,15 @@ const stacks = isEs ? [
     icon: "🦀",
     detection: "Cargo.toml",
     runner: "cargo test",
-    gate: ".githooks/pre-commit",
+    gate: "node tools/audit.js",
     rules: "Custom Rules + Clippy / cargo audit (when installed)",
     snippet: `// Detected: Rust High-Performance Engine (Cargo)
 // Initialized: .cursorrules, CLAUDE.md
 // Audit Engine: cargo clippy + cargo audit (external CLIs)
-✔ Hook installed: .githooks/pre-commit -> node tools/check_custom.js
-✔ Added when installed: cargo clippy -- -D warnings, cargo audit,
-  cargo test
+✔ Hook instalado: .githooks/pre-commit
+  -> node tools/audit.js --hook: scan_secrets, verify_tdd, check_custom + tools/guards/
+✔ Luego, si están disponibles: cargo clippy -- -D warnings,
+  cargo audit, cargo test
 ✔ Enforcing: Custom rules (.clckernel.yaml) & Scope protocol (agent-enforced)`,
   },
   {
@@ -132,14 +143,15 @@ const stacks = isEs ? [
     icon: "🐘",
     detection: "composer.json (laravel/framework)",
     runner: "php artisan test",
-    gate: ".githooks/pre-commit",
+    gate: "node tools/audit.js",
     rules: "Custom Rules + PHPStan (when installed)",
     snippet: `// Detected: Laravel Application (PHP 8.2+)
 // Initialized: .cursorrules, CLAUDE.md
 // Audit Engine: PHPStan (external CLI)
-✔ Hook installed: .githooks/pre-commit -> python3 tools/check_custom.py
-✔ Added when installed: ./vendor/bin/phpstan analyse, php artisan test
-✔ Enforcing: Custom rules (.clckernel.yaml) & TDD protocol (agent-enforced)`,
+✔ Hook instalado: .githooks/pre-commit
+  -> node tools/audit.js --hook: scan_secrets, verify_tdd, check_custom + tools/guards/
+✔ Luego, si están disponibles: ./vendor/bin/phpstan analyse, php artisan test
+✔ Enforcing: Custom rules (.clckernel.yaml) & Red→Green TDD Verifier`,
   },
   {
     id: "agent-os",
@@ -153,10 +165,11 @@ const stacks = isEs ? [
     snippet: `// Detectado: Agent-OS & Domain Workflows
 // Inicializado: AGENTS.md Dual (Ingeniería + Dominio)
 // Motor de Auditoría: marcadores HITL, skills, links y placeholders
-✔ Hook instalado: .githooks/pre-commit -> node tools/check_symlinks.js,
-  check_hitl, check_skills, check_links, check_placeholders,
-  check_data_files, scan_secrets, verify_tdd, check_custom
-✔ Guards del proyecto: tools/guards/*.js y *.py`,
+✔ Hook instalado: .githooks/pre-commit
+  -> node tools/audit.js --hook: check_symlinks, check_hitl, check_skills, check_links,
+     check_placeholders, check_data_files, scan_secrets,
+     verify_tdd, check_custom + tools/guards/
+✔ Sin herramientas externas: solo guards`,
   },
 ] : [
   {
@@ -171,9 +184,11 @@ const stacks = isEs ? [
     snippet: `// Detected: Next.js App Router (TypeScript)
 // Initialized: .cursorrules, CLAUDE.md, AGY rules
 // Audit Engine: Node.js pattern-based guards
-✔ Hook installed: .husky/pre-commit -> node tools/scan_secrets.js,
-  check_a11y, check_responsive, check_seo, check_ui_reuse,
-  check_architecture, check_performance, check_custom
+✔ Hook installed: .githooks/pre-commit (.husky/pre-commit if Husky already runs your hooks)
+  -> node tools/audit.js --hook: scan_secrets, check_a11y, check_responsive, check_seo,
+     check_ui_reuse, check_architecture, check_performance,
+     verify_tdd, check_custom + tools/guards/
+✔ Then, when available: npx tsc --noEmit, npx lint-staged
 ✔ Enforcing: Mobile-first CSS & Clean Layer Isolation`,
   },
   {
@@ -188,9 +203,10 @@ const stacks = isEs ? [
     snippet: `# Detected: FastAPI Backend (Python 3.11+)
 # Initialized: GEMINI.md, CLAUDE.md, .cursorrules
 # Audit Engine: Python Native ast Module
-✔ Hook installed: .githooks/pre-commit -> python3 tools/scan_secrets.py,
-  check_architecture, check_db_efficiency, check_migrations,
-  verify_tdd, check_custom
+✔ Hook installed: .githooks/pre-commit
+  -> python3 tools/audit.py --hook: scan_secrets, check_architecture, check_db_efficiency,
+     check_migrations, verify_tdd, check_custom + tools/guards/
+✔ Then, when available: python3 -m ruff check ., python3 -m pytest
 ✔ Enforcing: Red→Green TDD Verifier & N+1 Heuristic`,
   },
   {
@@ -205,8 +221,10 @@ const stacks = isEs ? [
     snippet: `# Detected: Django Enterprise Stack
 # Initialized: CLAUDE.md, .antigravity/rules.md
 # Audit Engine: Python Native ast Module
-✔ Hook installed: .githooks/pre-commit -> python3 tools/scan_secrets.py,
-  check_architecture, check_db_efficiency, verify_tdd, check_custom
+✔ Hook installed: .githooks/pre-commit
+  -> python3 tools/audit.py --hook: scan_secrets, check_architecture, check_db_efficiency,
+     verify_tdd, check_custom + tools/guards/
+✔ Then, when available: python3 -m ruff check ., python3 manage.py test
 ✔ Enforcing: Red→Green TDD Verifier & N+1 Heuristic`,
   },
   {
@@ -221,7 +239,10 @@ const stacks = isEs ? [
     snippet: `// Detected: Astro Islands Architecture
 // Initialized: .cursor/rules/*.mdc, CLAUDE.md
 // Audit Engine: Node.js pattern-based guards
-✔ Hook installed: .husky/pre-commit
+✔ Hook installed: .githooks/pre-commit (.husky/pre-commit if Husky already runs your hooks)
+  -> node tools/audit.js --hook: scan_secrets, check_a11y, check_responsive, check_seo,
+     verify_tdd, check_custom + tools/guards/
+✔ Then, when available: npx astro check, npx vitest run
 ✔ Enforcing: Zero-JS Defaults & 44x44px Touch Targets`,
   },
   {
@@ -231,15 +252,16 @@ const stacks = isEs ? [
     icon: "💎",
     detection: "Gemfile (rails)",
     runner: "bundle exec rspec",
-    gate: ".githooks/pre-commit",
+    gate: "node tools/audit.js",
     rules: "Custom Rules + RuboCop / Brakeman (when installed)",
     snippet: `# Detected: Ruby on Rails Application (Ruby 3.2+)
 # Initialized: .cursorrules, CLAUDE.md, .antigravity/rules.md
 # Audit Engine: RuboCop + Brakeman (external CLIs)
-✔ Hook installed: .githooks/pre-commit -> node tools/check_custom.js
-✔ Added when installed: bundle exec rubocop --parallel,
+✔ Hook installed: .githooks/pre-commit
+  -> node tools/audit.js --hook: scan_secrets, verify_tdd, check_custom + tools/guards/
+✔ Then, when available: bundle exec rubocop --parallel,
   bundle exec brakeman -q, bundle exec rspec
-✔ Enforcing: Custom rules (.clckernel.yaml) & TDD protocol (agent-enforced)`,
+✔ Enforcing: Custom rules (.clckernel.yaml) & Red→Green TDD Verifier`,
   },
   {
     id: "golang",
@@ -248,13 +270,14 @@ const stacks = isEs ? [
     icon: "🔷",
     detection: "go.mod",
     runner: "go test ./...",
-    gate: ".githooks/pre-commit",
+    gate: "node tools/audit.js",
     rules: "Custom Rules + golangci-lint (when installed)",
     snippet: `// Detected: Go Microservices Suite (Go 1.22+)
 // Initialized: CLAUDE.md, .antigravity/rules.md
 // Audit Engine: golangci-lint (external CLI)
-✔ Hook installed: .githooks/pre-commit -> node tools/check_custom.js
-✔ Added when installed: golangci-lint run, go test ./...
+✔ Hook installed: .githooks/pre-commit
+  -> node tools/audit.js --hook: scan_secrets, verify_tdd, check_custom + tools/guards/
+✔ Then, when available: golangci-lint run, go test ./...
 ✔ Enforcing: Custom rules (.clckernel.yaml) & Scope protocol (agent-enforced)`,
   },
   {
@@ -264,14 +287,15 @@ const stacks = isEs ? [
     icon: "🦀",
     detection: "Cargo.toml",
     runner: "cargo test",
-    gate: ".githooks/pre-commit",
+    gate: "node tools/audit.js",
     rules: "Custom Rules + Clippy / cargo audit (when installed)",
     snippet: `// Detected: Rust High-Performance Engine (Cargo)
 // Initialized: .cursorrules, CLAUDE.md
 // Audit Engine: cargo clippy + cargo audit (external CLIs)
-✔ Hook installed: .githooks/pre-commit -> node tools/check_custom.js
-✔ Added when installed: cargo clippy -- -D warnings, cargo audit,
-  cargo test
+✔ Hook installed: .githooks/pre-commit
+  -> node tools/audit.js --hook: scan_secrets, verify_tdd, check_custom + tools/guards/
+✔ Then, when available: cargo clippy -- -D warnings,
+  cargo audit, cargo test
 ✔ Enforcing: Custom rules (.clckernel.yaml) & Scope protocol (agent-enforced)`,
   },
   {
@@ -281,14 +305,15 @@ const stacks = isEs ? [
     icon: "🐘",
     detection: "composer.json (laravel/framework)",
     runner: "php artisan test",
-    gate: ".githooks/pre-commit",
+    gate: "node tools/audit.js",
     rules: "Custom Rules + PHPStan (when installed)",
     snippet: `// Detected: Laravel Application (PHP 8.2+)
 // Initialized: .cursorrules, CLAUDE.md
 // Audit Engine: PHPStan (external CLI)
-✔ Hook installed: .githooks/pre-commit -> python3 tools/check_custom.py
-✔ Added when installed: ./vendor/bin/phpstan analyse, php artisan test
-✔ Enforcing: Custom rules (.clckernel.yaml) & TDD protocol (agent-enforced)`,
+✔ Hook installed: .githooks/pre-commit
+  -> node tools/audit.js --hook: scan_secrets, verify_tdd, check_custom + tools/guards/
+✔ Then, when available: ./vendor/bin/phpstan analyse, php artisan test
+✔ Enforcing: Custom rules (.clckernel.yaml) & Red→Green TDD Verifier`,
   },
   {
     id: "agent-os",
@@ -302,10 +327,11 @@ const stacks = isEs ? [
     snippet: `// Detected: Agent-OS & Domain Workflows
 // Initialized: Dual-Layer AGENTS.md (Dev + Domain)
 // Audit Engine: HITL markers, skills, links & placeholders
-✔ Hook installed: .githooks/pre-commit -> node tools/check_symlinks.js,
-  check_hitl, check_skills, check_links, check_placeholders,
-  check_data_files, scan_secrets, verify_tdd, check_custom
-✔ Project guards: tools/guards/*.js and *.py`,
+✔ Hook installed: .githooks/pre-commit
+  -> node tools/audit.js --hook: check_symlinks, check_hitl, check_skills, check_links,
+     check_placeholders, check_data_files, scan_secrets,
+     verify_tdd, check_custom + tools/guards/
+✔ No external tools: guards only`,
   },
 ];
 

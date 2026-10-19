@@ -14,16 +14,16 @@ const steps = isEs ? [
     id: "step1",
     num: "01",
     name: "Inicialización",
-    cmd: "npx clckernel start",
+    cmd: "npx clckernel . --yes",
     title: "Inicialización Interactiva y Detección de Stack",
-    desc: "Detecta automáticamente el framework (Next.js, FastAPI, Django, etc.), genera el manifiesto .clckernel.yaml e inyecta las leyes del repositorio para Cursor, Claude Code, Copilot y Antigravity.",
-    output: `$ npx clckernel start
-[clckernel] 🔍 Scanning workspace...
-[clckernel] ⚡ Detected framework: Next.js (TypeScript) + Vitest
-[clckernel] 📄 Generating .clckernel.yaml configuration...
-[clckernel] 🔗 Materializing rules: .cursorrules, CLAUDE.md, GEMINI.md, .github/copilot-instructions.md
-[clckernel] 🛡️  Installing Git pre-commit hooks (Husky / Native)...
-[clckernel] ✨ Governance harness initialized successfully!`,
+    desc: "Detecta automáticamente el framework (Next.js, FastAPI, Django, etc.), instala los guards y el hook de pre-commit, y vincula las leyes del repositorio (AGENTS.md) para Cursor, Claude Code, Copilot y Antigravity. .clckernel.yaml es opcional.",
+    output: `$ npx clckernel . --yes
+  🔍 Detected: Next.js (App Router) · Vitest / Jest · Git hooks: githooks
+  🛡️  9 guard(s): scan_secrets, check_a11y, check_responsive, check_seo,
+     check_ui_reuse, check_architecture, check_performance, verify_tdd, check_custom
+  📝 AGENTS.md, sdds/, docs/Journal/
+  🔒 Git hook: active hook .githooks/pre-commit (node tools/audit.js --hook)
+  🔗 Mirrors: CLAUDE.md, GEMINI.md, .cursorrules, .github/copilot-instructions.md -> AGENTS.md`,
   },
   {
     id: "step2",
@@ -68,7 +68,7 @@ const steps = isEs ? [
 ✔ Salvaguardas estándar actualizadas en tools/
 ✔ Playbooks y Skills agénticos actualizados en .agents/skills/
 ✔ Enlaces simbióticos de IDEs actualizados (Cursor, Claude, Copilot, Antigravity)
-✔ Hooks de git sincronizados
+✔ Hook de pre-commit regenerado (node tools/audit.js --hook)
 🔒 ACTIVOS PRESERVADOS AL 100%:
    • sdds/ (Especificaciones locales intactas)
    • tools/guards/ (Reglas y salvaguardas personalizadas intactas)
@@ -80,16 +80,16 @@ const steps = isEs ? [
     id: "step1",
     num: "01",
     name: "Initialization",
-    cmd: "npx clckernel start",
+    cmd: "npx clckernel . --yes",
     title: "Interactive Initialization & Stack Detection",
-    desc: "Auto-detects your ecosystem (Next.js, FastAPI, Django, etc.), generates .clckernel.yaml, and installs symbolic rule links for Cursor, Claude Code, Copilot, and Antigravity.",
-    output: `$ npx clckernel start
-[clckernel] 🔍 Scanning workspace...
-[clckernel] ⚡ Detected framework: Next.js (TypeScript) + Vitest
-[clckernel] 📄 Generating .clckernel.yaml configuration...
-[clckernel] 🔗 Materializing rules: .cursorrules, CLAUDE.md, GEMINI.md, .github/copilot-instructions.md
-[clckernel] 🛡️  Installing Git pre-commit hooks (Husky / Native)...
-[clckernel] ✨ Governance harness initialized successfully!`,
+    desc: "Auto-detects your ecosystem (Next.js, FastAPI, Django, etc.), installs the guards and the pre-commit hook, and links the repository law (AGENTS.md) for Cursor, Claude Code, Copilot, and Antigravity. .clckernel.yaml is optional.",
+    output: `$ npx clckernel . --yes
+  🔍 Detected: Next.js (App Router) · Vitest / Jest · Git hooks: githooks
+  🛡️  9 guard(s): scan_secrets, check_a11y, check_responsive, check_seo,
+     check_ui_reuse, check_architecture, check_performance, verify_tdd, check_custom
+  📝 AGENTS.md, sdds/, docs/Journal/
+  🔒 Git hook: active hook .githooks/pre-commit (node tools/audit.js --hook)
+  🔗 Mirrors: CLAUDE.md, GEMINI.md, .cursorrules, .github/copilot-instructions.md -> AGENTS.md`,
   },
   {
     id: "step2",
@@ -134,7 +134,7 @@ const steps = isEs ? [
 ✔ Core guard scripts refreshed in tools/
 ✔ Agent skills & playbooks updated in .agents/skills/
 ✔ Cross-IDE symlinks verified (Cursor, Claude, Copilot, Antigravity)
-✔ Git pre-commit hooks synchronized
+✔ Pre-commit hook regenerated (node tools/audit.js --hook)
 🔒 100% PRESERVED INTACT:
    • sdds/ (All local specifications preserved)
    • tools/guards/ (All custom team guards preserved)

@@ -15,21 +15,41 @@ const sections = [
         id: "installation",
         title: "Instalación e Inicialización Inmediata",
         desc: "Aprovisiona un arnés completo de gobernanza en segundos, ahorrando semanas de configuración repetitiva y miles de tokens de contexto.",
-        code: `$ npx clckernel start
+        code: `$ npx clckernel            # interactivo: muestra el stack detectado y pregunta antes de escribir
+$ npx clckernel . --yes    # no interactivo (--dry-run muestra el plan sin escribir)
 
-# Escanea el proyecto, genera .clckernel.yaml, vincula reglas de IA e instala hooks de git.`,
+# Detecta el stack y escribe AGENTS.md, los guards en tools/, el hook de pre-commit,
+# los playbooks y los espejos de IDE. .clckernel.yaml es opcional (sin él rigen los valores por defecto).`,
       },
       {
         id: "doctor",
         title: "Diagnóstico de Salud (Doctor)",
-        desc: "Valida los hooks de git pre-commit activos, los test runners y los scripts de guards nativos sin dependencias.",
+        desc: "Verifica AGENTS.md, sdds/, docs/Journal/, tools/, el hook de pre-commit, que cada guard tools/check_* cargue (JS) o se analice sin errores (Python) y los imports de los orquestadores.",
         code: `$ npx clckernel doctor
 
-# Reporte de salud:
-✔ Hook de git pre-commit activo (.husky/pre-commit)
-✔ Test runner operativo (npm test / pytest)
-✔ Motor de auditoría de guards listo (Node.js & Python)
-🟢 100% SALUDABLE: El sistema está totalmente gobernado.`,
+  ✔ [PASS] AGENTS.md law document
+  ✔ [PASS] sdds/ local spec directory
+  ✔ [PASS] docs/Journal/ ADR directory
+  ✔ [PASS] tools/ safeguard suite
+  ✔ [PASS] pre-commit git hooks
+  ✔ [PASS] tool/check_architecture.js loads
+  ...
+  HEALTHY  All 12 doctor checks passed.`,
+      },
+      {
+        id: "pre-commit-hook",
+        title: "El Hook de Pre-Commit",
+        desc: "Se escribe en .githooks/pre-commit (core.hooksPath apunta a .githooks), o en .husky/pre-commit cuando Husky ya ejecuta los hooks del repositorio. No enumera guards: los orquestadores de auditoría ejecutan una vez cada guard del kernel y del proyecto (tools/guards/ y los check_*/scan_*/verify_* no gestionados en tools/), el mismo conjunto que clckernel audit. Después corren las herramientas externas del stack cuando están disponibles. Generado para un proyecto Next.js:",
+        code: `#!/usr/bin/env bash
+set -e
+echo "Running CLC Kernel Next.js (App Router) Safeguards..."
+
+# Guards: the audit orchestrators run every guard in tools/ once (kernel and project guards).
+[ -f tools/audit.js ] || [ -f tools/audit.py ] || { echo "clckernel: no audit orchestrator in tools/" >&2; exit 1; }
+if [ -f tools/audit.js ]; then node tools/audit.js --hook; fi
+if [ -f tools/audit.py ]; then python3 tools/audit.py --hook; fi
+if [ -x node_modules/.bin/tsc ] >/dev/null 2>&1; then npx tsc --noEmit; else echo "clckernel: tsc not available, skipped"; fi
+if [ -x node_modules/.bin/lint-staged ] >/dev/null 2>&1; then npx lint-staged; else echo "clckernel: lint not available, skipped"; fi`,
       },
       {
         id: "rule-zero",
@@ -51,12 +71,12 @@ Los agentes IA tienen ESTRICTAMENTE PROHIBIDO modificar código fuente sin:
 $ clckernel feature <nombre> -> Ciclo AIUP completo (Spec -> HIT -> TDD -> Implementación -> Auditoría)
 $ clckernel fix <descrip>    -> Análisis de causa raíz -> Test de regresión -> Fix -> Auditoría
 $ clckernel test             -> Ejecuta suite de pruebas en el runner nativo y valida salida limpia
-$ clckernel audit            -> Ejecuta node tools/audit.js o audit.py y emite resumen
+$ clckernel audit            -> npx clckernel audit [dir] [--change <nombre>]: todos los orquestadores instalados
 $ clckernel doctor           -> Verifica hooks de Git, symlinks de IDEs y scripts de guards
 $ clckernel commit <mensaje> -> Auditoría pre-flight, verificación de scope SDD y commit convencional
 $ clckernel guard create <n> -> Genera el scaffold de un guard nativo en tools/guards/
-$ clckernel update           -> Actualización no destructiva de tools, playbooks y symlinks
-$ clckernel start            -> Detecta el stack y genera .clckernel.yaml`,
+$ clckernel update           -> npx clckernel update [dir] [--dry-run] [--add-guards <a,b|all>]
+$ clckernel start            -> Agente: detecta el stack e instala el arnés si falta (npx clckernel . --yes)`,
       },
       {
         id: "update-project",
@@ -69,8 +89,9 @@ $ npx clckernel update
 > clckernel update
 
 # Garantía No Destructiva:
-✔ Refresca: tools/audit.js, guards estándar, .agents/skills/, symlinks de IDEs
-🔒 100% Preservado: sdds/ (specs), tools/guards/ (guards propios), .clckernel.yaml (config)`,
+✔ Refresca: los archivos del kernel que el proyecto ya tiene (tools/, hook de pre-commit, .agents/skills/, espejos de IDE)
+🔒 Conserva: sdds/, guards del proyecto (tools/guards/), .clckernel.yaml y los archivos del kernel editados
+   (la versión nueva se escribe al lado como <archivo>.clckernel-new)`,
       }
     ]
   },
@@ -121,23 +142,21 @@ $ npx clckernel update
       {
         id: "config-yaml",
         title: "Configuración (.clckernel.yaml)",
-        desc: "Activa, desactiva o ajusta umbrales para cualquier capa de salvaguarda en el manifiesto del repositorio.",
-        code: `# .clckernel.yaml
-version: "1.2"
-framework: "rails" # o fastapi, django, nextjs, astro, golang, etc.
-test_runner: "bundle exec rspec"
-
-safeguards:
-  scan_secrets: true
-  check_architecture: true
-  check_db_efficiency: true
-  check_responsive: false # desactivar si es solo backend
-  check_seo: false
-
-# Scripts de salvaguarda personalizados (en el lenguaje nativo de tu stack):
-custom_guards:
-  - name: "check_naming_conventions"
-    command: "ruby tools/guards/naming_guard.rb"`,
+        desc: "Opcional. Claves: rules, exclude_paths, mirrors, hitl, update, tdd, severities (ver la tabla Configuración del README). Los guards los elige el stack, no este archivo; se agregan más con clckernel update --add-guards.",
+        code: `# .clckernel.yaml (optional; every key below is optional)
+rules:
+  - name: no-console-log
+    pattern: 'console\\.log\\('
+    message: "Remove console.log before committing"
+exclude_paths: ["vendor/**"]
+mirrors:
+  list: [CLAUDE.md, .github/copilot-instructions.md]
+update:
+  exclude: [AGENTS.md]
+tdd:
+  ignore: ["scripts/**"]
+severities:
+  check_seo: warning`,
       },
       {
         id: "authoring-guards",

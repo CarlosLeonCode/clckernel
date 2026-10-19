@@ -466,31 +466,31 @@ const steps = isEs ? [
           };
         case 4:
           return {
-            title: 'tools/audit.js — ast safeguard gate',
-            badge: 'AUDIT 100/100',
+            title: 'tools/audit.py — guard audit gate',
+            badge: 'VERDICT: PASSED',
             html: `
               <div class="space-y-2">
                 <div class="text-slate-400 flex items-center gap-2">
                   <span class="text-amber-400 font-bold">$</span>
-                  <span>node tools/audit.js --strict</span>
+                  <span>python3 tools/audit.py --change auth-jwt</span>
                 </div>
                 <div class="text-slate-300 pl-4 space-y-1 text-[11px] border-l-2 border-amber-500/40 my-2">
-                  <div>✔ scan_secrets: <span class="text-emerald-400">PASSED (0 hardcoded keys detected)</span></div>
-                  <div>✔ check_architecture: <span class="text-emerald-400">PASSED (No forbidden layer imports)</span></div>
-                  <div>✔ check_db_efficiency: <span class="text-emerald-400">PASSED (0 ORM-like calls in loops)</span></div>
-                  <div>✔ check_responsive: <span class="text-emerald-400">PASSED (Touch targets >= 44x44px)</span></div>
-                  <div class="text-slate-400">Execution latency: <span class="text-amber-300 font-bold">3.8ms</span> (zero-dependency guards)</div>
+                  <div>Discovered 6 guard(s): check_architecture, check_custom, check_db_efficiency, check_migrations, scan_secrets, verify_tdd</div>
+                  <div>🎯 verify tdd: <span class="text-emerald-400">TDD red-&gt;green verified: 1 test file(s) fail without the change and pass with it.</span></div>
+                  <div>🛡️ scan secrets: <span class="text-emerald-400">No secrets detected</span></div>
+                  <div>🏛️ check architecture: <span class="text-emerald-400">All architecture checks passed</span></div>
+                  <div>⚡ check db efficiency: <span class="text-emerald-400">All database efficiency &amp; performance checks passed</span></div>
                 </div>
                 <div class="text-amber-300 font-bold bg-amber-950/40 border border-amber-800/60 p-2.5 rounded-lg text-[11px]">
-                  ✔ Educational Code Summary: All architectural safeguards fully cleared
+                  Verdict: PASSED — report and receipt written to sdds/auth-jwt/
                 </div>
               </div>
             `
           };
         case 5:
           return {
-            title: '.husky/pre-commit — git hook',
-            badge: 'GIT SEALED',
+            title: '.githooks/pre-commit — git hook',
+            badge: 'GIT GATE',
             html: `
               <div class="space-y-2">
                 <div class="text-slate-400 flex items-center gap-2">
@@ -498,13 +498,16 @@ const steps = isEs ? [
                   <span>git commit -m "feat(auth): enforce jwt token expiration"</span>
                 </div>
                 <div class="text-slate-300 pl-4 space-y-1 text-[11px] border-l-2 border-violet-500/40 my-2">
-                  <div>[pre-commit] Validating git index against CLC Kernel law...</div>
-                  <div>[pre-commit] Running TDD test suite... <span class="text-emerald-400">OK</span></div>
-                  <div>[pre-commit] Running guard audit gate... <span class="text-emerald-400">OK (Exit: 0)</span></div>
-                  <div>[pre-commit] Authorization token generated: <span class="text-violet-300 font-mono">auth_7f99b2</span></div>
+                  <div class="text-slate-400"># hook: python3 tools/audit.py --hook, then ruff and pytest when available</div>
+                  <div>clckernel: <span class="text-emerald-400">ok</span> check_architecture: All architecture checks passed</div>
+                  <div>clckernel: <span class="text-emerald-400">ok</span> check_db_efficiency: All database efficiency &amp; performance checks passed</div>
+                  <div>clckernel: <span class="text-emerald-400">ok</span> scan_secrets: No secrets detected</div>
+                  <div>clckernel: <span class="text-emerald-400">ok</span> verify_tdd: TDD red-&gt;green verified</div>
+                  <div>python3 -m ruff check . <span class="text-emerald-400">All checks passed!</span></div>
+                  <div>python3 -m pytest <span class="text-emerald-400">2 passed</span></div>
                 </div>
                 <div class="text-violet-300 font-bold bg-violet-950/40 border border-violet-800/60 p-2.5 rounded-lg text-[11px]">
-                  ✔ Commit Authorized: pre-commit hook passed (--no-verify skips it; CI is the backstop).
+                  ✔ Commit created: pre-commit hook passed (--no-verify skips it; CI is the backstop).
                 </div>
               </div>
             `

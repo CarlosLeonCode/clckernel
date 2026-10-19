@@ -65,7 +65,7 @@ const isEs = lang === 'es';
           <div class="flex items-center justify-between gap-3 font-mono text-sm bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
             <div class="flex items-center gap-2 overflow-x-auto">
               <span class="text-cyan-600 select-none font-bold">$</span>
-              <span class="text-slate-900 select-all font-semibold">npx clckernel start</span>
+              <span class="text-slate-900 select-all font-semibold">npx clckernel</span>
             </div>
             <button 
               id="hero-copy-btn"
@@ -245,13 +245,13 @@ const isEs = lang === 'es';
                 <span class="w-1.5 h-1.5 rounded-full bg-cyan-600"></span>
                 <span>${isSpanish ? 'Terminal (Ejecución Única)' : 'Terminal (One-Time Setup)'}</span>
               </span>
-              <span class="text-cyan-700 font-semibold">$ npx clckernel start</span>
+              <span class="text-cyan-700 font-semibold">$ npx clckernel . --yes</span>
             </div>
             <div class="text-slate-800 space-y-1 pt-0.5">
-              <div class="text-emerald-700 font-semibold">✔ Stack detected: TypeScript + Next.js</div>
+              <div class="text-emerald-700 font-semibold">✔ Stack detected: Next.js (App Router)</div>
               <div class="text-slate-600">✔ Generated: <span class="text-slate-900 font-bold">AGENTS.md</span> (Single Source of Truth)</div>
               <div class="text-slate-600">✔ Dynamic Mirror: symlinked to <span class="text-indigo-700 font-bold">.cursorrules</span>, <span class="text-indigo-700 font-bold">CLAUDE.md</span>, <span class="text-indigo-700 font-bold">.antigravity</span></div>
-              <div class="text-slate-600">✔ Pre-commit lock: installed to <span class="text-slate-900 font-bold">.husky/pre-commit</span></div>
+              <div class="text-slate-600">✔ Pre-commit lock: <span class="text-slate-900 font-bold">.githooks/pre-commit</span> runs <span class="text-slate-900 font-bold">node tools/audit.js --hook</span></div>
             </div>
           </div>
           <div class="text-[11px] font-mono text-cyan-800 font-semibold bg-cyan-50 border border-cyan-200/80 p-2 rounded-lg flex items-center gap-1.5">
@@ -495,7 +495,7 @@ const isEs = lang === 'es';
     const heroCopyText = document.getElementById('copy-btn-text');
     if (heroCopyBtn && heroCopyText) {
       heroCopyBtn.addEventListener('click', () => {
-        navigator.clipboard.writeText('npx clckernel start');
+        navigator.clipboard.writeText('npx clckernel');
         heroCopyText.textContent = 'Copied!';
         heroCopyBtn.classList.replace('bg-slate-900', 'bg-emerald-700');
 

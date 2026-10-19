@@ -4,7 +4,7 @@ Use this playbook when auditing code quality, architecture compliance, or execut
 
 ## Execution
 
-1. **Locate Audit Tool:** Check available audit scripts:
+1. **Locate Audit Tool:** `npx clckernel audit [dir] [--change <name>]` runs every installed orchestrator for you. Or check the available audit scripts:
    - `node tools/audit.js` (JavaScript / Node environment)
    - `python tools/audit.py` (Python / Backend environment)
 2. **Execute Audit:** Run the tool within the project workspace. CLI (both scripts):

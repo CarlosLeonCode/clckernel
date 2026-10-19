@@ -175,6 +175,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- `check_scope.py` reads paths that start with a dot (`.agents/...`, `.clckernel.yaml`,
+  `.github/workflows/ci.yml`; extension-less dotfiles such as `` `.gitignore` `` in backticks) and no longer
+  truncates table cells (`| src/foo.js |` was read as `oo.js`) (sdds/final-sweep).
+- Docs and website describe the real hook (`.githooks/pre-commit` calling `tools/audit.js --hook` /
+  `tools/audit.py --hook`, `.husky/pre-commit` only when Husky already runs the hooks), the real install
+  command (`npx clckernel` / `npx clckernel . --yes`; `start` is an agent command) and only real
+  `.clckernel.yaml` keys. The AGENTS.md command tables and the playbooks name the CLI options (`--change`,
+  `--dry-run`, `--add-guards`) and no longer say `start` materializes `.clckernel.yaml`; the READMEs gained
+  a "Known limitations" section (sdds/final-sweep).
 - Install/update decide from the repository's own (`--local`) `core.hooksPath`: a global or system value
   (a user-wide hooks dir) no longer blocks setting `.githooks` nor makes a frontend project look like Husky.
   The local value is set and a note says a global `core.hooksPath` is configured (sdds/residual-fixes).

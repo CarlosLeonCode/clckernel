@@ -26,6 +26,7 @@ AI coding agents (Cursor, Claude Code, Windsurf, Copilot) code fast, but without
 - [🔄 Updating an Existing Project](#-updating-an-existing-project)
 - [⚙️ Configuration (`.clckernel.yaml`)](#configuration)
 - [🌐 Supported Stacks & Archetypes](#-supported-stacks--archetypes)
+- [⚠️ Known limitations](#known-limitations)
 - [🏛️ Architecture: Standalone vs. Gentle AI Symbiosis](#-architecture-standalone-vs-gentle-ai-symbiosis)
 - [🧩 Optional Ecosystem Companions](#-optional-ecosystem-companions)
 - [📖 Glossary of Key Terms](#-glossary-of-key-terms)
@@ -104,12 +105,13 @@ printed as `WARN` and does not fail the audit or the commit; a guard that crashe
 ```
 [1. Terminal]           [2. AI Chat]                 [3. TDD Loop]                 [4. Git Commit]
 npx clckernel   ───►   clckernel start   ───►   "Feature X with harness"   ───►   Pre-commit Hooks
-(Bootstrap)            (Interactive Setup)          (SDD -> HIT -> Tests)         (Guards & Secret Scan)
+(Install)              (Interactive Setup)          (SDD -> HIT -> Tests)         (Guards & Secret Scan)
 ```
 
 ### 1️⃣ Step 1: Bootstrap the Repository (Terminal)
 ```bash
-npx clckernel start
+npx clckernel            # interactive: shows the detected stack and asks before writing
+npx clckernel . --yes    # non-interactive (add --dry-run to print the plan only)
 ```
 Auto-detects your framework, generates `AGENTS.md`, creates dynamic IDE symlinks (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`), provisions pre-commit hooks, and installs native guard scripts in `tools/`.
 
@@ -117,7 +119,7 @@ Auto-detects your framework, generates `AGENTS.md`, creates dynamic IDE symlinks
 Open Cursor, Claude Code, Gemini CLI, Windsurf, or Copilot and type:
 > `clckernel start`
 
-The agent scans your codebase silently, proposes an AIUP governance plan tailored to your framework, and generates `.clckernel.yaml`.
+`start` is an agent command (the CLI rejects it): the agent scans your codebase, proposes an AIUP governance plan tailored to your framework, installs the harness with `npx clckernel . --yes` if it is missing, and writes `.clckernel.yaml` only for settings you want to change (the file is optional).
 
 ### 3️⃣ Step 3: Develop with the AIUP Harness
 When requesting features or bugfixes, instruct your agent:
@@ -163,7 +165,7 @@ CLC Kernel provides a deterministic command grammar supported natively by **Clau
 | `clckernel commit <message>` | Version Control | Pre-flight audit, verifies diff vs SDD scope, and commits with Conventional Commits (zero AI attribution). |
 | `clckernel guard create <name>` | Safeguards | Scaffolds a new guard script in the stack's native language in `tools/guards/`; the pre-commit hook and the audit run every project guard (`tools/guards/*.js`/`*.py`, and unmanaged `check_*`/`scan_*`/`verify_*` files at the top of `tools/`). |
 | `clckernel update` | Maintenance | Non-destructive update: refreshes core tools, skills & IDE symlinks without overwriting SDDs, custom guards, or `.clckernel.yaml`. |
-| `clckernel start` | Setup | Auto-detects stack, proposes AIUP lifecycle, and generates `.clckernel.yaml`. |
+| `clckernel start` | Setup | Agent command: auto-detects the stack, proposes the AIUP lifecycle, installs the harness (`npx clckernel . --yes`) if missing; `.clckernel.yaml` is optional and written only for non-default settings. |
 
 ---
 
@@ -304,6 +306,7 @@ ignored.
 - **AGENTS.md** lists every part (directory, stack, test runner) with each stack's rules; `clckernel update`
   re-detects the parts.
 
+<a id="red-green-other-stacks"></a>
 #### Red→Green on Go, Rust, Ruby and PHP
 
 `tools/verify_tdd.js` (Node is present on every stack) runs the changed tests on the staged code (must pass,
@@ -325,6 +328,21 @@ package; PHP assumes Composer 2.2+ bin proxies. Only committed or staged files e
 Not supported: Agent-OS as one part of a monorepo, nested git repositories or submodules, choosing parts by
 hand in the interactive prompt ("Choose another stack" installs a single stack), and Go/Cargo/Composer
 workspaces (their parts are found only through the conventional directories).
+
+---
+
+<a id="known-limitations"></a>
+## ⚠️ Known limitations
+
+- **Windows is not tested.** The pre-commit hook is a shell script (`#!/usr/bin/env bash`, or `sh` under
+  Husky): on Windows it needs a bash/sh such as Git Bash.
+- **Your own lint-staged / ESLint config may lint the harness files under `tools/`.** The kernel's files are
+  listed in `tools/.clckernel-managed.json`; exclude `tools/` (or those paths) in your linter config.
+- **Rust inline unit tests** (`#[cfg(test)]`) cannot be separated for the red run; see
+  [Red→Green on Go, Rust, Ruby and PHP](#red-green-other-stacks).
+- **External linters and test runners run only when available.** The hook runs each one (tsc, ruff, pytest,
+  golangci-lint, cargo, …) when the project has it at commit time and otherwise prints
+  `clckernel: <tool> not available, skipped`; the guards in `tools/` always run.
 
 ---
 

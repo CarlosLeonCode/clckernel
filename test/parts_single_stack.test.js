@@ -18,6 +18,11 @@
  * Regenerated for sdds/tdd-other-stacks: Go, Rust, Rails and Laravel install
  * tools/verify_tdd.js and their AGENTS.md safeguard line names the Red→Green
  * TDD Verifier; hooks and every other stack are byte-identical.
+ * Regenerated for sdds/final-sweep: only the AGENTS.md command tables of
+ * agent-os and generic changed — the feature row runs the audit with
+ * `--change`, the audit/doctor/update rows name the CLI (`--change`,
+ * `--dry-run`, `--add-guards`) and `start` no longer materializes
+ * .clckernel.yaml; hooks, config and tools/ are byte-identical.
  */
 const { describe, it } = require('node:test');
 const assert = require('node:assert');

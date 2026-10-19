@@ -36,19 +36,18 @@ const fileData = {
     badgeColor: 'bg-indigo-50 border-indigo-200 text-indigo-900',
     type: 'YAML • Config',
     desc: isEs
-      ? 'Declara qué capas de salvaguardas están activas en el repositorio. Permite agregar tus propios scripts de guards en Node.js/Python o desactivar capas por defecto según la arquitectura de tu equipo.'
-      : 'Declares active safeguard layers. Allows adding custom Node.js/Python guard scripts or toggling default layers according to team architecture.',
+      ? 'Configuración opcional: reglas regex propias (rules), rutas excluidas de los guards (exclude_paths), espejos de IDE, marcadores HITL, exclusiones de update, globs de TDD y severidad por guard. Los guards propios van en tools/guards/.'
+      : 'Optional config: custom regex rules (rules), paths kept out of the guards (exclude_paths), IDE mirrors, HITL markers, update exclusions, TDD globs and per-guard severity. Project guards live in tools/guards/.',
     codeTitle: '.clckernel.yaml',
     codeLang: 'yaml',
-    code: `version: "1.2"
-project_type: "fullstack"
-execution_phases:
-  - name: "scan_secrets"
-    command: "node tools/scan_secrets.js"
-  - name: "check_architecture"
-    command: "node tools/check_architecture.js"
-  - name: "custom_guard"
-    command: "python tools/custom_guard.py"`
+    code: `# Optional: without this file every default applies.
+rules:
+  - name: no-console-log
+    pattern: 'console\\.log\\('
+    message: "Remove console.log before committing"
+exclude_paths: ["vendor/**"]
+severities:
+  check_seo: warning`
   },
   'sdds_dir': {
     path: 'sdds/',

@@ -21,6 +21,35 @@ if _TOOLS_DIR not in sys.path:
 import _changes  # noqa: E402
 
 
+# A path with an extension, optionally starting with a dot
+# (src/a.js, .clckernel.yaml, .github/workflows/ci.yml).
+_PATH = r"\.?[A-Za-z_][\w./-]+\.\w+"
+# A dot-path without extension (.gitignore, .githooks/pre-commit): only
+# recognised in backticks, so prose such as "- .NET support" stays prose.
+_DOT_PATH = r"\.[A-Za-z_][\w./-]*"
+_BULLET_TICKED = re.compile(rf"\s*[-*]\s+`({_PATH}|{_DOT_PATH})`")
+_BULLET_BARE = re.compile(rf"\s*[-*]\s+({_PATH})(?=[.:,;)]?(?:\s|$))")
+_CELL_TICKED = re.compile(rf"`({_PATH}|{_DOT_PATH})`")
+_CELL_BARE = re.compile(_PATH)
+
+
+def _declared_in_line(line: str) -> list[str]:
+    """Paths one SDD line declares: the first token of a bullet, or every
+    table cell whose whole content is a path. Sentences declare nothing."""
+    m = _BULLET_TICKED.match(line) or _BULLET_BARE.match(line)
+    if m:
+        return [m.group(1)]
+    if not line.lstrip().startswith("|"):
+        return []
+    found = []
+    for cell in line.strip().strip("|").split("|"):
+        cell = cell.strip()
+        m = _CELL_TICKED.fullmatch(cell) or _CELL_BARE.fullmatch(cell)
+        if m:
+            found.append(m.group(1) if m.groups() else m.group(0))
+    return found
+
+
 def _find_sdd_declared_files(target_dir: str) -> list[str] | None:
     """
     Find declared affected files from the active SDD directory.
@@ -54,14 +83,7 @@ def _find_sdd_declared_files(target_dir: str) -> list[str] | None:
         # Look for file references in common SDD patterns
         # Pattern: `- path/to/file` or `| path/to/file |`
         for line in content.splitlines():
-            # Match bullet-point file paths
-            m = re.match(r"\s*[-*]\s+`?([a-zA-Z_][\w./-]+\.\w+)`?", line)
-            if m:
-                declared.append(m.group(1))
-            # Match table cell file paths
-            m = re.match(r"\s*\|[^|]*`?([a-zA-Z_][\w./-]+\.\w+)`?[^|]*\|", line)
-            if m:
-                declared.append(m.group(1))
+            declared.extend(_declared_in_line(line))
 
     # Deduplicate while preserving order
     seen: set[str] = set()

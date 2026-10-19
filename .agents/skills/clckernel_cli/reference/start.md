@@ -23,8 +23,12 @@ Present detected stack and proposal clearly:
 3. **STOP.** Wait for the user's response.
 
 ### Phase 3: Materialization
-1. Write or update `.clckernel.yaml` at project root, only with the keys the README "Configuration"
-   table lists (`rules`, `exclude_paths`, `mirrors`, `hitl`, `update`, `tdd`) and only what differs from
-   the defaults.
-2. If hooks are configured, ensure `.githooks/pre-commit` or `.husky/pre-commit` are provisioned.
+1. If the harness is not installed (no `AGENTS.md` / `tools/audit.js` / `tools/audit.py`), run
+   `npx clckernel . --yes` (`--dry-run` first to show the plan). The CLI writes the guards, the
+   pre-commit hook (`.githooks/pre-commit`, or `.husky/pre-commit` when Husky already runs the
+   repository's hooks), the playbooks and the IDE mirrors. Never write the hook by hand.
+2. `.clckernel.yaml` is optional: without it every default applies. Write it only when the user chose
+   a customization, only with the keys the README "Configuration" table lists (`rules`,
+   `exclude_paths`, `mirrors`, `hitl`, `update`, `tdd`, `severities`) and only what differs from the
+   defaults.
 3. Confirm completion with a concise summary.

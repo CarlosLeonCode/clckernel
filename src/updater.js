@@ -275,11 +275,11 @@ function injectUpdateRow(io, resolvedDir) {
   if (agentsContent.includes('| `clckernel start`')) {
     agentsContent = agentsContent.replace(
       '| `clckernel start`',
-      '| `clckernel update` | Maintenance | Non-destructive update: refresh core tools, playbooks & symlinks (preserves SDDs & custom guards). |\n| `clckernel start`'
+      '| `clckernel update` | Maintenance | Non-destructive update: run `npx clckernel update [dir]` (`--dry-run` previews, `--add-guards <a,b\\|all>` adds guards); refreshes kernel tools, hook, playbooks & symlinks (preserves SDDs, project guards, edited files & `.clckernel.yaml`). |\n| `clckernel start`'
     );
     io.writeFile(agentsPath, agentsContent);
   } else if (agentsContent.includes('## 3. Universal Command Interface')) {
-    agentsContent += '\n| `clckernel update` | Maintenance | Non-destructive update: refresh core tools, playbooks & symlinks (preserves SDDs & custom guards). |\n';
+    agentsContent += '\n| `clckernel update` | Maintenance | Non-destructive update: run `npx clckernel update [dir]` (`--dry-run` previews, `--add-guards <a,b\\|all>` adds guards); refreshes kernel tools, hook, playbooks & symlinks (preserves SDDs, project guards, edited files & `.clckernel.yaml`). |\n';
     io.writeFile(agentsPath, agentsContent);
   }
 }

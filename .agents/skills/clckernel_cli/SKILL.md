@@ -25,7 +25,7 @@ When the developer issues a \`clckernel <command>\` or \`/clckernel <command>\` 
 | `doctor` | Diagnostics | Check configuration health, hook parity, symlinks & guard scripts | [reference/doctor.md](reference/doctor.md) |
 | `commit` | Version Control | Pre-flight audit, verify SDD scope, and commit with Conventional Commits | [reference/commit.md](reference/commit.md) |
 | `update` | Maintenance | Non-destructive update: refresh core tools, playbooks & symlinks (preserves SDDs & custom guards) | [reference/update.md](reference/update.md) |
-| `start` | Setup | Discover tech stack & initialize `.clckernel.yaml` | [reference/start.md](reference/start.md) |
+| `start` | Setup | Discover tech stack, install the harness if missing (`npx clckernel . --yes`) & propose an optional `.clckernel.yaml` | [reference/start.md](reference/start.md) |
 | `create_guard` | Safeguards | Scaffold a new pattern-based/linter guard in native stack language | [reference/guard.md](reference/guard.md) |
 | `remove_guard` | Safeguards | Safely remove an existing guard and clean up config | [reference/guard.md](reference/guard.md) |
 | `phase` | Lifecycle | Add or remove pipeline execution phases | [reference/phase.md](reference/phase.md) |

@@ -5,29 +5,29 @@ Use this playbook when the user wants to update an existing project to the lates
 ## Invariants: The Non-Destructive Update Contract
 
 1. **NEVER DELETE OR OVERWRITE `sdds/`:** All local specifications (`sdds/*/spec.md`, `plan.md`) must stay 100% intact.
-2. **NEVER TOUCH CUSTOM GUARDS:** Any user-defined scripts under `tools/guards/` are preserved without alteration. Domain guards that earlier releases installed into `tools/` are moved into `tools/guards/` (never deleted; if a file with that name already exists there, both are kept and the update warns), and the update reports each move.
-3. **NEVER OVERWRITE CONFIGURATION:** Existing `.clckernel.yaml` settings (or a config under an older name) and custom thresholds remain intact.
-4. **NEVER MODIFY APPLICATION CODE:** Source files, domain layers, and application tests are never touched.
+2. **NEVER TOUCH PROJECT GUARDS:** Scripts under `tools/guards/` and unmanaged guard files at the top of `tools/` are preserved without alteration. A kernel guard the new release no longer ships stays where it is and keeps running as a project guard; nothing is moved or deleted.
+3. **NEVER OVERWRITE CONFIGURATION:** Existing `.clckernel.yaml` settings (or a config under an older name) remain intact.
+4. **NEVER OVERWRITE EDITED KERNEL FILES:** A kernel file the project edited is kept; the new version is written next to it as `<file>.clckernel-new`.
+5. **NEVER MODIFY APPLICATION CODE:** Source files, domain layers, and application tests are never touched.
 
 ## Update Sequence
 
-### Phase 1: Inspection & Detection
-1. Verify the project is already governed by checking for `AGENTS.md`, `.clckernel.yaml`, `.husky/pre-commit`, or `.githooks/pre-commit`.
-2. Inspect the active framework and test runner.
+### Phase 1: Inspection & Plan
+1. Verify the project is already governed by checking for `AGENTS.md`, `tools/.clckernel-managed.json`, `.githooks/pre-commit` or `.husky/pre-commit`.
+2. Run `npx clckernel update [dir] --dry-run` and show the plan (written, kept, excluded by `update.exclude`). Nothing is written.
+3. **STOP.** Wait for the user's approval of the plan.
 
-### Phase 2: Refresh Core Infrastructure
-1. Refresh bundled audit tools and guards in `tools/`:
-   - `tools/audit.js` / `tools/audit.py`
-   - Built-in guards (`scan_secrets.js`, `check_responsive.js`, `check_seo.js`, `check_db_efficiency.py`, `check_custom.js`, `docker_guard.py`, etc.)
-2. Refresh Agent Skills & Playbooks:
-   - Synchronize `.agents/skills/clckernel_cli/` with latest playbooks and references.
-3. Refresh Cross-IDE Rule Symlinks:
-   - Ensure `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.cursor/rules/*.mdc`, `.github/copilot-instructions.md`, and `.antigravity/rules.md` link to `AGENTS.md`.
-4. Refresh Pre-commit Hook:
-   - Ensure the git pre-commit hook runs the latest standard guards, then every project guard in `tools/guards/` (`*.js` with node, `*.py` with python3).
+### Phase 2: Run the Update
+1. Run `npx clckernel update [dir]`. It refreshes, in one pass:
+   - the kernel tools the project already has in `tools/` (`audit.js` / `audit.py`, guards, helpers) — update never adds a guard the project did not choose;
+   - the skill and playbooks in `.agents/skills/clckernel_cli/`;
+   - the IDE mirrors that link to `AGENTS.md`;
+   - the pre-commit hook, which calls `node tools/audit.js --hook` and/or `python3 tools/audit.py --hook` (every kernel and project guard, once) and then the stack's external tools when they are available.
+2. To install additional guards, add `--add-guards <a,b|all>` (e.g. `npx clckernel update . --add-guards check_skills`), only with the user's approval.
+3. Never copy or edit kernel files by hand to "refresh" them.
 
 ### Phase 3: Verification & Reporting
-1. Run `node tools/audit.js` or `python tools/audit.py` to verify harness health.
+1. Run `npx clckernel audit` (or `node tools/audit.js` / `python3 tools/audit.py`) to verify harness health.
 2. Output a transparent Educational Summary highlighting:
-   - What was updated (core tools, playbooks, symlinks)
-   - What was preserved (SDDs, custom guards, YAML configuration)
+   - What was updated (core tools, hook, playbooks, symlinks)
+   - What was preserved (SDDs, project guards, edited files kept with a `.clckernel-new` copy, YAML configuration)
