@@ -22,6 +22,22 @@ $ npx clckernel . --yes    # non-interactive (--dry-run prints the plan, writes 
 # the playbooks and the IDE mirrors. .clckernel.yaml is optional (defaults apply without it).`,
       },
       {
+        id: "after-install",
+        title: "What Happens After Install",
+        desc: "A real install (not --dry-run) ends with a Next steps block built from what was installed. When the hook is not active (no git repository, a subdirectory, or core.hooksPath owned by another hook manager), step 1 prints the activation command first. Step 2 lists only the mirrors this run wrote. Every generated AGENTS.md ends with a 'First session after install' section, read by every agent through its mirror (Claude Code, Gemini, Cursor, Copilot, Antigravity; Windsurf when .windsurfrules is in mirrors.list) or directly. While tools/.clckernel-managed.json exists and .clckernel.yaml does not, the agent does the user's request first; otherwise it explains what is installed and asks ONE question: run start or keep the defaults. Keeping the defaults writes a comment-only .clckernel.yaml, so the question is not asked again. update never rewrites an existing AGENTS.md, so projects installed earlier do not get this section.",
+        code: `$ npx clckernel . --yes
+...
+Next steps
+  1. Review and commit the harness: git add -A && git commit -m "chore: install clckernel"
+     The pre-commit hook (.githooks/pre-commit) runs on this commit.
+  2. Open your AI agent and ask it to run clckernel start to tailor the rules (.clckernel.yaml),
+     or just start working: it follows AGENTS.md.
+     AGENTS.md mirrors written for: Claude Code (CLAUDE.md), Gemini (GEMINI.md), Cursor, Copilot, Antigravity.
+  3. Run npx clckernel audit anytime to see every guard's result.
+  4. Project-specific checks go in tools/guards/ (the hook and the audit run them).
+  5. Later, preview kernel updates with npx clckernel update --dry-run.`,
+      },
+      {
         id: "doctor",
         title: "Health Diagnostic (Doctor)",
         desc: "Checks AGENTS.md, sdds/, docs/Journal/, tools/, the pre-commit hook, that each tools/check_* guard loads (JS) or parses (Python), and the orchestrators' imports.",
@@ -66,17 +82,18 @@ AI agents are STRICTLY FORBIDDEN from modifying source code directly without:
       {
         id: "universal-commands",
         title: "Universal Command Interface (All LLMs)",
-        desc: "Deterministic command grammar supported by Claude Code, Cursor, Codeium/Windsurf, Copilot, Gemini, and Antigravity via AGENTS.md mirror links.",
+        desc: "Command grammar defined in AGENTS.md, read by Claude Code, Gemini, Cursor, Copilot and Antigravity through the default mirrors (Windsurf when .windsurfrules is in mirrors.list), or directly by agents that read AGENTS.md.",
         code: `# Universal Command Grammar:
 $ clckernel feature <name>   -> Full AIUP cycle (Spec -> HIT -> TDD -> Implementation -> Audit)
 $ clckernel fix <issue>      -> Root cause investigation -> Failing regression test -> Fix -> Audit
 $ clckernel test             -> Runs stack test runner and verifies clean pass
 $ clckernel audit            -> npx clckernel audit [dir] [--change <name>]: every installed orchestrator
-$ clckernel doctor           -> Checks git pre-commit hooks, IDE symlinks & guard scripts
+$ clckernel doctor           -> npx clckernel doctor [dir]: AGENTS.md, sdds/, tools/, the hook, guard scripts load
 $ clckernel commit <message> -> Pre-flight audit, SDD scope check & Conventional Commit
 $ clckernel guard create <n> -> Scaffolds custom guard script in stack native language
 $ clckernel update           -> npx clckernel update [dir] [--dry-run] [--add-guards <a,b|all>]
-$ clckernel start            -> Agent: detects the stack, installs the harness if missing (npx clckernel . --yes)`,
+$ clckernel start            -> Agent: detects the stack, installs the harness if missing (npx clckernel . --yes);
+                                keeping the defaults writes a comment-only .clckernel.yaml`,
       },
       {
         id: "update-project",
@@ -105,7 +122,8 @@ $ npx clckernel update
         title: "Adaptive Out-of-the-Box Layers",
         desc: "CLC Kernel automatically provisions safeguards in your project's native runtime (Ruby, Python, Go, Node, PHP) with zero foreign dependencies.",
         code: `// Built-in Safeguards Catalog:
-1. scan_secrets         -> Blocks AWS/Stripe keys & JWT tokens (regex patterns)
+1. scan_secrets         -> Private keys, AWS/Stripe/OpenAI/Anthropic/Google/Slack/GitHub tokens, JWTs,
+                           secrets in committed .env files (regex patterns)
 2. check_architecture   -> Enforces Clean Arch layer isolation (Domain -> Use Case -> Infra)
 3. check_db_efficiency  -> N+1 heuristic: flags ORM-like calls inside loops (Python AST)
 4. check_responsive     -> Audits mobile-first CSS & 44x44px touch targets
@@ -187,10 +205,16 @@ process.exit(0);`,
         id: "harness-sync",
         title: "AI Agent Rules Synchronization",
         desc: "Automatically provisions and links rules for all major autonomous coding environments.",
-        code: `• Cursor & Windsurf  -> .cursorrules & .cursor/rules/*.mdc
-• Claude Code        -> CLAUDE.md (Terminal commands & TDD constraints)
-• Google Antigravity -> .antigravity/rules.md & native skills
-• GitHub Copilot     -> .github/copilot-instructions.md`,
+        code: `# Default mirrors (symlinks to AGENTS.md; change them with mirrors.list):
+• Claude Code        -> CLAUDE.md
+• Gemini             -> GEMINI.md
+• Cursor             -> .cursorrules & .cursor/rules/clckernel_context.mdc
+• GitHub Copilot     -> .github/copilot-instructions.md
+• Google Antigravity -> .antigravity/rules.md
+# Not created by default:
+• Windsurf           -> .windsurfrules (list it in mirrors.list before installing)
+• Codex, OpenCode    -> read AGENTS.md directly (no mirror needed)
+# The clckernel_cli skill and playbooks live in .agents/skills/clckernel_cli/`,
       },
       {
         id: "sdd-specs",
@@ -200,7 +224,8 @@ process.exit(0);`,
   └── {change-name}/
       ├── spec.md        # API contracts & layer scope boundaries
       ├── plan.md        # Step-by-step Red->Green TDD implementation
-      └── verification.md # Test receipts and guard audit pass proofs`,
+      ├── 05-audit-report.md  # written by clckernel audit --change {change-name}
+      └── audit-receipt.json  # (.js/.py pairs when both orchestrators are installed)`,
       },
       {
         id: "llm-command-dispatch",
@@ -215,9 +240,9 @@ $ claude
 > /clckernel fix "memory leak in session store"
 # Reads .cursorrules mirror, runs root cause analysis, and writes failing regression test.
 
-# Windsurf / Codeium Cascade:
+# Windsurf (with .windsurfrules in mirrors.list):
 > clckernel feature payment-webhooks
-# Automatically isolates layers and executes tools/audit.js before committing.
+# Reads the .windsurfrules mirror and runs tools/audit.js before committing.
 
 # GitHub Copilot (Agent Mode):
 > @workspace clckernel audit

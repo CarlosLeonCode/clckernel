@@ -22,6 +22,7 @@ AI coding agents (Cursor, Claude Code, Windsurf, Copilot) code fast, but without
 - [🏛️ The AI Unified Process (AIUP)](#️-the-ai-unified-process-aiup)
 - [🔍 Review-Driven Development (RDD) & the 4 Lenses](#-review-driven-development-rdd--the-4-lenses)
 - [⚡ Step-by-Step Guide (Full Lifecycle)](#-step-by-step-guide-full-lifecycle)
+- [🧭 What happens after install](#after-install)
 - [🎮 Universal Command Interface](#-universal-command-interface)
 - [🔄 Updating an Existing Project](#-updating-an-existing-project)
 - [⚙️ Configuration (`.clckernel.yaml`)](#configuration)
@@ -64,7 +65,7 @@ AI coding agents (Cursor, Claude Code, Windsurf, Copilot) code fast, but without
 2. **HIT (Human-in-the-Loop):** The engineer reviews and approves test scenarios and contracts before execution begins.
 3. **TDD (Red-to-Green):** Agent must prove failure with a failing regression test (Red Phase) before writing implementation code (Green Phase).
 4. **Guards (Deterministic Safeguards):** Pattern-based scripts (and Python `ast` parsers for Python stacks) inspect the staged diff; the pre-commit hook blocks non-compliant commits (`--no-verify` skips it; CI is the backstop).
-5. **SSOT (Single Source of Truth):** `AGENTS.md` is forged once and mirrored via filesystem symlinks to `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, and Copilot.
+5. **SSOT (Single Source of Truth):** `AGENTS.md` is forged once and mirrored via filesystem symlinks to `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.cursor/rules/clckernel_context.mdc`, `.github/copilot-instructions.md` and `.antigravity/rules.md` (the default `mirrors.list`).
 
 ---
 
@@ -90,6 +91,9 @@ nothing. Pass the SDD change it belongs to — `clckernel audit --change <name>`
 1. **Human-Readable Educational Report (`05-audit-report.md`):** Explains exactly what passed, failed, warned, or was skipped grouped by lens.
 2. **Machine-Readable Audit Receipt (`audit-receipt.json`):** An immutable JSON receipt bound to the active `commitHash` certifying the verdict (`PASSED`, `PASSED_WITH_WARNINGS` or `FAILED`) for automated review gates (such as Gentle AI).
 
+With both orchestrators installed (a mixed JS + Python stack), each writes its own pair so neither overwrites
+the other: `05-audit-report.js.md` / `audit-receipt.js.json` and `05-audit-report.py.md` / `audit-receipt.py.json`.
+
 Orchestrator CLI: `audit.(js|py) [targetDir] [--hook] [--change <name>] [--staged]`. `<name>` must be one path
 segment (letters, digits, `.`, `_`, `-`); `--staged` spells out the default snapshot (the staged changes, or
 the last commit when nothing is staged); `--hook` (used by the pre-commit hook) prints one line per guard and
@@ -113,13 +117,13 @@ npx clckernel   ───►   clckernel start   ───►   "Feature X with 
 npx clckernel            # interactive: shows the detected stack and asks before writing
 npx clckernel . --yes    # non-interactive (add --dry-run to print the plan only)
 ```
-Auto-detects your framework, generates `AGENTS.md`, creates dynamic IDE symlinks (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`), provisions pre-commit hooks, and installs native guard scripts in `tools/`.
+Auto-detects your framework, generates `AGENTS.md`, creates the AI agent mirrors (symlinks to `AGENTS.md`: `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.cursor/rules/clckernel_context.mdc`, `.github/copilot-instructions.md`, `.antigravity/rules.md`), writes the pre-commit hook, and installs native guard scripts in `tools/`. It ends with a **Next steps** block; see [What happens after install](#after-install).
 
 ### 2️⃣ Step 2: Initialize in Your AI Chat (Conversational CLI)
-Open Cursor, Claude Code, Gemini CLI, Windsurf, or Copilot and type:
+Open your AI agent (Claude Code, Gemini CLI, Cursor, Copilot, Antigravity, or any agent that reads `AGENTS.md`) and type:
 > `clckernel start`
 
-`start` is an agent command (the CLI rejects it): the agent scans your codebase, proposes an AIUP governance plan tailored to your framework, installs the harness with `npx clckernel . --yes` if it is missing, and writes `.clckernel.yaml` only for settings you want to change (the file is optional).
+`start` is an agent command (the CLI rejects it): the agent scans your codebase, proposes an AIUP governance plan tailored to your framework, installs the harness with `npx clckernel . --yes` if it is missing, and writes `.clckernel.yaml` only for settings you want to change (the file is optional). If you keep the defaults, it writes a `.clckernel.yaml` that holds only a comment, which ends the first-session onboarding.
 
 ### 3️⃣ Step 3: Develop with the AIUP Harness
 When requesting features or bugfixes, instruct your agent:
@@ -140,32 +144,88 @@ git commit -m "feat(auth): add user authentication endpoint"
 ```
 Pre-commit hooks automatically execute the installed guards (e.g. Clean Architecture, Secret Leaks, Migration Reversibility, depending on the stack). Any non-compliant commit is **blocked by the pre-commit hook** (`--no-verify` skips it; CI is the backstop).
 
-The hook does not list guards: it calls the audit orchestrators (`node tools/audit.js --hook`, `python3 tools/audit.py --hook`, each when installed) and then the stack's external tools (linters, test runners) when they are available. The orchestrators discover every guard — the kernel's and the project's own, either at the top of `tools/` (`check_*`, `scan_*`, `verify_*`, `*_guard`) or in `tools/guards/` — and run each exactly once, so the commit hook and `clckernel audit` always run the same set.
+The secret scan (`scan_secrets`, on every stack) matches private keys, AWS, Stripe, OpenAI, Anthropic, Google, Slack and GitHub tokens, JWTs, quoted key/secret/password assignments, and secret-named values in committed `.env` files (`.env.example`, `.env.sample` and `.env.template` are skipped).
+
+The hook is written to `.githooks/pre-commit` (and `core.hooksPath` is set to `.githooks` in the repository's local git config), or to `.husky/pre-commit` when Husky already runs the repository's hooks. `core.hooksPath` is left unchanged when the directory is not a git repository root or another hook manager owns it; the Next steps block then prints the command that activates the hook. The hook does not list guards: it calls the audit orchestrators (`node tools/audit.js --hook`, `python3 tools/audit.py --hook`, each when installed) and then the stack's external tools (linters, test runners) when they are available. The orchestrators discover every guard — the kernel's and the project's own, either at the top of `tools/` (`check_*`, `scan_*`, `verify_*`, `*_guard`) or in `tools/guards/` — and run each exactly once, so the commit hook and `clckernel audit` always run the same set.
 
 ### 5️⃣ Step 5: Verify Repository Health Anytime (Doctor)
 ```bash
 npx clckernel doctor
 ```
-Checks `AGENTS.md`, `sdds/`, `tools/`, test runners and Git hooks.
+Checks `AGENTS.md`, `sdds/`, `docs/Journal/`, `tools/`, the pre-commit hook, that each guard script loads (JS) or parses (Python), and the audit orchestrators' imports. It does not run the tests.
+
+---
+
+<a id="after-install"></a>
+## 🧭 What happens after install
+
+### In the terminal: Next steps
+A real install (not `--dry-run`) ends with a **Next steps** block built from what was installed. For a
+Next.js project in a git repository it reads:
+
+```text
+Next steps
+  1. Review and commit the harness: git add -A && git commit -m "chore: install clckernel"
+     The pre-commit hook (.githooks/pre-commit) runs on this commit.
+  2. Open your AI agent and ask it to run clckernel start to tailor the rules (.clckernel.yaml),
+     or just start working: it follows AGENTS.md.
+     AGENTS.md mirrors written for: Claude Code (CLAUDE.md), Gemini (GEMINI.md), Cursor, Copilot, Antigravity.
+  3. Run npx clckernel audit anytime to see every guard's result.
+  4. Project-specific checks go in tools/guards/ (the hook and the audit run them).
+  5. Later, preview kernel updates with npx clckernel update --dry-run.
+```
+
+- When the hook is not active (no git repository, a subdirectory of the repository, or `core.hooksPath`
+  owned by another hook manager), step 1 prints the activation command first, e.g.
+  `git init && git config core.hooksPath .githooks`, then the commit.
+- In a full-stack or monorepo install, step 1 adds that the hook runs the checks of every part from the
+  repository root.
+- Step 2 lists only the mirrors this run wrote or found up to date. A file of the same name that is not a
+  symlink (your own `CLAUDE.md`, for example) is kept, and that agent reads your file instead of `AGENTS.md`.
+  With no mirror written, step 2 says to use an agent that reads `AGENTS.md` itself.
+- `clckernel update` prints a shorter Next steps block only when something needs attention: a
+  `*.clckernel-new` copy to merge, or guards available with `--add-guards`.
+
+### In your AI agent: the first session
+Every AI harness reads the same law: Claude Code (`CLAUDE.md`), Gemini (`GEMINI.md`), Cursor
+(`.cursorrules`, `.cursor/rules/clckernel_context.mdc`), Copilot (`.github/copilot-instructions.md`) and
+Antigravity (`.antigravity/rules.md`) through the default mirrors; Windsurf through `.windsurfrules` when
+it is listed in `mirrors.list` at install time; agents such as Codex or OpenCode read `AGENTS.md` directly.
+
+Every generated `AGENTS.md` ends with a **First session after install** section. It applies while
+`tools/.clckernel-managed.json` exists and `.clckernel.yaml` does not:
+
+1. **Your request comes first.** If you ask for a task, the agent does it under the rules and mentions
+   onboarding once, in one sentence, at the end.
+2. **Otherwise it orients you briefly:** what the kernel installed (`tools/.clckernel-managed.json`) and what
+   the pre-commit hook runs on every commit.
+3. **It asks ONE question** and waits: tailor the rules now with `clckernel start`, or keep the defaults.
+   Keeping the defaults writes a `.clckernel.yaml` that holds only a comment, so the question is not asked
+   again.
+
+The `clckernel_cli` skill also triggers in that first session. Projects installed before this section
+existed do not get it on `update`: an existing `AGENTS.md` is never rewritten (update only adds the
+`clckernel update` row to its command table when missing). To get the section, copy it from a fresh
+install's `AGENTS.md`.
 
 ---
 
 <a id="universal-command-interface"></a>
 ## 🎮 Universal Command Interface (All LLMs & Agents)
 
-CLC Kernel provides a deterministic command grammar supported natively by **Claude Code, Cursor, Codeium/Windsurf, Copilot, Gemini, and Antigravity**:
+CLC Kernel defines a command grammar in `AGENTS.md`, which the agents read through their mirrors (**Claude Code, Gemini, Cursor, Copilot, Antigravity**; Windsurf when `.windsurfrules` is in `mirrors.list`) or directly (agents that read `AGENTS.md` themselves):
 
 | Command | Category | Mandatory Execution Protocol |
 |---|---|---|
 | `clckernel feature <name>` | Feature | Full AIUP cycle: Research -> Local Spec (`sdds/{name}/spec.md`) -> HIT review -> TDD Red Phase -> Green Implementation -> Audit. |
 | `clckernel fix <issue>` | Bug Fix | Root-cause analysis (no direct code edits) -> Failing regression test -> Surgical clean fix -> Audit gate. |
 | `clckernel test` | Verification | Runs repository test suite in the native stack runner and confirms clean pass. |
-| `clckernel audit` | Verification | Runs `node tools/audit.js` or `python tools/audit.py` and emits the Educational Summary; with `--change <name>` it also writes the report and receipt to `sdds/<name>/`. |
-| `clckernel doctor` | Diagnostics | Checks Git pre-commit hooks, IDE mirror symlinks, and guard script integrity. |
+| `clckernel audit` | Verification | Runs `node tools/audit.js` and/or `python3 tools/audit.py` and emits the Educational Summary; with `--change <name>` it also writes the report and receipt to `sdds/<name>/`. |
+| `clckernel doctor` | Diagnostics | Runs `npx clckernel doctor [dir]`: checks AGENTS.md, sdds/, tools/, the pre-commit hook and that the guard scripts load. |
 | `clckernel commit <message>` | Version Control | Pre-flight audit, verifies diff vs SDD scope, and commits with Conventional Commits (zero AI attribution). |
 | `clckernel guard create <name>` | Safeguards | Scaffolds a new guard script in the stack's native language in `tools/guards/`; the pre-commit hook and the audit run every project guard (`tools/guards/*.js`/`*.py`, and unmanaged `check_*`/`scan_*`/`verify_*` files at the top of `tools/`). |
 | `clckernel update` | Maintenance | Non-destructive update: refreshes core tools, skills & IDE symlinks without overwriting SDDs, custom guards, or `.clckernel.yaml`. |
-| `clckernel start` | Setup | Agent command: auto-detects the stack, proposes the AIUP lifecycle, installs the harness (`npx clckernel . --yes`) if missing; `.clckernel.yaml` is optional and written only for non-default settings. |
+| `clckernel start` | Setup | Agent command: auto-detects the stack, proposes the AIUP lifecycle, installs the harness (`npx clckernel . --yes`) if missing; `.clckernel.yaml` is optional and written only for non-default settings (keeping the defaults writes a comment-only file). |
 
 ---
 
@@ -340,6 +400,10 @@ workspaces (their parts are found only through the conventional directories).
   listed in `tools/.clckernel-managed.json`; exclude `tools/` (or those paths) in your linter config.
 - **Rust inline unit tests** (`#[cfg(test)]`) cannot be separated for the red run; see
   [Red→Green on Go, Rust, Ruby and PHP](#red-green-other-stacks).
+- **Existing installs keep their `AGENTS.md`.** `update` never rewrites it, so the *First session after
+  install* section and other template changes reach only fresh installs; copy them by hand if you want them.
+- **Windsurf has no default mirror.** List `.windsurfrules` in `mirrors.list` before installing; on an
+  existing install `update` does not add mirrors, so create it yourself (`ln -s AGENTS.md .windsurfrules`).
 - **External linters and test runners run only when available.** The hook runs each one (tsc, ruff, pytest,
   golangci-lint, cargo, …) when the project has it at commit time and otherwise prints
   `clckernel: <tool> not available, skipped`; the guards in `tools/` always run.
@@ -410,7 +474,7 @@ CLC Kernel focuses strictly on governance and runs with **zero foreign dependenc
 | **HIT / HITL** *(Human-in-the-Loop)* | A mandatory approval gate where a human engineer validates contracts, architecture decisions, and proposed tests before an autonomous agent executes production code edits. |
 | **TDD** *(Test-Driven Development)* | The engineering practice of writing a failing automated regression test (Red Phase) to reproduce an issue or specify a new feature before writing the minimal production code to make it pass (Green Phase). |
 | **Guard** *(Safeguard script)* | A lightweight, zero-dependency check in the stack's native language, run by the pre-commit hook. Most guards are pattern-based (regex); on Python stacks the layer, N+1 and Celery/Redis/Postgres guards parse code with Python `ast`. The hook blocks violations before commit (`--no-verify` skips it; CI is the backstop). |
-| **SSOT** *(Single Source of Truth)* | The centralized governance principle where `AGENTS.md` acts as the single source of truth, mirrored automatically to all AI IDE config files (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`, Copilot) via filesystem symlinks. |
+| **SSOT** *(Single Source of Truth)* | The centralized governance principle where `AGENTS.md` acts as the single source of truth, mirrored to the AI agent rule files (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.cursor/rules/clckernel_context.mdc`, `.github/copilot-instructions.md`, `.antigravity/rules.md`; configurable with `mirrors.list`) via filesystem symlinks. |
 | **Audit Receipt** | An immutable, machine-readable JSON artifact (`audit-receipt.json`) produced by the audit engine containing the timestamp, commit hash, per-lens verdicts, and Gentle AI RDD compatibility metadata. |
 | **ADR** *(Architectural Decision Record)* | A standardized document in `docs/Journal/` capturing significant architectural decisions, context, evaluated alternatives, and consequences. |
 | **Agent-OS** | An operating system archetype for non-tech domain workflows (e.g. Marketing OS, Content Ops, Research OS) made of skills, playbooks, rules, prompts and templates, governed by a dual-layer AGENTS.md, explicit HITL checkpoints and document guards (skill frontmatter, links, placeholders). |

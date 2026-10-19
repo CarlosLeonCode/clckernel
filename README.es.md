@@ -22,6 +22,7 @@ Los agentes de programación con IA (Cursor, Claude Code, Windsurf, Copilot) cod
 - [🏛️ El Proceso Unificado de IA (AIUP)](#️-el-proceso-unificado-de-ia-aiup)
 - [🔍 Desarrollo Guiado por Revisión (RDD) y los 4 Lentes](#-desarrollo-guiado-por-revisión-rdd-y-los-4-lentes)
 - [⚡ Guía Paso a Paso (Ciclo Completo)](#-guía-paso-a-paso-ciclo-completo)
+- [🧭 Qué ocurre después de instalar](#despues-de-instalar)
 - [🎮 Interfaz Universal de Comandos](#-interfaz-universal-de-comandos)
 - [🔄 Actualización de Proyectos Existentes](#-actualización-de-proyectos-existentes)
 - [⚙️ Configuración (`.clckernel.yaml`)](#configuracion)
@@ -64,7 +65,7 @@ Los agentes de programación con IA (Cursor, Claude Code, Windsurf, Copilot) cod
 2. **HIT (Human-in-the-Loop):** El ingeniero revisa y aprueba los contratos y escenarios de prueba antes del inicio de la implementación.
 3. **TDD (Rojo a Verde):** El agente debe demostrar un test de regresión fallido (Fase Roja) antes de escribir la solución en producción (Fase Verde).
 4. **Guards (Salvaguardas Deterministas):** Scripts basados en patrones (y parsers Python `ast` en stacks Python) inspeccionan el diff preparado; el hook pre-commit bloquea los commits no conformes (`--no-verify` lo omite; CI actúa como respaldo).
-5. **SSOT (Única Fuente de Verdad):** `AGENTS.md` se define una sola vez y se proyecta mediante symlinks hacia `CLAUDE.md`, `GEMINI.md`, `.cursorrules` y Copilot.
+5. **SSOT (Única Fuente de Verdad):** `AGENTS.md` se define una sola vez y se proyecta mediante symlinks hacia `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.cursor/rules/clckernel_context.mdc`, `.github/copilot-instructions.md` y `.antigravity/rules.md` (la `mirrors.list` por defecto).
 
 ---
 
@@ -85,10 +86,14 @@ CLC Kernel estructura todas sus compuertas de auditoría bajo los principios de 
 ```
 
 `clckernel audit` (o `node tools/audit.js` / `python3 tools/audit.py`) imprime el resumen de 4 lentes y no
-escribe nada. Pasale el cambio SDD al que pertenece — `clckernel audit --change <nombre>` (o
+escribe nada. Pásale el cambio SDD al que pertenece — `clckernel audit --change <nombre>` (o
 `node tools/audit.js --change <nombre>`) — y además escribe, solo en `sdds/<nombre>/`:
 1. **Informe Educativo para Humanos (`05-audit-report.md`):** Explica detalladamente qué pasó, falló, advirtió o fue omitido agrupado por cada lente.
 2. **Recibo Inmutable de Auditoría (`audit-receipt.json`):** Un archivo JSON inmutable y legible por máquina vinculado al `commitHash` actual que certifica el resultado (`PASSED`, `PASSED_WITH_WARNINGS` o `FAILED`) para compuertas automatizadas de revisión (como Gentle AI).
+
+Con ambos orquestadores instalados (un stack mixto JS + Python), cada uno escribe su propio par para no
+sobrescribir el del otro: `05-audit-report.js.md` / `audit-receipt.js.json` y `05-audit-report.py.md` /
+`audit-receipt.py.json`.
 
 CLI del orquestador: `audit.(js|py) [targetDir] [--hook] [--change <nombre>] [--staged]`. `<nombre>` debe ser un
 solo segmento de ruta (letras, dígitos, `.`, `_`, `-`); `--staged` explicita el snapshot por defecto (los cambios
@@ -113,16 +118,16 @@ npx clckernel   ───►   clckernel start   ───►   "Feature X con h
 npx clckernel            # interactivo: muestra el stack detectado y pregunta antes de escribir
 npx clckernel . --yes    # no interactivo (con --dry-run solo muestra el plan)
 ```
-Detecta el framework, genera `AGENTS.md`, crea symlinks dinámicos para todos los IDEs (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`), provisiona hooks pre-commit e instala scripts de guards nativos en `tools/`.
+Detecta el framework, genera `AGENTS.md`, crea los mirrors para los agentes de IA (symlinks a `AGENTS.md`: `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.cursor/rules/clckernel_context.mdc`, `.github/copilot-instructions.md`, `.antigravity/rules.md`), escribe el hook de pre-commit e instala scripts de guards nativos en `tools/`. Termina con un bloque **Next steps**; ver [Qué ocurre después de instalar](#despues-de-instalar).
 
 ### 2️⃣ Paso 2: Inicializar en el Chat del IDE (CLI Conversacional)
-Abrí Cursor, Claude Code, Gemini CLI, Windsurf o Copilot y escribí:
+Abre tu agente de IA (Claude Code, Gemini CLI, Cursor, Copilot, Antigravity o cualquier agente que lea `AGENTS.md`) y escribe:
 > `clckernel start`
 
-`start` es un comando del agente (la CLI lo rechaza): el agente escanea tu código, propone un plan de gobernanza adaptado a tu stack, instala el arnés con `npx clckernel . --yes` si falta y escribe `.clckernel.yaml` solo para los ajustes que quieras cambiar (el archivo es opcional).
+`start` es un comando del agente (la CLI lo rechaza): el agente escanea tu código, propone un plan de gobernanza adaptado a tu stack, instala el arnés con `npx clckernel . --yes` si falta y escribe `.clckernel.yaml` solo para los ajustes que quieras cambiar (el archivo es opcional). Si mantienes los valores por defecto, escribe un `.clckernel.yaml` que solo contiene un comentario, lo que cierra el onboarding de la primera sesión.
 
 ### 3️⃣ Paso 3: Desarrollar con el Arnés AIUP
-Al solicitar una funcionalidad o corrección, indicá al agente:
+Al solicitar una funcionalidad o corrección, indica al agente:
 > *"Implementa el endpoint de autenticación. **Usa el harness de CLC Kernel**."*
 
 El agente ejecutará de forma autónoma el ciclo AIUP completo:
@@ -140,39 +145,96 @@ git commit -m "feat(auth): add user authentication endpoint"
 ```
 Los hooks pre-commit ejecutan automáticamente los guards instalados (por ejemplo Clean Architecture, Fuga de Secretos o Reversibilidad de Migraciones, según el stack). Cualquier violación queda **bloqueada por el hook pre-commit** (`--no-verify` lo omite; CI actúa como respaldo).
 
-El hook no enumera guards: llama a los orquestadores de auditoría (`node tools/audit.js --hook`, `python3 tools/audit.py --hook`, cada uno si está instalado) y luego a las herramientas externas del stack (linters, test runners) cuando están disponibles. Los orquestadores descubren todos los guards — los del kernel y los propios del proyecto, ya sea en la raíz de `tools/` (`check_*`, `scan_*`, `verify_*`, `*_guard`) o en `tools/guards/` — y ejecutan cada uno exactamente una vez, así que el hook de commit y `clckernel audit` siempre ejecutan el mismo conjunto.
+El escaneo de secretos (`scan_secrets`, en todos los stacks) detecta claves privadas, tokens de AWS, Stripe, OpenAI, Anthropic, Google, Slack y GitHub, JWTs, asignaciones entre comillas de claves, secretos y contraseñas, y valores con nombre de secreto en archivos `.env` commiteados (se omiten `.env.example`, `.env.sample` y `.env.template`).
+
+El hook se escribe en `.githooks/pre-commit` (y `core.hooksPath` apunta a `.githooks` en la configuración local de git del repositorio), o en `.husky/pre-commit` cuando Husky ya ejecuta los hooks del repositorio. `core.hooksPath` no se modifica cuando el directorio no es la raíz de un repositorio git o cuando otro gestor de hooks lo controla; en ese caso el bloque Next steps imprime el comando que activa el hook. El hook no enumera guards: llama a los orquestadores de auditoría (`node tools/audit.js --hook`, `python3 tools/audit.py --hook`, cada uno si está instalado) y luego a las herramientas externas del stack (linters, test runners) cuando están disponibles. Los orquestadores descubren todos los guards — los del kernel y los propios del proyecto, ya sea en la raíz de `tools/` (`check_*`, `scan_*`, `verify_*`, `*_guard`) o en `tools/guards/` — y ejecutan cada uno exactamente una vez, así que el hook de commit y `clckernel audit` siempre ejecutan el mismo conjunto.
 
 ### 5️⃣ Paso 5: Auditar la Salud del Repositorio en Cualquier Momento (Doctor)
 ```bash
 npx clckernel doctor
 ```
-Verifica `AGENTS.md`, `sdds/`, `tools/`, los runners de pruebas y los hooks de Git.
+Verifica `AGENTS.md`, `sdds/`, `docs/Journal/`, `tools/`, el hook de pre-commit, que cada script de guard cargue (JS) o parsee (Python) y los imports de los orquestadores de auditoría. No ejecuta los tests.
+
+---
+
+<a id="despues-de-instalar"></a>
+## 🧭 Qué ocurre después de instalar
+
+### En la terminal: Next steps
+Una instalación real (no `--dry-run`) termina con un bloque **Next steps** construido a partir de lo que se
+instaló. La CLI lo imprime en inglés; para un proyecto Next.js dentro de un repositorio git dice:
+
+```text
+Next steps
+  1. Review and commit the harness: git add -A && git commit -m "chore: install clckernel"
+     The pre-commit hook (.githooks/pre-commit) runs on this commit.
+  2. Open your AI agent and ask it to run clckernel start to tailor the rules (.clckernel.yaml),
+     or just start working: it follows AGENTS.md.
+     AGENTS.md mirrors written for: Claude Code (CLAUDE.md), Gemini (GEMINI.md), Cursor, Copilot, Antigravity.
+  3. Run npx clckernel audit anytime to see every guard's result.
+  4. Project-specific checks go in tools/guards/ (the hook and the audit run them).
+  5. Later, preview kernel updates with npx clckernel update --dry-run.
+```
+
+- Cuando el hook no está activo (sin repositorio git, en un subdirectorio del repositorio, o con
+  `core.hooksPath` controlado por otro gestor de hooks), el paso 1 imprime primero el comando que lo activa,
+  p. ej. `git init && git config core.hooksPath .githooks`, y luego el commit.
+- En una instalación full-stack o monorepo, el paso 1 agrega que el hook ejecuta las verificaciones de cada
+  parte desde la raíz del repositorio.
+- El paso 2 lista solo los mirrors que esta ejecución escribió o encontró al día. Un archivo con el mismo
+  nombre que no es un symlink (por ejemplo, tu propio `CLAUDE.md`) se conserva, y ese agente lee tu archivo en
+  lugar de `AGENTS.md`. Si no se escribió ningún mirror, el paso 2 indica usar un agente que lea `AGENTS.md`
+  directamente.
+- `clckernel update` imprime un bloque Next steps más corto solo cuando algo requiere atención: una copia
+  `*.clckernel-new` para fusionar, o guards disponibles con `--add-guards`.
+
+### En tu agente de IA: la primera sesión
+Todos los agentes leen la misma ley: Claude Code (`CLAUDE.md`), Gemini (`GEMINI.md`), Cursor (`.cursorrules`,
+`.cursor/rules/clckernel_context.mdc`), Copilot (`.github/copilot-instructions.md`) y Antigravity
+(`.antigravity/rules.md`) mediante los mirrors por defecto; Windsurf mediante `.windsurfrules` cuando está en
+`mirrors.list` al instalar; agentes como Codex u OpenCode leen `AGENTS.md` directamente.
+
+Cada `AGENTS.md` generado termina con una sección **First session after install**. Aplica mientras exista
+`tools/.clckernel-managed.json` y no exista `.clckernel.yaml`:
+
+1. **Tu pedido va primero.** Si pides una tarea, el agente la realiza bajo las reglas y menciona el onboarding
+   una sola vez, en una frase, al final.
+2. **Si no, te orienta brevemente:** qué instaló el kernel (`tools/.clckernel-managed.json`) y qué ejecuta el
+   hook de pre-commit en cada commit.
+3. **Hace UNA pregunta** y espera: adaptar las reglas ahora con `clckernel start`, o mantener los valores por
+   defecto. Mantenerlos escribe un `.clckernel.yaml` que solo contiene un comentario, así la pregunta no se
+   repite.
+
+La skill `clckernel_cli` también se activa en esa primera sesión. Los proyectos instalados antes de que
+existiera esta sección no la reciben con `update`: un `AGENTS.md` existente nunca se reescribe (update solo
+agrega la fila `clckernel update` a su tabla de comandos si falta). Para obtener la sección, cópiala del
+`AGENTS.md` de una instalación nueva.
 
 ---
 
 <a id="interfaz-universal-de-comandos"></a>
 ## 🎮 Interfaz Universal de Comandos (Todos los LLMs y Agentes)
 
-CLC Kernel provee una gramática de comandos determinista soportada de forma nativa por **Claude Code, Cursor, Codeium/Windsurf, Copilot, Gemini y Antigravity**:
+CLC Kernel define una gramática de comandos en `AGENTS.md`, que los agentes leen a través de sus mirrors (**Claude Code, Gemini, Cursor, Copilot, Antigravity**; Windsurf cuando `.windsurfrules` está en `mirrors.list`) o directamente (agentes que leen `AGENTS.md` por sí mismos):
 
 | Comando | Categoría | Protocolo de Ejecución Obligatorio |
 |---|---|---|
 | `clckernel feature <nombre>` | Funcionalidad | Ciclo AIUP completo: Investigación -> Spec Local (`sdds/{nombre}/spec.md`) -> Revisión HIT -> Fase Roja TDD -> Implementación Verde -> Auditoría. |
 | `clckernel fix <descripción>` | Corrección | Análisis de causa raíz (sin editar código) -> Test de regresión que falle -> Corrección quirúrgica limpia -> Compuerta de auditoría. |
 | `clckernel test` | Verificación | Ejecuta la suite de pruebas en el runner nativo del stack y confirma estado verde limpio. |
-| `clckernel audit` | Verificación | Ejecuta `node tools/audit.js` o `python tools/audit.py` y emite el Resumen Educativo; con `--change <nombre>` también escribe el informe y el recibo en `sdds/<nombre>/`. |
-| `clckernel doctor` | Diagnóstico | Valida hooks pre-commit de Git, symlinks espejo para IDEs e integridad de los scripts de guards. |
+| `clckernel audit` | Verificación | Ejecuta `node tools/audit.js` y/o `python3 tools/audit.py` y emite el Resumen Educativo; con `--change <nombre>` también escribe el informe y el recibo en `sdds/<nombre>/`. |
+| `clckernel doctor` | Diagnóstico | Ejecuta `npx clckernel doctor [dir]`: verifica AGENTS.md, sdds/, tools/, el hook de pre-commit y que los scripts de guards carguen. |
 | `clckernel commit <mensaje>` | Control de Versiones | Auditoría pre-flight, verificación de scope diff vs SDD y commit con Conventional Commits (cero atribución de IA). |
 | `clckernel guard create <nombre>` | Salvaguardas | Genera el scaffold de un nuevo script de guard en el lenguaje nativo del stack en `tools/guards/`; el hook de pre-commit y el audit ejecutan cada guard del proyecto (`tools/guards/*.js`/`*.py`, y los archivos `check_*`/`scan_*`/`verify_*` no gestionados en la raíz de `tools/`). |
 | `clckernel update` | Mantenimiento | Actualización no destructiva: refresca herramientas core, skills y symlinks de IDEs sin sobreescribir SDDs, guards personalizados ni `.clckernel.yaml`. |
-| `clckernel start` | Configuración | Comando del agente: detecta el stack, propone el ciclo de vida AIUP e instala el arnés (`npx clckernel . --yes`) si falta; `.clckernel.yaml` es opcional y solo se escribe para ajustes distintos de los valores por defecto. |
+| `clckernel start` | Configuración | Comando del agente: detecta el stack, propone el ciclo de vida AIUP e instala el arnés (`npx clckernel . --yes`) si falta; `.clckernel.yaml` es opcional y solo se escribe para ajustes distintos de los valores por defecto (mantener los valores por defecto escribe un archivo con solo un comentario). |
 
 ---
 
 <a id="actualizacion-de-proyectos-existentes"></a>
 ## 🔄 Actualización de Proyectos Existentes (No Destructiva)
 
-Cuando se publican nuevas versiones de CLC Kernel con nuevos guards, playbooks actualizados o reglas optimizadas para IDEs, podés actualizar tu repositorio de forma segura sin perder tu trabajo:
+Cuando se publican nuevas versiones de CLC Kernel con nuevos guards, playbooks actualizados o reglas optimizadas para IDEs, puedes actualizar tu repositorio de forma segura sin perder tu trabajo:
 
 ```bash
 npx clckernel update
@@ -199,7 +261,7 @@ versión nueva se escribe al lado como `<archivo>.clckernel-new` (ignorado por g
 fusiones. El resumen lista lo escrito, sin cambios, protegido, movido, agregado a `.gitignore` y configurado en
 `git config`.
 
-Previsualizá primero con `--dry-run`: imprime el mismo resumen como plan y no escribe nada (ni archivos, ni
+Previsualiza primero con `--dry-run`: imprime el mismo resumen como plan y no escribe nada (ni archivos, ni
 `.gitignore`, ni `git config`):
 ```bash
 npx clckernel update . --dry-run
@@ -215,7 +277,7 @@ npx clckernel . --yes --dry-run
   orquestadores de audit) siguen a los guards instalados.
 - **Mirrors:** un mirror que borraste (p. ej. `.cursor/rules/clckernel_context.mdc`) no se recrea; se reporta
   como *not present (skipped)*. Una instalación nueva los sigue creando todos.
-- **`.gitignore`:** una entrada cuya ruta git trackea (un mirror o la skill que commiteás) nunca se agrega, ni
+- **`.gitignore`:** una entrada cuya ruta git trackea (un mirror o la skill que commiteas) nunca se agrega, ni
   en install ni en update; se reporta como *tracked, not ignored*.
 ```bash
 npx clckernel update . --add-guards check_skills,check_placeholders
@@ -342,6 +404,11 @@ Go/Cargo/Composer (sus partes solo se detectan por los directorios convencionale
   en la configuración del linter.
 - **Tests unitarios inline de Rust** (`#[cfg(test)]`): no se pueden separar para la corrida roja; ver
   [Rojo→Verde en Go, Rust, Ruby y PHP](#rojo-verde-otros-stacks).
+- **Las instalaciones existentes conservan su `AGENTS.md`.** `update` nunca lo reescribe, así que la sección
+  *First session after install* y otros cambios de la plantilla llegan solo a instalaciones nuevas; cópialos a
+  mano si los quieres.
+- **Windsurf no tiene mirror por defecto.** Incluye `.windsurfrules` en `mirrors.list` antes de instalar; en una
+  instalación existente `update` no agrega mirrors, así que créalo tú (`ln -s AGENTS.md .windsurfrules`).
 - **Los linters y test runners externos solo corren cuando están disponibles.** El hook ejecuta cada uno (tsc,
   ruff, pytest, golangci-lint, cargo, …) cuando el proyecto lo tiene al momento del commit y, si no, imprime
   `clckernel: <tool> not available, skipped`; los guards de `tools/` corren siempre.
@@ -357,7 +424,7 @@ CLC Kernel está diseñado bajo una **filosofía de cero dependencias forzadas**
   <img src="./docs/Architecture/clckernel-symbiosis.visual-check.2048x1320.dark.png" alt="CLC Kernel Standalone vs Simbiosis con Gentle AI (Diagrama Archify)" width="100%" />
 </div>
 
-> 💡 *Diagrama Interactivo: Generado con [Archify](https://github.com/tt-a1i/archify). Podés abrir [`docs/Architecture/clckernel-symbiosis.html`](./docs/Architecture/clckernel-symbiosis.html) para explorar la animación de flujo, cambiar entre modo claro/oscuro e inspeccionar detalles de cada nodo.*
+> 💡 *Diagrama Interactivo: Generado con [Archify](https://github.com/tt-a1i/archify). Puedes abrir [`docs/Architecture/clckernel-symbiosis.html`](./docs/Architecture/clckernel-symbiosis.html) para explorar la animación de flujo, cambiar entre modo claro/oscuro e inspeccionar detalles de cada nodo.*
 
 ```mermaid
 flowchart TD
@@ -412,7 +479,7 @@ CLC Kernel se enfoca estrictamente en gobernanza y opera con **cero dependencias
 | **HIT / HITL** *(Human-in-the-Loop)* | Compuerta obligatoria de aprobación donde un ingeniero humano valida contratos, decisiones arquitectónicas y pruebas propuestas antes de que un agente autónomo edite código de producción. |
 | **TDD** *(Test-Driven Development)* | Práctica de ingeniería de reproducir bugs o especificar nuevas funcionalidades mediante un test automatizado que falle (Fase Roja) antes de escribir el código mínimo de producción para que pase (Fase Verde). |
 | **Guard** *(Script de salvaguarda)* | Verificación liviana sin dependencias foráneas escrita en el lenguaje nativo del stack y ejecutada por el hook pre-commit. La mayoría de los guards se basan en patrones (regex); en stacks Python, los guards de capas, N+1 y Celery/Redis/Postgres analizan el código con Python `ast`. El hook bloquea las violaciones antes del commit (`--no-verify` lo omite; CI actúa como respaldo). |
-| **SSOT** *(Single Source of Truth / Única Fuente de Verdad)* | Principio de gobernanza centralizada donde `AGENTS.md` funciona como la ley única, proyectándose automáticamente a todos los entornos de agentes (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`, Copilot) mediante symlinks del sistema de archivos. |
+| **SSOT** *(Single Source of Truth / Única Fuente de Verdad)* | Principio de gobernanza centralizada donde `AGENTS.md` funciona como la ley única, proyectándose a los archivos de reglas de los agentes de IA (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.cursor/rules/clckernel_context.mdc`, `.github/copilot-instructions.md`, `.antigravity/rules.md`; configurable con `mirrors.list`) mediante symlinks del sistema de archivos. |
 | **Recibo de Auditoría** *(Audit Receipt)* | Artefacto JSON inmutable y legible por máquina (`audit-receipt.json`) producido por el motor de auditoría con la marca de tiempo, hash del commit, veredictos por cada lente y metadatos de compatibilidad RDD para Gentle AI. |
 | **ADR** *(Architectural Decision Record)* | Documento estandarizado bajo `docs/Journal/` que captura decisiones arquitectónicas clave, contexto histórico, alternativas evaluadas y consecuencias. |
 | **Agent-OS** | Arquetipo de sistema operativo para flujos de agentes y dominios no técnicos (por ejemplo: Marketing OS, Content Ops, Research OS) compuesto por skills, playbooks, reglas, prompts y templates, gobernado por un AGENTS.md de dos capas, checkpoints HITL explícitos y guards de documentos (frontmatter de skills, links, placeholders). |

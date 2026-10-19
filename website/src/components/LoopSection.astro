@@ -9,6 +9,11 @@ const { lang = 'en' } = Astro.props;
 const t = ui[lang];
 const isEs = lang === 'es';
 
+// The session right after install (AGENTS.md "First session after install").
+const firstSession = isEs
+  ? 'Justo después de instalar, la primera sesión es de onboarding: el agente atiende primero tu pedido; si no hay pedido, explica qué se instaló y pregunta una vez si ejecutar clckernel start o mantener los valores por defecto. Cada tarea posterior sigue este ciclo.'
+  : 'Right after install, the first session is onboarding: the agent puts your request first, otherwise explains what is installed and asks once whether to run clckernel start or keep the defaults. Every task after that follows this loop.';
+
 const steps = isEs ? [
   {
     phase: "01",
@@ -75,11 +80,11 @@ const steps = isEs ? [
     name: "DoD y Pre-Commit Estricto",
     shortName: "Pre-Commit",
     badge: "GIT LOCK",
-    concept: "Bloqueo inmutable en git",
-    summary: "El hook de pre-commit valida todas las compuertas antes de autorizar el commit. Si algo falla, cancela con Exit Code 1.",
+    concept: "Compuerta de commit en git",
+    summary: "El hook de pre-commit valida todas las compuertas antes de autorizar el commit. Si algo falla, cancela con Exit Code 1 (--no-verify lo omite; CI actúa como respaldo).",
     tag: "Entrega",
     accent: "violet",
-    pills: ["Native Hook", "Pre-Commit Guard", "Zero Bypass"],
+    pills: ["Native Hook", "Pre-Commit Guard", "CI Backstop"],
     microType: "gitLock",
   },
 ] : [
@@ -148,11 +153,11 @@ const steps = isEs ? [
     name: "DoD & Pre-Commit Enforcement",
     shortName: "Pre-Commit",
     badge: "GIT LOCK",
-    concept: "Immutable git boundary lock",
-    summary: "Pre-commit hooks verify all safeguards before authorizing commits. Cancels on non-zero exit codes.",
+    concept: "Git commit gate",
+    summary: "Pre-commit hooks verify all safeguards before authorizing commits. Cancels on non-zero exit codes (--no-verify skips it; CI is the backstop).",
     tag: "Delivery",
     accent: "violet",
-    pills: ["Native Hook", "Pre-Commit Guard", "Zero Bypass"],
+    pills: ["Native Hook", "Pre-Commit Guard", "CI Backstop"],
     microType: "gitLock",
   },
 ];
@@ -175,6 +180,9 @@ const steps = isEs ? [
       
       <p class="text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
         {t['loop.desc']}
+      </p>
+      <p class="text-sm text-slate-500 leading-relaxed font-normal" id="loop-first-session">
+        {firstSession}
       </p>
     </div>
 

@@ -9,6 +9,27 @@ const { lang = 'en' } = Astro.props;
 const t = ui[lang];
 const isEs = lang === 'es';
 
+// After install: the AGENTS.md "First session after install" section (src/onboarding.js).
+const after = isEs ? {
+  title: 'Después de instalar: la primera sesión con tu agente',
+  desc: 'Todos los agentes leen el mismo AGENTS.md: Claude Code, Gemini, Cursor, Copilot y Antigravity a través de los mirrors por defecto, Windsurf cuando .windsurfrules está en mirrors.list, y agentes como Codex u OpenCode directamente. Mientras exista tools/.clckernel-managed.json y no exista .clckernel.yaml, aplica su sección "First session after install":',
+  steps: [
+    'Tu pedido va primero: el agente realiza la tarea bajo las reglas y menciona el onboarding una sola vez, al final.',
+    'Si no hay pedido, explica brevemente qué se instaló y qué ejecuta el hook de pre-commit en cada commit.',
+    'Hace UNA pregunta y espera: adaptar las reglas con clckernel start, o mantener los valores por defecto (esto escribe un .clckernel.yaml con solo un comentario, así la pregunta no se repite).',
+  ],
+  note: 'update nunca reescribe un AGENTS.md existente: los proyectos instalados antes de que existiera esta sección no la reciben.',
+} : {
+  title: 'After install: the first session with your agent',
+  desc: 'Every agent reads the same AGENTS.md: Claude Code, Gemini, Cursor, Copilot and Antigravity through the default mirrors, Windsurf when .windsurfrules is in mirrors.list, and agents such as Codex or OpenCode directly. While tools/.clckernel-managed.json exists and .clckernel.yaml does not, its "First session after install" section applies:',
+  steps: [
+    'Your request comes first: the agent does the task under the rules and mentions onboarding once, at the end.',
+    'Otherwise it explains briefly what was installed and what the pre-commit hook runs on every commit.',
+    'It asks ONE question and waits: tailor the rules with clckernel start, or keep the defaults (this writes a .clckernel.yaml that holds only a comment, so the question is not asked again).',
+  ],
+  note: 'update never rewrites an existing AGENTS.md: projects installed before this section existed do not get it.',
+};
+
 const steps = isEs ? [
   {
     id: "step1",
@@ -16,14 +37,25 @@ const steps = isEs ? [
     name: "Inicialización",
     cmd: "npx clckernel . --yes",
     title: "Inicialización Interactiva y Detección de Stack",
-    desc: "Detecta automáticamente el framework (Next.js, FastAPI, Django, etc.), instala los guards y el hook de pre-commit, y vincula las leyes del repositorio (AGENTS.md) para Cursor, Claude Code, Copilot y Antigravity. .clckernel.yaml es opcional.",
+    desc: "Detecta automáticamente el framework (Next.js, FastAPI, Django, etc.), instala los guards y el hook de pre-commit, y vincula las leyes del repositorio (AGENTS.md) para Claude Code, Gemini, Cursor, Copilot y Antigravity. Termina con un bloque Next steps: commitear el arnés, abrir tu agente y ejecutar clckernel start o simplemente empezar a trabajar. .clckernel.yaml es opcional.",
     output: `$ npx clckernel . --yes
   🔍 Detected: Next.js (App Router) · Vitest / Jest · Git hooks: githooks
   🛡️  9 guard(s): scan_secrets, check_a11y, check_responsive, check_seo,
      check_ui_reuse, check_architecture, check_performance, verify_tdd, check_custom
   📝 AGENTS.md, sdds/, docs/Journal/
   🔒 Git hook: active hook .githooks/pre-commit (node tools/audit.js --hook)
-  🔗 Mirrors: CLAUDE.md, GEMINI.md, .cursorrules, .github/copilot-instructions.md -> AGENTS.md`,
+  🔗 Mirrors: CLAUDE.md, GEMINI.md, .cursorrules, .cursor/rules/clckernel_context.mdc,
+     .github/copilot-instructions.md, .antigravity/rules.md -> AGENTS.md
+
+Next steps
+  1. Review and commit the harness: git add -A && git commit -m "chore: install clckernel"
+     The pre-commit hook (.githooks/pre-commit) runs on this commit.
+  2. Open your AI agent and ask it to run clckernel start to tailor the rules (.clckernel.yaml),
+     or just start working: it follows AGENTS.md.
+     AGENTS.md mirrors written for: Claude Code (CLAUDE.md), Gemini (GEMINI.md), Cursor, Copilot, Antigravity.
+  3. Run npx clckernel audit anytime to see every guard's result.
+  4. Project-specific checks go in tools/guards/ (the hook and the audit run them).
+  5. Later, preview kernel updates with npx clckernel update --dry-run.`,
   },
   {
     id: "step2",
@@ -31,7 +63,7 @@ const steps = isEs ? [
     name: "Comando Feature",
     cmd: "clckernel feature auth-jwt",
     title: "Desarrollo Agéntico con Ciclo AIUP Completo",
-    desc: "Comando universal para Cursor, Claude Code, Copilot, Windsurf y Antigravity. Inicia investigación de capas, redacta el SDD local, exige revisión humana (HITL), ejecuta TDD rojo y verifica la arquitectura.",
+    desc: "Comando del agente, definido en AGENTS.md, para Claude Code, Gemini, Cursor, Copilot y Antigravity. Inicia investigación de capas, redacta el SDD local, exige revisión humana (HITL), ejecuta TDD rojo y verifica la arquitectura.",
     output: `$ clckernel feature auth-jwt
 [clckernel] 🤖 Universal Command recognized by Agent
 [clckernel] 🔍 Phase 1: Researching affected layers (Domain -> Infra)
@@ -82,14 +114,25 @@ const steps = isEs ? [
     name: "Initialization",
     cmd: "npx clckernel . --yes",
     title: "Interactive Initialization & Stack Detection",
-    desc: "Auto-detects your ecosystem (Next.js, FastAPI, Django, etc.), installs the guards and the pre-commit hook, and links the repository law (AGENTS.md) for Cursor, Claude Code, Copilot, and Antigravity. .clckernel.yaml is optional.",
+    desc: "Auto-detects your ecosystem (Next.js, FastAPI, Django, etc.), installs the guards and the pre-commit hook, and links the repository law (AGENTS.md) for Claude Code, Gemini, Cursor, Copilot, and Antigravity. It ends with a Next steps block: commit the harness, open your agent and run clckernel start or just start working. .clckernel.yaml is optional.",
     output: `$ npx clckernel . --yes
   🔍 Detected: Next.js (App Router) · Vitest / Jest · Git hooks: githooks
   🛡️  9 guard(s): scan_secrets, check_a11y, check_responsive, check_seo,
      check_ui_reuse, check_architecture, check_performance, verify_tdd, check_custom
   📝 AGENTS.md, sdds/, docs/Journal/
   🔒 Git hook: active hook .githooks/pre-commit (node tools/audit.js --hook)
-  🔗 Mirrors: CLAUDE.md, GEMINI.md, .cursorrules, .github/copilot-instructions.md -> AGENTS.md`,
+  🔗 Mirrors: CLAUDE.md, GEMINI.md, .cursorrules, .cursor/rules/clckernel_context.mdc,
+     .github/copilot-instructions.md, .antigravity/rules.md -> AGENTS.md
+
+Next steps
+  1. Review and commit the harness: git add -A && git commit -m "chore: install clckernel"
+     The pre-commit hook (.githooks/pre-commit) runs on this commit.
+  2. Open your AI agent and ask it to run clckernel start to tailor the rules (.clckernel.yaml),
+     or just start working: it follows AGENTS.md.
+     AGENTS.md mirrors written for: Claude Code (CLAUDE.md), Gemini (GEMINI.md), Cursor, Copilot, Antigravity.
+  3. Run npx clckernel audit anytime to see every guard's result.
+  4. Project-specific checks go in tools/guards/ (the hook and the audit run them).
+  5. Later, preview kernel updates with npx clckernel update --dry-run.`,
   },
   {
     id: "step2",
@@ -97,7 +140,7 @@ const steps = isEs ? [
     name: "Feature Command",
     cmd: "clckernel feature auth-jwt",
     title: "Agentic Development via Full AIUP Cycle",
-    desc: "Universal command for Cursor, Claude Code, Copilot, Windsurf, and Antigravity. Drives layer research, authors local SDD specs, enforces Human-in-the-Loop approval, executes Red TDD, and verifies Clean Architecture.",
+    desc: "Agent command defined in AGENTS.md, for Claude Code, Gemini, Cursor, Copilot, and Antigravity. Drives layer research, authors local SDD specs, enforces Human-in-the-Loop approval, executes Red TDD, and verifies Clean Architecture.",
     output: `$ clckernel feature auth-jwt
 [clckernel] 🤖 Universal Command recognized by Agent
 [clckernel] 🔍 Phase 1: Researching affected layers (Domain -> Infra)
@@ -241,6 +284,16 @@ const steps = isEs ? [
 
       </div>
 
+    </div>
+
+    <!-- After install: the agent's first session (AGENTS.md "First session after install") -->
+    <div class="mt-8 bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-4" id="quickstart-after-install">
+      <h3 class="text-base sm:text-lg font-bold text-slate-900">{after.title}</h3>
+      <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">{after.desc}</p>
+      <ol class="list-decimal pl-5 space-y-2 text-xs sm:text-sm text-slate-700 leading-relaxed">
+        {after.steps.map((step) => <li>{step}</li>)}
+      </ol>
+      <p class="text-[11px] sm:text-xs text-slate-500 leading-relaxed">{after.note}</p>
     </div>
 
   </div>
