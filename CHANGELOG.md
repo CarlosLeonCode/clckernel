@@ -58,6 +58,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Wider secret coverage in `scan_secrets` (sdds/secret-patterns).** New labels: `Anthropic API Key`,
+  `OpenAI Project Key` (project, service-account and admin keys), `Google API Key`, `Slack Token`, `GitHub Token`
+  (OAuth, user, server and refresh prefixes) and `GitHub Fine-Grained PAT`. `Quoted Key Secret` flags a quoted
+  JSON/YAML key (`"api_key": "…"`) whose value holds a letter and a digit. `Dotenv Secret` flags a committed
+  `.env`, `.env.*` or `*.env` file (unquoted values included) when a secret-looking variable has a real value;
+  `.env.example`, `.env.sample` and `.env.template` are left alone. Both generic rules skip placeholders (`${VAR}`,
+  `<…>`, `changeme`, `your-…`, `xxx`, one repeated character, …). Existing labels are unchanged. The pure matcher
+  is exported as `findSecrets(text, filename)` (JS) and `find_secrets(text, filename)` (Python).
+
 - **Non-blocking warnings in the audit and the pre-commit hook (sdds/audit-cli).** A guard result may carry
   `level: 'warning'`, and `.clckernel.yaml` `severities: { <guard name>: warning | error }` sets it per guard
   (overriding the guard; values are validated — the key is no longer deprecated). A failing guard at `warning`
@@ -155,6 +164,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- `scan_secrets.py` matches the assignment rules case-insensitively, as the JS guard always did, and splits
+  lines the same way, so both report identical findings.
 - `check_custom`: Python glob translation, JS/Python glob parity and an infinite loop on empty regex matches.
 - `check_architecture`: classifies layers by path segment and checks every imported name, including relative
   imports.
