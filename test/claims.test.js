@@ -331,16 +331,15 @@ describe('honest claims — config file name', () => {
 
 // sdds/domain-agnostic, decision 6: the kernel names no business domain. The
 // removed domain guards and their folder appear nowhere in what is shipped or
-// installed, nor in the website. src/updater.js may name the old guard files
-// only on the line declaring the migration list (update moves them to
-// tools/guards/). CHANGELOG.md is the historical record and is exempt.
+// installed, nor in the website. Since sdds/unified-discovery src/updater.js
+// names them nowhere either: retired kernel guards are recognised by registry
+// or published hash, not by name. CHANGELOG.md is the historical record and
+// is exempt.
 const DOMAIN_FORBIDDEN = ['content-calendar', 'check_domain_data', 'check_test_calendar_sync'];
-const MIGRATION_LINE = 'LEGACY_DOMAIN_GUARDS = [';
 
 function domainOffenders(file, text) {
   const rel = path.relative(ROOT, file);
   return text.split('\n').flatMap((line, i) => {
-    if (rel === path.join('src', 'updater.js') && line.includes(MIGRATION_LINE)) return [];
     return DOMAIN_FORBIDDEN.filter((word) => line.includes(word)).map((word) => `${rel}:${i + 1}: ${word}`);
   });
 }

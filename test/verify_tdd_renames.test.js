@@ -153,8 +153,10 @@ for (const v of VERIFIERS) {
   });
 }
 
-describe('clckernel update moving the old domain guards does not block the next commit', () => {
-  it('real git commit after update: exit 0 and the moved guard runs in the hook', () => {
+// sdds/unified-discovery: update keeps the retired guards in place (never
+// moved) and the hook keeps running them as project guards.
+describe('clckernel update keeping the old domain guards does not block the next commit', () => {
+  it('real git commit after update: exit 0 and the kept guard runs in the hook', () => {
     const dir = initRepo({
       'skills/research/SKILL.md': '---\nname: research\ndescription: Researches a topic.\n---\n# Research\n\nHITL: the operator approves the brief.\n',
       'playbooks/onboarding.md': '# Onboarding\n\n## Human checkpoint\nConfirm each step with the operator.\n',
@@ -176,11 +178,12 @@ describe('clckernel update moving the old domain guards does not block the next 
 
       const updated = run(process.execPath, [CLI, 'update', dir], dir);
       assert.strictEqual(updated.status, 0, `update failed:\n${updated.output}`);
-      assert.ok(fs.existsSync(path.join(dir, 'tools', 'guards', 'check_test_calendar_sync.js')), updated.output);
+      assert.ok(fs.existsSync(path.join(dir, 'tools', 'check_test_calendar_sync.js')), updated.output);
+      assert.ok(!fs.existsSync(path.join(dir, 'tools', 'guards', 'check_test_calendar_sync.js')), updated.output);
       git(dir, 'add', '-A');
       const commit = run('git', ['commit', '-m', 'chore: clckernel update'], dir);
       assert.strictEqual(commit.status, 0, `the commit after update must pass the hook:\n${commit.output}`);
-      assert.match(commit.output, /project guard tools\/guards\/check_test_calendar_sync\.js/, commit.output);
+      assert.match(commit.output, /^clckernel: \S+\s+check_test_calendar_sync:/m, commit.output);
     } finally {
       teardown(dir);
     }

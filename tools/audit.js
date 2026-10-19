@@ -1,12 +1,20 @@
 #!/usr/bin/env node
 /**
  * Modular Audit Orchestrator — JS
- * Discovers check_*.js, scan_*.js and verify_*.js guard scripts at runtime, runs each with graceful
- * degradation, then runs the project guards in tools/guards/ (*.js with node,
- * *.py with python3) as processes, groups results into 4 lenses,
- * and generates both an English audit report (05-audit-report.md) and
- * an immutable, machine-readable audit receipt (audit-receipt.json).
- * Self-contained: uses only Node.js built-ins.
+ * The single place that decides which guards run (sdds/unified-discovery):
+ * `clckernel audit` runs it to write a report, the pre-commit hook runs it
+ * with --hook. Same discovery, same guards, each exactly once:
+ *   - top-level tools/ guards: check_*, scan_*, verify_* or *_guard, .js/.py;
+ *   - every tools/guards/*.js and *.py (project guards).
+ * audit.js runs the .js guards; the .py ones belong to audit.py, unless
+ * tools/audit.py is not installed: then audit.js runs them too, with python3.
+ * A top-level guard of this language that exports a function is called in
+ * process; every other guard runs as a process (exit code decides, a JSON
+ * result is optional). A guard listed in the managed registry but missing on
+ * disk fails the run. Results are grouped into 4 lenses; without --hook an
+ * English report (05-audit-report.md) and a machine-readable receipt
+ * (audit-receipt.json) are written. --hook writes nothing and prints one line
+ * per guard. Self-contained: uses only Node.js built-ins.
  */
 
 const fs = require('fs');
@@ -17,6 +25,28 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 const LENSES = ['correctness', 'security', 'architecture', 'performance'];
 const PROJECT_GUARD_RUNNERS = { '.js': process.execPath, '.py': 'python3' };
 const MAX_BUFFER = 64 * 1024 * 1024;
+const OWN_EXT = '.js';
+const SIBLING = { ext: '.py', orchestrator: 'audit.py' };
+const REGISTRY_FILE = '.clckernel-managed.json';
+
+/**
+ * Runs a Python guard that defines check() (module contract) as a process:
+ * prints its result as JSON and exits with its exit_code.
+ */
+const PY_MODULE_RUNNER = [
+  'import importlib.util, json, os, sys',
+  'p = os.path.abspath(sys.argv[1])',
+  'sys.path.insert(0, os.path.dirname(p))',
+  'spec = importlib.util.spec_from_file_location(os.path.splitext(os.path.basename(p))[0], p)',
+  'm = importlib.util.module_from_spec(spec)',
+  'spec.loader.exec_module(m)',
+  'r = m.check(os.getcwd())',
+  'if not isinstance(r, dict):',
+  '    print("check() returned " + type(r).__name__, file=sys.stderr)',
+  '    sys.exit(1)',
+  'print(json.dumps(r))',
+  'sys.exit(r.get("exit_code", 0) or 0)',
+].join('\n');
 
 // ── Static name → lens mapping (4 RDD lenses) ──────────────────────────────────────────
 
@@ -88,39 +118,127 @@ function getActiveSddDir(baseDir) {
   return defaultDir;
 }
 
+/** True for a top-level guard file name: check_*, scan_*, verify_* or *_guard, .js or .py. */
+function isGuardFile(name) {
+  const ext = path.extname(name);
+  if (ext !== '.js' && ext !== '.py') return false;
+  const stem = path.basename(name, ext);
+  return /^(check|scan|verify)_/.test(stem) || stem.endsWith('_guard');
+}
+
+/** Regular files of dir (names, sorted); [] when it cannot be read. */
+function regularFiles(dir) {
+  try {
+    return fs.readdirSync(dir, { withFileTypes: true })
+      .filter(entry => entry.isFile())
+      .map(entry => entry.name)
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
 /**
- * Discover all check_*.js, scan_*.js and verify_*.js guard scripts in the tools/ directory.
- * Returns absolute paths sorted alphabetically for deterministic ordering.
+ * Top-level guards of this orchestrator's language (.js) in tools/,
+ * alphabetical. Snapshot helpers (_*), yaml.js and the orchestrators never
+ * match the guard name rule.
+ * @param {string} [toolsDirParam] - The tools/ directory
+ * @returns {string[]} Absolute paths
  */
 function discoverGuards(toolsDirParam) {
   const toolsDir = toolsDirParam || __dirname;
-  if (!fs.existsSync(toolsDir)) return [];
-  return fs.readdirSync(toolsDir)
-    .filter(f => (f.startsWith('check_') || f.startsWith('scan_') || f.startsWith('verify_')) && f.endsWith('.js') && f !== path.basename(__filename || 'audit.js'))
-    .sort()
+  return regularFiles(toolsDir)
+    .filter(f => isGuardFile(f) && path.extname(f) === OWN_EXT)
     .map(f => path.join(toolsDir, f));
 }
 
 /**
  * Project guards (sdds/domain-agnostic, decision 3): every *.js and *.py file
- * in tools/guards/, alphabetical. They are project code, run like the hook
- * runs them.
+ * in tools/guards/, alphabetical.
  * @param {string} toolsDir - The project's tools/ directory
  * @returns {string[]} Absolute paths
  */
 function discoverProjectGuards(toolsDir) {
   const dir = path.join(toolsDir, 'guards');
-  let entries;
+  return regularFiles(dir)
+    .filter(name => PROJECT_GUARD_RUNNERS[path.extname(name)])
+    .map(name => path.join(dir, name));
+}
+
+/**
+ * Paths (relative to the project root) the managed registry lists, in
+ * either format: a list of paths, or { files: [{ path }] }.
+ * @param {string} toolsDir - The tools/ directory
+ * @returns {string[]}
+ */
+function registeredPaths(toolsDir) {
+  let data;
   try {
-    entries = fs.readdirSync(dir, { withFileTypes: true });
+    data = JSON.parse(fs.readFileSync(path.join(toolsDir, REGISTRY_FILE), 'utf-8'));
   } catch {
     return [];
   }
-  return entries
-    .filter(entry => entry.isFile() && PROJECT_GUARD_RUNNERS[path.extname(entry.name)])
-    .map(entry => entry.name)
-    .sort()
-    .map(name => path.join(dir, name));
+  const entries = Array.isArray(data) ? data : (data && Array.isArray(data.files) ? data.files.map(f => f && f.path) : []);
+  return entries.filter(p => typeof p === 'string');
+}
+
+/** True when a JS file follows the module contract (it exports something). */
+function exportsModule(file) {
+  try {
+    return /\bmodule\.exports\b|^\s*exports\.[\w$]+\s*=/m.test(fs.readFileSync(file, 'utf-8'));
+  } catch {
+    return false;
+  }
+}
+
+/** True when a Python file follows the module contract (a top-level check()). */
+function definesCheck(file) {
+  try {
+    return /^def check\s*\(/m.test(fs.readFileSync(file, 'utf-8'));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The guards this orchestrator runs (sdds/unified-discovery), in order:
+ * top-level guards, then tools/guards/*. Each entry says how it runs:
+ *   'module'  — a top-level .js guard that exports a function: in process;
+ *   'process' — any other guard of a language this orchestrator owns.
+ * Languages owned: .js, plus .py when tools/audit.py is not installed.
+ * Registered guards missing on disk come back as 'missing'.
+ * @param {string} toolsDir - The project's tools/ directory
+ * @returns {Array<{ file: string, label: string, mode: 'module'|'process'|'missing' }>}
+ */
+function planGuards(toolsDir) {
+  const exts = new Set([OWN_EXT]);
+  if (!fs.existsSync(path.join(toolsDir, SIBLING.orchestrator))) exts.add(SIBLING.ext);
+  const plan = [];
+  const top = regularFiles(toolsDir).filter(f => isGuardFile(f) && exts.has(path.extname(f)));
+  for (const name of top) {
+    const file = path.join(toolsDir, name);
+    const module = path.extname(name) === OWN_EXT && exportsModule(file);
+    plan.push({ file, label: name, mode: module ? 'module' : 'process' });
+  }
+  for (const file of discoverProjectGuards(toolsDir).filter(f => exts.has(path.extname(f)))) {
+    plan.push({ file, label: `guards/${path.basename(file)}`, mode: 'process' });
+  }
+  const present = new Set(top);
+  for (const rel of registeredPaths(toolsDir)) {
+    const name = rel.startsWith('tools/') ? rel.slice('tools/'.length) : null;
+    if (!name || name.includes('/') || !isGuardFile(name) || !exts.has(path.extname(name)) || present.has(name)) continue;
+    plan.push({ file: path.join(toolsDir, name), label: name, mode: 'missing' });
+  }
+  return plan;
+}
+
+/** Result for a registered guard that is not on disk (fail closed). */
+function missingGuardResult(entry) {
+  const name = path.basename(entry.label, path.extname(entry.label));
+  return {
+    exitCode: 1, skipped: false, name, lens: getLensForGuard(name),
+    data: { message: `Kernel guard missing: tools/${entry.label} is listed in tools/${REGISTRY_FILE} but not on disk; restore it with \`clckernel update\`` },
+  };
 }
 
 /** The guard's JSON result when its stdout (or its last line) is a JSON object. */
@@ -143,26 +261,30 @@ function lastLine(text) {
 }
 
 /**
- * Runs one project guard as a process with cwd = targetDir, the way the hook
- * does. The exit code decides (non-zero fails); a JSON result with the
- * standard shape ({ name, skipped, data: { message, violations } }) is used
- * for the report, plain output is reported by its last line. Lens:
- * architecture unless the JSON names one of the four.
+ * Runs one guard as a process with cwd = targetDir, the way a project guard
+ * runs. The exit code decides (non-zero fails); a JSON result with the
+ * standard shape ({ name, skipped, lens?, data: { message, violations } }) is
+ * used for the report, plain output is reported by its last line. A .py guard
+ * that defines check() is called through that contract. Lens: the JSON's,
+ * else the guard name's, else architecture.
  * @param {string} guardPath - Absolute path to the guard
  * @param {string} targetDir - Project root
- * @returns {object} Normalized result
+ * @returns {object} Normalized result (`output`: the guard's raw output)
  */
 function runProjectGuard(guardPath, targetDir) {
   const ext = path.extname(guardPath);
   const fallbackName = path.basename(guardPath, ext);
-  const res = spawnSync(PROJECT_GUARD_RUNNERS[ext], [guardPath], { cwd: targetDir, encoding: 'utf-8', maxBuffer: MAX_BUFFER });
+  const args = ext === '.py' && definesCheck(guardPath) ? ['-c', PY_MODULE_RUNNER, guardPath] : [guardPath];
+  const res = spawnSync(PROJECT_GUARD_RUNNERS[ext], args, { cwd: targetDir, encoding: 'utf-8', maxBuffer: MAX_BUFFER });
+  const fallbackLens = getLensForGuard(fallbackName);
   if (res.error) {
     return {
-      exitCode: 1, skipped: false, name: fallbackName, lens: 'architecture',
+      exitCode: 1, skipped: false, name: fallbackName, lens: fallbackLens,
       data: { message: `Guard crashed: ${res.error.message}` },
     };
   }
   const exitCode = typeof res.status === 'number' ? res.status : 1;
+  const output = `${res.stdout || ''}${res.stderr || ''}`;
   const json = parseGuardJson(res.stdout);
   if (json) {
     const data = json.data && typeof json.data === 'object' ? json.data : json;
@@ -170,14 +292,16 @@ function runProjectGuard(guardPath, targetDir) {
       exitCode,
       skipped: exitCode === 0 && Boolean(json.skipped),
       name: typeof json.name === 'string' && json.name ? json.name : fallbackName,
-      lens: LENSES.includes(json.lens) ? json.lens : 'architecture',
+      lens: LENSES.includes(json.lens) ? json.lens : fallbackLens,
       data,
+      output,
     };
   }
   const line = exitCode === 0 ? lastLine(res.stdout) : (lastLine(res.stderr) || lastLine(res.stdout));
   return {
-    exitCode, skipped: false, name: fallbackName, lens: 'architecture',
+    exitCode, skipped: false, name: fallbackName, lens: fallbackLens,
     data: { message: line || (exitCode === 0 ? 'Passed' : `Exited with code ${exitCode}`) },
+    output,
   };
 }
 
@@ -219,6 +343,29 @@ async function runGuard(guardPath, targetDir) {
 
 // ── Report Generation ────────────────────────────────────────────────────────
 
+/** One markdown bullet per violation (or finding) of a failed guard. */
+function violationLines(result) {
+  const lines = [];
+  const violations = result.data?.violations || result.data?.findings || {};
+  if (Array.isArray(violations)) {
+    for (const item of violations) {
+      lines.push(`- ${item.file ? `\`${item.file}\`: ` : ''}${item.message || item.reason || JSON.stringify(item)}`);
+    }
+    return lines;
+  }
+  if (!violations || typeof violations !== 'object') return lines;
+  for (const file of Object.keys(violations)) {
+    const items = Array.isArray(violations[file]) ? violations[file] : [];
+    for (const item of items) {
+      const loc = item.lineNo ? ` (line ${item.lineNo})` : '';
+      const label = item.label || item.rule || item.module || '';
+      const msg = item.message || item.reason || '';
+      lines.push(`- \`${file}\`${loc}: ${label ? `[${label}] ` : ''}${msg}`);
+    }
+  }
+  return lines;
+}
+
 /**
  * Format a single guard result into a markdown section.
  */
@@ -238,25 +385,7 @@ function formatGuardSection(name, result) {
   } else {
     lines.push(`> ${result.data?.message || 'Issues found'}`);
     lines.push('');
-    const violations = result.data?.violations || result.data?.findings || {};
-    if (Array.isArray(violations)) {
-      for (const item of violations) {
-        lines.push(`- ${item.file ? `\`${item.file}\`: ` : ''}${item.message || item.reason || JSON.stringify(item)}`);
-      }
-    } else {
-      const files = Object.keys(violations);
-      if (files.length > 0) {
-        for (const file of files) {
-          const items = violations[file];
-          for (const item of items) {
-            const loc = item.lineNo ? ` (line ${item.lineNo})` : '';
-            const label = item.label || item.rule || item.module || '';
-            const msg = item.message || item.reason || '';
-            lines.push(`- \`${file}\`${loc}: ${label ? `[${label}] ` : ''}${msg}`);
-          }
-        }
-      }
-    }
+    lines.push(...violationLines(result));
   }
 
   return lines.join('\n');
@@ -412,36 +541,62 @@ function printSummary(results, reportPath, receiptPath) {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
-async function main(targetDir) {
+/** Runs every planned guard once, in plan order. */
+async function runPlan(plan, dir) {
+  const results = [];
+  for (const entry of plan) {
+    if (entry.mode === 'missing') results.push(missingGuardResult(entry));
+    else if (entry.mode === 'module') results.push(await runGuard(entry.file, dir));
+    else results.push(runProjectGuard(entry.file, dir));
+  }
+  return results;
+}
+
+/**
+ * --hook output: one line per guard; a failed guard also prints its
+ * violations, or its raw output when it reported none.
+ */
+function printHookSummary(results) {
+  for (const result of results) {
+    const status = result.skipped ? 'skip' : result.exitCode === 0 ? 'ok  ' : 'FAIL';
+    console.log(`clckernel: ${status} ${result.name}: ${result.data?.message || ''}`);
+    if (result.skipped || result.exitCode === 0) continue;
+    const details = violationLines(result);
+    const lines = details.length > 0 ? details : String(result.output || '').trimEnd().split('\n').filter(Boolean);
+    for (const line of lines) console.log(`    ${line}`);
+  }
+}
+
+/**
+ * @param {string} [targetDir] - Project root (default: cwd)
+ * @param {{ hook?: boolean }} [options] - hook: write nothing, print one line per guard
+ * @returns {Promise<number>} 1 when a guard failed, else 0
+ */
+async function main(targetDir, options = {}) {
+  const hook = Boolean(options.hook);
   const dir = targetDir ? path.resolve(targetDir) : process.cwd();
-  const sddDir = getActiveSddDir(dir);
-
-  console.log('\nRunning CLC Kernel audit...\n');
-
   const targetTools = path.join(dir, 'tools');
   const toolsDir = fs.existsSync(targetTools) ? targetTools : __dirname;
-  const guardPaths = discoverGuards(toolsDir);
-  const projectGuards = discoverProjectGuards(toolsDir);
+  const plan = planGuards(toolsDir);
 
-  if (guardPaths.length === 0 && projectGuards.length === 0) {
-    console.log('No guard tools found in tools/. Nothing to audit.');
-    return;
+  if (hook) {
+    const results = await runPlan(plan, dir);
+    printHookSummary(results);
+    return results.some(r => !r.skipped && r.exitCode !== 0) ? 1 : 0;
   }
 
-  const names = [
-    ...guardPaths.map(p => path.basename(p, '.js')),
-    ...projectGuards.map(p => `guards/${path.basename(p)}`),
-  ];
+  const sddDir = getActiveSddDir(dir);
+  console.log('\nRunning CLC Kernel audit...\n');
+
+  if (plan.length === 0) {
+    console.log('No guard tools found in tools/. Nothing to audit.');
+    return 0;
+  }
+
+  const names = plan.map(entry => entry.label.replace(/\.js$/, ''));
   console.log(`Discovered ${names.length} guard(s): ${names.join(', ')}\n`);
 
-  const results = [];
-  for (const guardPath of guardPaths) {
-    const result = await runGuard(guardPath, dir);
-    results.push(result);
-  }
-  for (const guardPath of projectGuards) {
-    results.push(runProjectGuard(guardPath, dir));
-  }
+  const results = await runPlan(plan, dir);
 
   // Generate report
   const reportContent = generateReport(results, sddDir);
@@ -457,18 +612,29 @@ async function main(targetDir) {
   printSummary(results, reportPath, receiptPath);
 
   // Exit with failure if any guard failed (not skipped)
-  const hasFailure = results.some(r => !r.skipped && r.exitCode !== 0);
-  if (hasFailure) {
-    process.exit(1);
-  }
+  return results.some(r => !r.skipped && r.exitCode !== 0) ? 1 : 0;
 }
 
-// Support both require() and direct execution
+/** argv: [targetDir] [--hook], in any order. */
+function parseArgs(argv) {
+  const hook = argv.includes('--hook');
+  const targetDir = argv.find(arg => !arg.startsWith('--'));
+  return { targetDir, hook };
+}
+
+// Support both require() and direct execution. Any crash fails closed.
 if (require.main === module) {
-  main(process.argv[2]).catch(err => {
-    console.error(`Audit orchestrator error: ${err.message}`);
+  const { targetDir, hook } = parseArgs(process.argv.slice(2));
+  main(targetDir, { hook }).then(code => {
+    // exitCode, not exit(): a piped stdout is flushed before the process ends.
+    process.exitCode = code;
+  }, err => {
+    console.error(`Audit orchestrator error: ${err && err.message}`);
     process.exit(1);
   });
 }
 
-module.exports = { main, getActiveSddDir, discoverGuards, discoverProjectGuards, runGuard, runProjectGuard, generateReceipt };
+module.exports = {
+  main, getActiveSddDir, discoverGuards, discoverProjectGuards, planGuards, isGuardFile,
+  runGuard, runProjectGuard, generateReceipt,
+};

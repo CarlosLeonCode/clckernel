@@ -410,13 +410,18 @@ describe('item 6: --dry-run', () => {
     const dir = driftedRepo();
     const copy = copyRepo(dir);
     try {
-      const planned = quietly(() => updateHarness(dir, { dryRun: true })).plan;
-      const done = quietly(() => updateHarness(copy)).plan;
+      const plannedRun = quietly(() => updateHarness(dir, { dryRun: true }));
+      const doneRun = quietly(() => updateHarness(copy));
+      const planned = plannedRun.plan;
+      const done = doneRun.plan;
       assert.deepStrictEqual(planned, done);
       assert.ok(planned.protected.some((p) => p.path === 'tools/check_hitl.js'));
       assert.ok(planned.written.includes('tools/scan_secrets.js'));
       assert.ok(planned.written.includes('.agents/skills/clckernel_cli/reference/update.md'));
-      assert.ok(planned.moved.some((m) => m.to === 'tools/guards/check_domain_data.js'));
+      // sdds/unified-discovery: a retired kernel guard is kept in place, never moved.
+      assert.deepStrictEqual(planned.moved, []);
+      assert.deepStrictEqual(plannedRun.retiredGuards, ['tools/check_domain_data.js']);
+      assert.deepStrictEqual(doneRun.retiredGuards, plannedRun.retiredGuards);
       assert.ok(planned.gitignore.includes('*.clckernel-new'));
       assert.deepStrictEqual(planned.gitConfig, [{ key: 'core.hooksPath', value: '.githooks' }]);
       assert.strictEqual(git(dir, 'status', '--porcelain', '--ignored'), '');

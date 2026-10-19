@@ -171,20 +171,21 @@ function manifestGuardNames(targetDir, config) {
 }
 
 /**
- * Generic block every hook ends with (sdds/domain-agnostic, decision 3): each
- * project guard in tools/guards/ runs after the kernel guards, *.js with node
- * and *.py with python3, in alphabetical order. One glob, so adding a guard
- * needs no `clckernel update`; with tools/guards/ absent or empty the glob
- * stays literal, matches no case and nothing runs. POSIX sh-safe (no bash
- * globbing options). A failing guard aborts the commit under `set -e`.
- * The guards are project code: never in the managed registry.
+ * Guard block every hook starts with (sdds/unified-discovery): the hook runs
+ * no guard itself. It calls the audit orchestrators with --hook, and they
+ * discover and run every guard once — the kernel guards installed for the
+ * project and the project guards (top-level tools/ guards the kernel does not
+ * own, and tools/guards/*) — exactly the set `clckernel audit` runs. Each
+ * orchestrator runs when it is installed (a Python stack needs no node); one
+ * that is missing hands its guards to the other, and with neither the commit
+ * fails. A failing guard or a crashing orchestrator aborts the commit under
+ * `set -e`. POSIX sh-safe.
  */
-const PROJECT_GUARDS_BLOCK = [
-  '',
-  '# Project guards (tools/guards/): *.js with node, *.py with python3, alphabetical.',
-  'for g in tools/guards/*; do [ -f "$g" ] || continue; case "$g" in ' +
-    '*.js) echo "clckernel: project guard $g"; node "$g" ;; ' +
-    '*.py) echo "clckernel: project guard $g"; python3 "$g" ;; esac; done',
+const ORCHESTRATOR_BLOCK = [
+  '# Guards: the audit orchestrators run every guard in tools/ once (kernel and project guards).',
+  '[ -f tools/audit.js ] || [ -f tools/audit.py ] || { echo "clckernel: no audit orchestrator in tools/" >&2; exit 1; }',
+  'if [ -f tools/audit.js ]; then node tools/audit.js --hook; fi',
+  'if [ -f tools/audit.py ]; then python3 tools/audit.py --hook; fi',
 ];
 
 /** Value core.hooksPath takes when the harness owns the repo's hooks. */
@@ -250,10 +251,10 @@ function huskyActive(targetDir) {
  * Writes the pre-commit hook where git will run it: .husky/pre-commit only when
  * Husky is active for a frontend project; otherwise .githooks/pre-commit, with
  * core.hooksPath set through configureHooksPath (and its safety checks).
- * The kernel commands are followed by the project guards block.
+ * The orchestrator block (every guard) comes first, then the external tools.
  * @param {string} targetDir - Target project root
  * @param {boolean} isFront - Frontend project (may use Husky)
- * @param {string[]} commands - Hook body lines
+ * @param {string[]} commands - External tool lines
  * @param {string} banner - Text echoed when the hook starts
  * @returns {{ file: string, active: boolean }} Hook path relative to targetDir,
  *   and whether git runs it
@@ -278,8 +279,8 @@ function writeHook(targetDir, isFront, commands, banner) {
   lines.push('set -e');
   lines.push(`echo "${banner}"`);
   lines.push('');
+  lines.push(...ORCHESTRATOR_BLOCK);
   lines.push(...commands);
-  lines.push(...PROJECT_GUARDS_BLOCK);
 
   // Generated per project: overwritten only when it still matches the
   // registry's hash (sdds/safe-update, decision 3).
@@ -310,8 +311,8 @@ function writeHook(targetDir, isFront, commands, banner) {
  */
 function generateHookFromManifest(adapter, targetDir, tools = adapter.getTools(), managed = readManagedRegistry(targetDir)) {
   const commands = tools
-    .filter(tool => tool.command)
-    .map(tool => (tool.language === 'external' ? guardedCommand(tool, managed) : tool.command));
+    .filter(tool => tool.command && tool.language === 'external')
+    .map(tool => guardedCommand(tool, managed));
   return writeHook(targetDir, adapter.projectType === 'frontend', commands, `Running CLC Kernel ${adapter.name} Safeguards...`);
 }
 
@@ -422,10 +423,7 @@ function buildPartsManifest(parts, techTools, targetDir) {
  * @returns {{ file: string, active: boolean }}
  */
 function generatePartsHook(config, targetDir, manifest, managed) {
-  const commands = [
-    ...manifest.guards.filter(tool => tool.command).map(tool => tool.command),
-    ...manifest.externals.map(({ tool, dir }) => partGuardedCommand(tool, dir, managed)),
-  ];
+  const commands = manifest.externals.map(({ tool, dir }) => partGuardedCommand(tool, dir, managed));
   const isFront = config.parts.some(p => p.adapter.projectType === 'frontend');
   const names = [...new Set(config.parts.map(p => p.adapter.name))].join(' + ');
   return writeHook(targetDir, isFront, commands, `Running CLC Kernel ${names} Safeguards...`);
@@ -605,18 +603,14 @@ function installFallbackTools(targetDir, projectType, keep = () => true) {
 }
 
 /**
- * Generates a minimal generic pre-commit hook when no adapter is available.
+ * Generates a minimal generic pre-commit hook when no adapter is available:
+ * the orchestrators run the installed fallback guards.
  * @param {string} targetDir - Target project root
  * @param {string} projectType - 'frontend', 'backend' or 'unknown'
- * @param {(file: string) => boolean} [keep] - Installed fallback files
  * @returns {{ file: string, active: boolean }} The hook written and whether git runs it
  */
-function generateFallbackHook(targetDir, projectType, keep = () => true) {
-  const isFront = projectType === 'frontend';
-  // Node is the one runtime known to exist for frontend and unknown stacks.
-  const secretScan = isFront || projectType === 'unknown' ? 'scan_secrets.js' : 'scan_secrets.py';
-  const command = secretScan.endsWith('.js') ? `node tools/${secretScan}` : `python3 tools/${secretScan}`;
-  return writeHook(targetDir, isFront, keep(secretScan) ? [command] : [], 'Running CLC Kernel Safeguards...');
+function generateFallbackHook(targetDir, projectType) {
+  return writeHook(targetDir, projectType === 'frontend', [], 'Running CLC Kernel Safeguards...');
 }
 
 /**
@@ -846,7 +840,7 @@ ${commandTable(testRunner)}`;
     const keep = file => /^audit\./.test(file) || kept.has(file);
     const { installed } = installFallbackTools(targetDir, config.projectType, keep);
     installedGuards = installed;
-    hook = generateFallbackHook(targetDir, config.projectType, keep);
+    hook = generateFallbackHook(targetDir, config.projectType);
   }
 
   // Step 4: Install LLM Conversational CLI & Agent Context

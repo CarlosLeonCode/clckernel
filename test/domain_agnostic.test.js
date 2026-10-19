@@ -56,7 +56,10 @@ describe('Agent-OS installs no domain guard', () => {
         }
         assert.ok(result.installedGuards.includes('check_data_files'), 'check_data_files must be installed');
         assert.ok(registry.includes('tools/check_data_files.js'), 'check_data_files is a managed file');
-        assert.ok(hook.includes('node tools/check_data_files.js'), 'check_data_files runs in the hook');
+        // sdds/unified-discovery: the hook calls audit.js, which runs it.
+        assert.ok(hook.includes('node tools/audit.js --hook'), 'the hook runs the JS orchestrator');
+        const { planGuards } = require(path.join(dir, 'tools', 'audit.js'));
+        assert.ok(planGuards(path.join(dir, 'tools')).some((e) => e.label === 'check_data_files.js'), 'check_data_files runs in the hook');
       } finally {
         teardown(dir);
       }
@@ -259,8 +262,10 @@ describe('project guards in tools/guards/ run in the hook', () => {
     },
     'fallback (unknown stack)': { 'README.md': '# r\n' },
   };
+  // sdds/unified-discovery: the tools/guards/ loop is gone; the hook calls
+  // the audit orchestrators, which discover tools/guards/ themselves.
   for (const [name, files] of Object.entries(STACKS)) {
-    it(`${name}: the hook ends with the project guards block`, () => {
+    it(`${name}: the hook calls the orchestrators, which run tools/guards/`, () => {
       const dir = createTmpProject(files);
       const warn = console.warn;
       try {
@@ -268,8 +273,9 @@ describe('project guards in tools/guards/ run in the hook', () => {
         console.warn = () => {};
         const { hook } = generateHarness(dir, autoDetectStack(dir));
         const text = fs.readFileSync(path.join(dir, hook.file), 'utf-8');
-        assert.match(text, /^for g in tools\/guards\/\*; do .* done$/m);
-        assert.ok(text.trimEnd().endsWith('done'), `the project guards run last:\n${text}`);
+        assert.match(text, /^if \[ -f tools\/audit\.js \]; then node tools\/audit\.js --hook; fi$/m);
+        assert.match(text, /^if \[ -f tools\/audit\.py \]; then python3 tools\/audit\.py --hook; fi$/m);
+        assert.doesNotMatch(text, /tools\/guards/, text);
       } finally {
         console.warn = warn;
         teardown(dir);
@@ -343,7 +349,7 @@ describe('audit orchestrators discover tools/guards/', () => {
   }
 });
 
-// ── Item 5: update moves the old domain guards to tools/guards/ ──────────────
+// ── Item 5: update keeps the old domain guards in place (sdds/unified-discovery) ─
 
 function legacyProject(extra = {}) {
   const dir = createTmpProject({ ...AGENT_OS, ...extra });
@@ -359,10 +365,10 @@ function legacyProject(extra = {}) {
   return dir;
 }
 
-describe('update migrates the removed domain guards', () => {
+describe('update keeps the removed domain guards where they are, as project guards', () => {
   const { updateHarness, runUpdate } = require('../src/updater');
 
-  it('moves them to tools/guards/ with the same content, out of the registry, and reports it', async () => {
+  it('stays in tools/ with the same content, out of the registry, and is reported as retired', async () => {
     const dir = legacyProject();
     const log = console.log;
     const lines = [];
@@ -371,12 +377,14 @@ describe('update migrates the removed domain guards', () => {
       const result = await runUpdate(dir);
       console.log = log;
       for (const file of LEGACY_GUARDS) {
-        assert.ok(!fs.existsSync(path.join(dir, 'tools', file)), `tools/${file} must be moved`);
-        const moved = path.join(dir, 'tools', 'guards', file);
-        assert.ok(fs.existsSync(moved), `tools/guards/${file} must exist`);
-        assert.ok(fs.readFileSync(moved).equals(fs.readFileSync(path.join(LEGACY_DIR, file))), 'same content');
-        assert.ok(result.guardMigration.moved.includes(`tools/guards/${file}`));
-        assert.ok(lines.some((l) => l.includes(`tools/${file}`) && l.includes(`tools/guards/${file}`)), `reports the move of ${file}:\n${lines.join('\n')}`);
+        const kept = path.join(dir, 'tools', file);
+        assert.ok(fs.readFileSync(kept).equals(fs.readFileSync(path.join(LEGACY_DIR, file))), `tools/${file} kept, same content`);
+        assert.ok(!fs.existsSync(path.join(dir, 'tools', 'guards', file)), 'never moved');
+        assert.ok(result.retiredGuards.includes(`tools/${file}`));
+        assert.ok(
+          lines.some((l) => l.includes(`tools/${file}`) && l.includes('retired kernel guard kept as project guard')),
+          `reports ${file}:\n${lines.join('\n')}`
+        );
       }
       const registry = registryPaths(readJson(path.join(dir, 'tools', '.clckernel-managed.json')));
       assert.ok(!registry.some((f) => LEGACY_GUARDS.some((g) => f.endsWith(g))), 'out of the registry');
@@ -386,25 +394,39 @@ describe('update migrates the removed domain guards', () => {
     }
   });
 
-  it('keeps both files and warns when tools/guards/ already has one with that name', () => {
+  it('an existing tools/guards/ copy is left alone too (both are project guards)', () => {
     const dir = legacyProject({ 'tools/guards/check_domain_data.js': '// the project version\n' });
     try {
-      const result = updateHarness(dir);
+      updateHarness(dir);
       assert.strictEqual(fs.readFileSync(path.join(dir, 'tools', 'guards', 'check_domain_data.js'), 'utf-8'), '// the project version\n');
       assert.ok(fs.existsSync(path.join(dir, 'tools', 'check_domain_data.js')), 'the old file is left in place');
-      assert.ok(result.guardMigration.kept.some((k) => k.path === 'tools/check_domain_data.js'));
-      assert.ok(fs.existsSync(path.join(dir, 'tools', 'guards', 'check_test_calendar_sync.js')), 'the other one is still moved');
     } finally {
       teardown(dir);
     }
   });
 
-  it('the moved check_test_calendar_sync.js runs from tools/guards/', () => {
+  it('without a registry entry, a published version is recognised and kept in place', () => {
+    const dir = createTmpProject({ ...AGENT_OS });
+    try {
+      generateHarness(dir, autoDetectStack(dir));
+      fs.copyFileSync(path.join(LEGACY_DIR, 'check_domain_data.js'), path.join(dir, 'tools', 'check_domain_data.js'));
+      const result = updateHarness(dir);
+      assert.deepStrictEqual(result.retiredGuards, ['tools/check_domain_data.js']);
+      assert.ok(fs.existsSync(path.join(dir, 'tools', 'check_domain_data.js')));
+    } finally {
+      teardown(dir);
+    }
+  });
+
+  it('the kept check_test_calendar_sync.js still runs, from tools/, through the orchestrator', () => {
     const dir = legacyProject();
     try {
       updateHarness(dir);
-      const res = spawnSync(process.execPath, ['tools/guards/check_test_calendar_sync.js'], { cwd: dir, encoding: 'utf-8' });
-      assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+      const direct = spawnSync(process.execPath, ['tools/check_test_calendar_sync.js'], { cwd: dir, encoding: 'utf-8' });
+      assert.strictEqual(direct.status, 0, direct.stdout + direct.stderr);
+      const { planGuards } = require(path.join(dir, 'tools', 'audit.js'));
+      const labels = planGuards(path.join(dir, 'tools')).map((e) => e.label);
+      assert.ok(labels.includes('check_test_calendar_sync.js'), labels.join(', '));
     } finally {
       teardown(dir);
     }

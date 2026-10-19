@@ -27,7 +27,9 @@ describe('generateHookFromManifest', () => {
 
         const content = fs.readFileSync(hookFile, 'utf-8');
         assert.ok(content.startsWith('#!/usr/bin/env bash'), 'should start with bash shebang');
-        assert.ok(content.includes('node tools/scan_secrets.js'), 'should include tool command');
+        // sdds/unified-discovery: guards run through the audit orchestrators.
+        assert.ok(content.split('\n').includes('if [ -f tools/audit.js ]; then node tools/audit.js --hook; fi'), 'should run the orchestrators');
+        assert.ok(!content.includes('node tools/scan_secrets.js'), 'no per-guard line');
         // The generator never runs `husky init`, so _/husky.sh does not exist
         // and sourcing it would break every commit.
         assert.ok(!content.includes('husky.sh'), 'must not source a bootstrap that does not exist');
@@ -83,7 +85,8 @@ describe('generateHookFromManifest', () => {
         const content = fs.readFileSync(hookFile, 'utf-8');
         assert.ok(content.startsWith('#!/usr/bin/env bash'), 'should start with bash shebang');
         assert.ok(content.includes('Django Framework'), 'should mention adapter name');
-        assert.ok(content.includes('python3 tools/scan_secrets.py'), 'should include tool command');
+        assert.ok(content.split('\n').includes('if [ -f tools/audit.py ]; then python3 tools/audit.py --hook; fi'), 'should run the orchestrators');
+        assert.ok(!content.includes('python3 tools/scan_secrets.py'), 'no per-guard line');
         assert.ok(content.includes('python3 -m ruff check .'), 'should include external tool command');
 
         // Backend should NOT have .husky directory
@@ -126,7 +129,7 @@ describe('generateHookFromManifest', () => {
         const hookFile = path.join(dir, '.githooks', 'pre-commit');
         const content = fs.readFileSync(hookFile, 'utf-8');
         assert.ok(!content.includes('undefined'), 'should not include undefined in hook');
-        assert.ok(content.includes('node tools/scan_secrets.js'), 'should include valid command');
+        assert.ok(content.split('\n').includes('if [ -f tools/audit.js ]; then node tools/audit.js --hook; fi'), 'should run the orchestrators');
       } finally {
         teardown(dir);
       }
@@ -146,12 +149,12 @@ describe('generateHookFromManifest', () => {
 
         const hookFile = path.join(dir, '.githooks', 'pre-commit');
         const content = fs.readFileSync(hookFile, 'utf-8');
-        // Shebang + set -e + echo, then only the generic project guards block
-        // (sdds/domain-agnostic): no empty command line.
+        // Shebang + set -e + echo, then only the orchestrator block
+        // (sdds/unified-discovery): no empty command line.
         const lines = content.split('\n').filter(l => l.trim().length > 0);
-        const kernel = lines.filter(l => !l.startsWith('# Project guards') && !l.startsWith('for g in tools/guards/'));
+        const kernel = lines.filter(l => !l.startsWith('# Guards:') && !/tools\/audit\.(js|py)/.test(l));
         assert.strictEqual(kernel.length, 3, 'should only have shebang, set -e and echo line');
-        assert.strictEqual(lines.length, 5, 'plus the project guards comment and loop');
+        assert.strictEqual(lines.length, 7, 'plus the orchestrator comment, check and two calls');
       } finally {
         teardown(dir);
       }
@@ -422,7 +425,8 @@ describe('generateHarness', () => {
         const content = fs.readFileSync(hookFile, 'utf-8');
         assert.ok(content.startsWith('#!/usr/bin/env bash'), 'should have bash shebang');
         assert.ok(!content.includes('husky.sh'), 'fallback hook must not source a missing bootstrap');
-        assert.ok(content.includes('scan_secrets'), 'should reference scan_secrets');
+        assert.ok(content.split('\n').includes('if [ -f tools/audit.js ]; then node tools/audit.js --hook; fi'), 'the orchestrators run scan_secrets');
+        assert.ok(fs.existsSync(path.join(dir, 'tools', 'scan_secrets.js')), 'scan_secrets.js installed');
       } finally {
         teardown(dir);
       }
@@ -446,7 +450,8 @@ describe('generateHarness', () => {
         const content = fs.readFileSync(hookFile, 'utf-8');
         assert.ok(content.startsWith('#!/usr/bin/env bash'), 'should have bash shebang');
         assert.ok(content.includes('CLC Kernel') || content.includes('CLC Forge'), 'should include CLC branding');
-        assert.ok(content.includes('scan_secrets'), 'should reference scan_secrets');
+        assert.ok(content.split('\n').includes('if [ -f tools/audit.py ]; then python3 tools/audit.py --hook; fi'), 'the orchestrators run scan_secrets');
+        assert.ok(fs.existsSync(path.join(dir, 'tools', 'scan_secrets.py')), 'scan_secrets.py installed');
       } finally {
         teardown(dir);
       }
@@ -457,6 +462,8 @@ describe('generateHarness', () => {
 describe('technology guards in the generated hook', () => {
   const { autoDetectStack } = require('../src/detector');
 
+  // sdds/unified-discovery: the hook calls audit.py, whose discovery runs
+  // celery_guard.py (a *_guard technology guard) once, before check_custom.py.
   it('wires celery_guard into the FastAPI hook before check_custom', () => {
     const dir = createTmpProject({ 'requirements.txt': 'fastapi\ncelery\n' });
     try {
@@ -465,10 +472,24 @@ describe('technology guards in the generated hook', () => {
 
       assert.ok(fs.existsSync(path.join(dir, 'tools', 'celery_guard.py')), 'celery_guard.py should be copied');
       const lines = fs.readFileSync(path.join(dir, '.githooks', 'pre-commit'), 'utf-8').split('\n');
-      const celeryIdx = lines.indexOf('python3 tools/celery_guard.py');
-      const customIdx = lines.indexOf('python3 tools/check_custom.py');
-      assert.ok(celeryIdx >= 0, `hook must run celery_guard:\n${lines.join('\n')}`);
-      assert.ok(customIdx >= 0, 'hook must run check_custom');
+      assert.ok(lines.includes('if [ -f tools/audit.py ]; then python3 tools/audit.py --hook; fi'), `hook must run audit.py:\n${lines.join('\n')}`);
+      const { spawnSync } = require('child_process');
+      const script = [
+        'import importlib.util, json, pathlib, sys',
+        'p = pathlib.Path(sys.argv[1])',
+        'spec = importlib.util.spec_from_file_location("audit_under_test", str(p))',
+        'm = importlib.util.module_from_spec(spec)',
+        'spec.loader.exec_module(m)',
+        'print(json.dumps([e["label"] for e in m.plan_guards(p.parent)]))',
+      ].join('\n');
+      const res = spawnSync('python3', ['-c', script, path.join(dir, 'tools', 'audit.py')], { encoding: 'utf-8' });
+      assert.strictEqual(res.status, 0, res.stderr);
+      const planned = JSON.parse(res.stdout);
+      const celeryIdx = planned.indexOf('celery_guard.py');
+      const customIdx = planned.indexOf('check_custom.py');
+      assert.ok(celeryIdx >= 0, `audit.py must run celery_guard: ${planned.join(', ')}`);
+      assert.ok(customIdx >= 0, 'audit.py must run check_custom');
+      assert.strictEqual(planned.filter((l) => l === 'celery_guard.py').length, 1, 'once');
       assert.ok(celeryIdx < customIdx, 'celery_guard must run before check_custom');
     } finally {
       teardown(dir);

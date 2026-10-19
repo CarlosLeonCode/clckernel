@@ -8,7 +8,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
-const { createTmpProject, teardown, git, registryPaths } = require('./helpers');
+const { createTmpProject, teardown, git, registryPaths, plannedGuards, hookRunsGuard, HOOK_ORCHESTRATOR_LINES } = require('./helpers');
 const { autoDetectStack } = require('../src/detector');
 const { generateHarness } = require('../src/generator');
 const { updateHarness } = require('../src/updater');
@@ -72,10 +72,12 @@ describe('install — Next.js at the root + backend/ FastAPI', () => {
       const hook = read(dir, result.hook.file);
       const lines = hook.split('\n');
       const count = (line) => lines.filter((l) => l === line).length;
-      assert.strictEqual(count('node tools/scan_secrets.js'), 1, hook);
-      assert.strictEqual(count('python3 tools/scan_secrets.py'), 1, hook);
-      assert.strictEqual(count('node tools/verify_tdd.js'), 1, hook);
-      assert.strictEqual(count('python3 tools/verify_tdd.py'), 1, hook);
+      // sdds/unified-discovery: one call per orchestrator; each plans each guard once.
+      for (const line of HOOK_ORCHESTRATOR_LINES) assert.strictEqual(count(line), 1, hook);
+      const planned = plannedGuards(dir);
+      for (const guard of ['scan_secrets.js', 'scan_secrets.py', 'verify_tdd.js', 'verify_tdd.py']) {
+        assert.strictEqual(planned.filter((g) => g === guard).length, 1, planned.join(', '));
+      }
       assert.ok(lines.some((l) => l.startsWith('if [ -x node_modules/.bin/tsc ]') && l.includes('tsc (.) not available')), hook);
       assert.ok(lines.some((l) => l.startsWith("( cd 'backend' && if python3 -m pytest --version") &&
         l.includes('clckernel: pytest (backend) not available, skipped')), hook);
@@ -138,13 +140,13 @@ describe('update re-detects the parts', () => {
       fs.writeFileSync(path.join(dir, 'backend', 'requirements.txt'), 'fastapi\n');
       const plain = quietly(() => updateHarness(dir));
       assert.match(read(dir, '.githooks/pre-commit'), /\( cd 'backend' && if python3 -m pytest --version/);
-      assert.ok(!read(dir, '.githooks/pre-commit').includes('python3 tools/verify_tdd.py'));
+      assert.ok(!plannedGuards(dir).includes('verify_tdd.py'));
       assert.ok(plain.plan.available.includes('verify_tdd'));
 
       quietly(() => updateHarness(dir, { addGuards: ['verify_tdd'] }));
       const hook = read(dir, '.githooks/pre-commit');
       assert.match(hook, /\( cd 'backend' && if python3 -m pytest --version/);
-      assert.ok(hook.includes('python3 tools/verify_tdd.py'));
+      assert.ok(hookRunsGuard(dir, 'verify_tdd.py'), hook);
       const registry = registryPaths(JSON.parse(read(dir, 'tools/.clckernel-managed.json')));
       assert.ok(registry.includes('tools/verify_tdd.py'));
       assert.ok(registry.includes('tools/audit.py'));

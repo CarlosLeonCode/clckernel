@@ -9,7 +9,7 @@ const assert = require('node:assert');
 const path = require('path');
 const fs = require('fs');
 const { spawnSync } = require('child_process');
-const { createTmpProject, teardown } = require('./helpers');
+const { createTmpProject, teardown, hookRunsGuard } = require('./helpers');
 
 const ROOT = path.resolve(__dirname, '..');
 const verifyTdd = path.join(ROOT, 'tools', 'verify_tdd.js');
@@ -321,8 +321,8 @@ describe('verify_tdd.js ships with JS stacks', () => {
         generateHarness(dir, autoDetectStack(dir));
         assert.ok(fs.existsSync(path.join(dir, 'tools', 'verify_tdd.js')), 'tools/verify_tdd.js must be copied');
         assert.ok(fs.existsSync(path.join(dir, 'tools', '_changes.js')), 'its snapshot helper must be copied');
-        const lines = fs.readFileSync(path.join(dir, hookDir, 'pre-commit'), 'utf-8').split('\n');
-        assert.ok(lines.includes('node tools/verify_tdd.js'), `hook must run verify_tdd:\n${lines.join('\n')}`);
+        // sdds/unified-discovery: the hook's audit.js call runs it.
+        assert.ok(hookRunsGuard(dir, 'verify_tdd.js', path.join(hookDir, 'pre-commit')), 'hook must run verify_tdd');
       } finally {
         teardown(dir);
       }

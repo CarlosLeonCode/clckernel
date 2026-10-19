@@ -8,6 +8,10 @@
  * Regenerated for sdds/config-foundation: tools/ gained the config readers
  * (_config.js + yaml.js, _config.py + _yaml.py) next to _changes.*, and the
  * Python hooks' ruff --extend-exclude lists them; nothing else changed.
+ * Regenerated for sdds/unified-discovery: only the hook bodies changed — the
+ * per-guard lines and the tools/guards/ loop became the audit orchestrator
+ * block (`node tools/audit.js --hook` / `python3 tools/audit.py --hook`);
+ * config, AGENTS.md and tools/ are byte-identical.
  */
 const { describe, it } = require('node:test');
 const assert = require('node:assert');

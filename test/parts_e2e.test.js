@@ -89,8 +89,12 @@ describe('multi-part install commit passes through the real hook', { concurrency
         const res = await run('git', ['commit', '-m', 'install'], dir);
         assert.strictEqual(res.status, 0, `install commit failed:\n${res.output}`);
         assert.ok(res.output.includes(HOOK_MARKER), `the hook did not run:\n${res.output}`);
+        // sdds/unified-discovery: the hook calls both orchestrators, which
+        // run verify_tdd.js and verify_tdd.py once each.
         const hook = fs.readFileSync(path.join(dir, '.githooks', 'pre-commit'), 'utf-8');
-        assert.ok(hook.includes('python3 tools/verify_tdd.py') && hook.includes('node tools/verify_tdd.js'), hook);
+        assert.ok(hook.includes('node tools/audit.js --hook') && hook.includes('python3 tools/audit.py --hook'), hook);
+        assert.ok(fs.existsSync(path.join(dir, 'tools', 'verify_tdd.js')) && fs.existsSync(path.join(dir, 'tools', 'verify_tdd.py')));
+        assert.strictEqual((res.output.match(/^clckernel: \S+\s+verify_tdd:/gm) || []).length, 2, res.output);
       } finally {
         fs.rmSync(dir, { recursive: true, force: true });
       }

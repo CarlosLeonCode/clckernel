@@ -142,7 +142,7 @@ custom_guards:
       {
         id: "authoring-guards",
         title: "Creación de una Salvaguarda Propia",
-        desc: "Los guards del proyecto viven en tools/guards/: el hook de pre-commit y el audit ejecutan cada archivo *.js con node y cada *.py con python3, después de los guards del kernel. Un código de salida distinto de cero bloquea el commit.",
+        desc: "Los guards del proyecto viven en tools/guards/: el hook de pre-commit y el audit usan el mismo descubrimiento (tools/audit.js y tools/audit.py), así que cada archivo *.js corre con node y cada *.py con python3, exactamente una vez. Los archivos check_*/scan_*/verify_* no gestionados en la raíz de tools/ también son guards del proyecto. Un código de salida distinto de cero bloquea el commit.",
         code: `// tools/guards/mi_guard_personalizado.js
 const { execSync } = require('node:child_process');
 

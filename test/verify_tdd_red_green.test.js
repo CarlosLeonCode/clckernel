@@ -8,7 +8,7 @@ const assert = require('node:assert');
 const path = require('path');
 const fs = require('fs');
 const { spawnSync } = require('child_process');
-const { createTmpProject, teardown } = require('./helpers');
+const { createTmpProject, teardown, hookRunsGuard } = require('./helpers');
 
 const verifyTdd = path.resolve(__dirname, '..', 'tools', 'verify_tdd.py');
 
@@ -209,8 +209,8 @@ describe('verify_tdd ships with Python backends', () => {
       try {
         generateHarness(dir, autoDetectStack(dir));
         assert.ok(fs.existsSync(path.join(dir, 'tools', 'verify_tdd.py')), 'tools/verify_tdd.py must be copied');
-        const lines = fs.readFileSync(path.join(dir, '.githooks', 'pre-commit'), 'utf-8').split('\n');
-        assert.ok(lines.includes('python3 tools/verify_tdd.py'), `hook must run verify_tdd:\n${lines.join('\n')}`);
+        // sdds/unified-discovery: the hook's audit.py call runs it.
+        assert.ok(hookRunsGuard(dir, 'verify_tdd.py'), 'hook must run verify_tdd');
       } finally {
         teardown(dir);
       }

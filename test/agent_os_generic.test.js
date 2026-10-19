@@ -8,7 +8,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
-const { createTmpProject, teardown, registryPaths } = require('./helpers');
+const { createTmpProject, teardown, registryPaths, plannedGuards, HOOK_ORCHESTRATOR_LINES } = require('./helpers');
 const { autoDetectStack } = require('../src/detector');
 const { generateHarness } = require('../src/generator');
 const AgentOSAdapter = require('../src/adapters/agent-os');
@@ -98,10 +98,13 @@ describe('Agent-OS installation', () => {
   it('a generic Agent-OS gets the generic guards and check_custom', () => {
     const { dir, result, registry, hook } = install(GENERIC);
     try {
+      // sdds/unified-discovery: the hook runs the guards through the orchestrators.
+      for (const line of HOOK_ORCHESTRATOR_LINES) assert.ok(hook.split('\n').includes(line), hook);
+      const planned = plannedGuards(dir);
       for (const guard of ['check_skills', 'check_links', 'check_placeholders', 'check_data_files', 'check_hitl', 'check_symlinks', 'check_custom', 'scan_secrets']) {
         assert.ok(result.installedGuards.includes(guard), `${guard} must be installed`);
         assert.ok(registry.includes(`tools/${guard}.js`), `${guard} must be in the registry`);
-        assert.ok(hook.includes(`tools/${guard}.js`), `${guard} must run in the hook`);
+        assert.ok(planned.includes(`${guard}.js`), `${guard} must run in the hook`);
       }
       assert.ok(registry.includes('tools/yaml.js'), 'check_custom ships its YAML parser');
       assert.ok(registry.includes('tools/_changes.js'), 'diff-based guards ship the snapshot helper');

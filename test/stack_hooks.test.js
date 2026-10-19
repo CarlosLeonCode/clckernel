@@ -36,6 +36,22 @@ function hookFor(adapter) {
   }
 }
 
+/**
+ * sdds/unified-discovery: every hook starts by calling the installed audit
+ * orchestrators and fails without one. Hook tests that exercise only the
+ * external tool lines get a passing stub tools/audit.js, and a PATH entry
+ * holding just `node` so a restricted PATH still finds it.
+ * @returns {string} The directory to put on PATH
+ */
+function stubOrchestrator(dir) {
+  fs.mkdirSync(path.join(dir, 'tools'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'tools', 'audit.js'), 'process.exit(0);\n');
+  const nodeBin = path.join(dir, 'nodebin');
+  fs.mkdirSync(nodeBin, { recursive: true });
+  fs.symlinkSync(process.execPath, path.join(nodeBin, 'node'));
+  return nodeBin;
+}
+
 function guardedLine(name, availableIf, command) {
   return `if ${availableIf} >/dev/null 2>&1; then ${command}; else echo "clckernel: ${name} not available, skipped"; fi`;
 }
@@ -134,7 +150,8 @@ describe('stack hooks: real hook behavior with a fake tool on PATH (plan 2)', ()
   }
 
   function run(shell, hook, dir, PATH) {
-    return spawnSync(shell, [hook], { cwd: dir, encoding: 'utf-8', env: { ...process.env, ...GIT_ENV, PATH } });
+    const nodeBin = fs.existsSync(path.join(dir, 'nodebin')) ? path.join(dir, 'nodebin') : stubOrchestrator(dir);
+    return spawnSync(shell, [hook], { cwd: dir, encoding: 'utf-8', env: { ...process.env, ...GIT_ENV, PATH: `${nodeBin}:${PATH}` } });
   }
 
   for (const shell of ['sh', 'bash']) {
@@ -217,8 +234,9 @@ describe('stack hooks: a fresh project without tests or with harness files (sdds
       it(`${shell}: pytest exit ${code} ${passes ? 'passes' : 'fails'} the hook`, () => {
         const { dir, bin, hook } = pytestHook(code);
         try {
+          const nodeBin = stubOrchestrator(dir);
           const res = spawnSync(shell, [hook], {
-            cwd: dir, encoding: 'utf-8', env: { ...process.env, ...GIT_ENV, PATH: `${bin}:/usr/bin:/bin` },
+            cwd: dir, encoding: 'utf-8', env: { ...process.env, ...GIT_ENV, PATH: `${bin}:${nodeBin}:/usr/bin:/bin` },
           });
           assert.match(res.stdout, /pytest-ran/);
           if (passes) assert.strictEqual(res.status, 0, res.stdout + res.stderr);
@@ -286,10 +304,13 @@ function withHarness(fixture, fn) {
 }
 
 describe('stack hooks: secrets on every stack, no Python where unused (plan 3)', () => {
+  // sdds/unified-discovery: the hook runs the guards through the orchestrators.
+  const RUNS_AUDIT_JS = 'if [ -f tools/audit.js ]; then node tools/audit.js --hook; fi';
   for (const stack of ['rails', 'go', 'laravel', 'rust']) {
     it(`${stack}: hook scans secrets with Node and installs no .py files`, () => {
       withHarness(FIXTURES[stack], ({ hook, tools }) => {
-        assert.ok(hook.split('\n').includes('node tools/scan_secrets.js'), hook);
+        assert.ok(hook.split('\n').includes(RUNS_AUDIT_JS), hook);
+        assert.ok(tools.includes('audit.js'), tools.join(', '));
         assert.ok(tools.includes('scan_secrets.js'), tools.join(', '));
         assert.deepStrictEqual(tools.filter((f) => f.endsWith('.py')), []);
       });
@@ -298,8 +319,8 @@ describe('stack hooks: secrets on every stack, no Python where unused (plan 3)',
 
   it('laravel: runs check_custom.js with its YAML parser', () => {
     withHarness(FIXTURES.laravel, ({ hook, tools }) => {
-      assert.ok(hook.split('\n').includes('node tools/check_custom.js'), hook);
-      assert.ok(!hook.includes('check_custom.py'), hook);
+      assert.ok(hook.split('\n').includes(RUNS_AUDIT_JS), hook);
+      assert.ok(!tools.includes('check_custom.py'), tools.join(', '));
       assert.ok(tools.includes('check_custom.js'));
       assert.ok(tools.includes('yaml.js'), 'check_custom.js needs tools/yaml.js');
     });

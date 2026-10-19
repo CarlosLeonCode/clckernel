@@ -98,4 +98,61 @@ function withRegistry(files) {
   return { ...files, 'tools/.clckernel-managed.json': JSON.stringify({ kernelVersion: '0.0.0', files: entries }) };
 }
 
-module.exports = { createTmpProject, teardown, git, createGitRepo, stageFiles, registryPaths, withRegistry };
+/**
+ * Guards the pre-commit hook runs (sdds/unified-discovery): the hook calls
+ * the installed audit orchestrators with --hook, and their discovery decides.
+ * Returns the labels the orchestrators in dir/tools plan (e.g.
+ * 'check_hitl.js', 'guards/x.py'), each orchestrator's plan once.
+ * @param {string} dir - Project root
+ * @returns {string[]}
+ */
+function plannedGuards(dir) {
+  const { spawnSync } = require('child_process');
+  const tools = path.join(dir, 'tools');
+  const labels = [];
+  if (fs.existsSync(path.join(tools, 'audit.js'))) {
+    const script = 'console.log(JSON.stringify(require(process.argv[1]).planGuards(require("path").dirname(process.argv[1])).map((e) => e.label)))';
+    const res = spawnSync(process.execPath, ['-e', script, path.join(tools, 'audit.js')], { encoding: 'utf-8' });
+    if (res.status !== 0) throw new Error(`audit.js planGuards failed: ${res.stderr}`);
+    labels.push(...JSON.parse(res.stdout));
+  }
+  if (fs.existsSync(path.join(tools, 'audit.py'))) {
+    const script = [
+      'import importlib.util, json, pathlib, sys',
+      'p = pathlib.Path(sys.argv[1])',
+      'spec = importlib.util.spec_from_file_location("audit_under_test", str(p))',
+      'm = importlib.util.module_from_spec(spec)',
+      'spec.loader.exec_module(m)',
+      'print(json.dumps([e["label"] for e in m.plan_guards(p.parent)]))',
+    ].join('\n');
+    const res = spawnSync('python3', ['-c', script, path.join(tools, 'audit.py')], { encoding: 'utf-8' });
+    if (res.status !== 0) throw new Error(`audit.py plan_guards failed: ${res.stderr}`);
+    labels.push(...JSON.parse(res.stdout));
+  }
+  return labels;
+}
+
+/** The two orchestrator lines every generated hook carries (sdds/unified-discovery). */
+const HOOK_ORCHESTRATOR_LINES = [
+  'if [ -f tools/audit.js ]; then node tools/audit.js --hook; fi',
+  'if [ -f tools/audit.py ]; then python3 tools/audit.py --hook; fi',
+];
+
+/**
+ * True when the generated hook at dir/hookRel runs the guard file (e.g.
+ * 'check_hitl.js'): it calls the orchestrators and their discovery plans it.
+ * @param {string} dir - Project root
+ * @param {string} file - Guard file name under tools/
+ * @param {string} [hookRel] - Hook path relative to dir
+ * @returns {boolean}
+ */
+function hookRunsGuard(dir, file, hookRel = path.join('.githooks', 'pre-commit')) {
+  const lines = fs.readFileSync(path.join(dir, hookRel), 'utf-8').split('\n');
+  if (!HOOK_ORCHESTRATOR_LINES.every((line) => lines.includes(line))) return false;
+  return plannedGuards(dir).includes(file);
+}
+
+module.exports = {
+  createTmpProject, teardown, git, createGitRepo, stageFiles, registryPaths, withRegistry,
+  plannedGuards, hookRunsGuard, HOOK_ORCHESTRATOR_LINES,
+};

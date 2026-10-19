@@ -142,7 +142,7 @@ custom_guards:
       {
         id: "authoring-guards",
         title: "Authoring a Custom Guard",
-        desc: "Project guards live in tools/guards/: the pre-commit hook and the audit run every *.js file with node and every *.py file with python3, after the kernel guards. A non-zero exit blocks the commit.",
+        desc: "Project guards live in tools/guards/: the pre-commit hook and the audit run the same discovery (tools/audit.js and tools/audit.py), so every *.js file runs with node and every *.py file with python3, each exactly once. Unmanaged check_*/scan_*/verify_* files at the top of tools/ are project guards too. A non-zero exit blocks the commit.",
         code: `// tools/guards/my_custom_guard.js
 const { execSync } = require('node:child_process');
 

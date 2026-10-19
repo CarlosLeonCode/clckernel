@@ -24,9 +24,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   start failing when they touch a skill or playbook without a marker.
 - **Domain guards leave the kernel.** `check_domain_data` and `check_test_calendar_sync` are no longer shipped
   or installed, and Agent-OS detection no longer reacts to the `marketing-os` / `laila-mos` names or a
-  "marketing operating system" description (`agent-os` and `ai-agents` still work). `clckernel update` moves
-  copies installed by earlier releases from `tools/` to `tools/guards/` (never deletes them; when a file with
-  that name already exists there it keeps both and warns), so they keep running as project guards.
+  "marketing operating system" description (`agent-os` and `ai-agents` still work). `clckernel update` leaves
+  copies installed by earlier releases exactly where they are in `tools/` (never moves or deletes them), takes
+  them out of the registry and reports them as retired kernel guards, so they keep running as project guards.
+- **The pre-commit hook and `clckernel audit` run the same guards (sdds/unified-discovery).** The generated hook
+  no longer lists one line per guard plus a `tools/guards/` loop: it calls `node tools/audit.js --hook` and
+  `python3 tools/audit.py --hook` (each when installed; with neither the commit fails), then the external tools.
+  The orchestrators discover every guard — kernel guards and project guards, both `tools/guards/*` and
+  unmanaged `check_*` / `scan_*` / `verify_*` / `*_guard` files at the top of `tools/` — and run each exactly
+  once (`.js` via `audit.js`, `.py` via `audit.py`; a lone orchestrator runs both languages). A project guard
+  placed at the top of `tools/`, previously run only by `clckernel audit`, now also blocks commits. A guard the
+  registry lists but that is missing on disk now fails the hook and the audit. `--hook` writes no report or
+  receipt and prints one line per guard. Re-run `clckernel update` to get the new hook.
+- **Retired kernel guards stay in place.** A guard in the registry that the current kernel no longer ships is
+  kept where it is (no move to `tools/guards/`, which broke guards that `require` a sibling such as
+  `./_changes`), leaves the registry, and `update` reports it as "retired kernel guard kept as project guard".
+  `updateHarness()` returns `retiredGuards` instead of `guardMigration`.
 - **`.clckernel.yaml` is read by install, update and the guards; keys without an effect are gone
   (sdds/config-foundation).** `active_guards`, `phases`, `gate_mode`, `severities`, `layers` and `scope` never
   changed anything: they now print a deprecation warning and are ignored (per-guard warning levels are left for

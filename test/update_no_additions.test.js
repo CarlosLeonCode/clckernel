@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
-const { createTmpProject, teardown, git } = require('./helpers');
+const { createTmpProject, teardown, git, hookRunsGuard } = require('./helpers');
 const { autoDetectStack } = require('../src/detector');
 const { generateHarness } = require('../src/generator');
 const { updateHarness } = require('../src/updater');
@@ -112,10 +112,12 @@ function withoutGuards(dir, names) {
   return dir;
 }
 
-const hookRuns = (dir, name) => readText(dir, HOOK).includes(`tools/${name}.js`);
+// sdds/unified-discovery: the hook calls the orchestrators; a guard runs in
+// it when their discovery plans it.
+const hookRuns = (dir, name) => hookRunsGuard(dir, `${name}.js`, HOOK);
 // The hook this update generated: in place, or next to a protected one.
 const newHookRuns = (dir, name) =>
-  readText(dir, exists(dir, `${HOOK}.clckernel-new`) ? `${HOOK}.clckernel-new` : HOOK).includes(`tools/${name}.js`);
+  hookRunsGuard(dir, `${name}.js`, exists(dir, `${HOOK}.clckernel-new`) ? `${HOOK}.clckernel-new` : HOOK);
 
 // ── Item 1: update keeps the project's guard set ────────────────────────────
 

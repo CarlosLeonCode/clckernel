@@ -3,7 +3,7 @@
  * Safely updates core guard tools, skills, playbooks, and IDE symlinks in an existing
  * project while guaranteeing 100% preservation of:
  * - Local specifications (sdds/)
- * - Custom guards (tools/guards/)
+ * - Project guards (tools/guards/, and guard files in tools/ the kernel does not ship)
  * - Project configuration and custom thresholds (.clckernel.yaml, or an older config name)
  * - Application source code and domain models
  */
@@ -23,10 +23,9 @@ const LEGACY_CURSOR_RULE = '.cursor/rules/clc_forge_context.mdc';
 const LEGACY_RESOLVED_JSON = '.clc-forge.resolved.json';
 const BUNDLED_SKILL_DIR = path.join(__dirname, '..', SKILLS_REL, CURRENT_SKILL);
 
-// Domain guards that earlier releases installed into tools/ (sdds/domain-agnostic,
-// decision 4). The kernel no longer ships them; update hands them to the project.
-const LEGACY_DOMAIN_GUARDS = ['check_test_calendar_sync.js', 'check_domain_data.js'];
-const PROJECT_GUARDS_REL = 'tools/guards';
+// Guard file names the audit orchestrators discover at the top of tools/
+// (sdds/unified-discovery): check_*, scan_*, verify_* or *_guard, .js or .py.
+const GUARD_FILE_RE = /^tools\/(?:(?:check|scan|verify)_[^/]*|[^/]*_guard)\.(?:js|py)$/;
 
 /**
  * Read every regular file under `dir` into a map of relative path -> bytes.
@@ -136,50 +135,35 @@ function cleanupLegacyArtifacts(dir, previousSkill) {
 }
 
 /**
- * Moves the domain guards earlier releases installed into tools/ to
- * tools/guards/, where they become project guards (the hook and the audit run
- * them). Nothing is deleted: when tools/guards/ already has a file with that
- * name, both are left in place and reported. The moved files leave the managed
- * registry because generateHarness rewrites it from what it installs.
- * Ownership (sdds/safe-update): only a guard whose bytes the kernel can prove
- * are its own (registry hash or a published version) is moved; a locally
- * modified one stays where it is, with a warning.
+ * Kernel guards this update retired (sdds/unified-discovery, decision 6): a
+ * guard file in tools/ that the kernel wrote before — listed in the prior
+ * registry, or byte-identical to a version it published — and that this run
+ * did not write because the current manifest no longer ships it. Nothing is
+ * moved or deleted: the file stays where it is (siblings it requires keep
+ * resolving), leaves the registry (rebuilt from what this run wrote), and the
+ * audit orchestrators keep running it as a project guard.
+ * @param {object} io - The update's io session (after generateHarness)
  * @param {string} dir - Project root
  * @param {object} knownHashes - { path: [sha256] } of published versions
- * @returns {{ moved: string[], kept: {path: string, reason: string}[] }}
+ * @returns {string[]} Root-relative paths, sorted
  */
-function migrateDomainGuards(dir, knownHashes) {
-  const io = currentIO(dir);
-  const moved = [];
-  const kept = [];
-  for (const file of LEGACY_DOMAIN_GUARDS) {
-    const from = path.join(dir, 'tools', file);
-    let stat;
-    try { stat = fs.lstatSync(from); } catch { continue; }
-    const fromRel = `tools/${file}`;
-    const toRel = `${PROJECT_GUARDS_REL}/${file}`;
-    if (!stat.isFile()) {
-      kept.push({ path: fromRel, reason: 'not a regular file' });
-      continue;
-    }
-    const to = path.join(dir, PROJECT_GUARDS_REL, file);
-    if (io.exists(to)) {
-      kept.push({ path: fromRel, reason: `${toRel} already exists` });
-      continue;
-    }
-    const hash = sha256(fs.readFileSync(from));
-    const ours = io.registry.hashes.get(fromRel) === hash || (knownHashes[fromRel] || []).includes(hash);
-    if (!ours) {
-      kept.push({ path: fromRel, reason: 'modified locally, not moved' });
-      continue;
-    }
-    if (io.move(from, to) === 'excluded') {
-      kept.push({ path: fromRel, reason: 'excluded by config (update.exclude)' });
-      continue;
-    }
-    moved.push(toRel);
+function retiredKernelGuards(io, dir, knownHashes) {
+  const plan = io.plan();
+  const decided = new Set([
+    ...io.managedEntries().map((entry) => entry.path),
+    ...plan.protected.map((entry) => entry.path),
+    ...plan.excluded,
+  ]);
+  const candidates = new Set([...io.registry.paths, ...Object.keys(knownHashes)]);
+  const retired = [];
+  for (const rel of candidates) {
+    if (!GUARD_FILE_RE.test(rel) || decided.has(rel)) continue;
+    const bytes = io.read(path.join(dir, rel));
+    if (!bytes) continue;
+    const ours = io.registry.paths.includes(rel) || (knownHashes[rel] || []).includes(sha256(bytes));
+    if (ours) retired.push(rel);
   }
-  return { moved, kept };
+  return retired.sort();
 }
 
 /**
@@ -246,16 +230,16 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
     mode: 'update',
     exclude: globMatcher(projectConfig.config.update.exclude),
   });
-  const { guardMigration, legacyCleanup } = runWithIO(io, () => {
+  const { retiredGuards, legacyCleanup } = runWithIO(io, () => {
     // Snapshot the installed skill first: the legacy copy is compared against it.
     const previousSkill = snapshotFiles(path.join(resolvedDir, SKILLS_REL, CURRENT_SKILL)).files;
-    const migration = migrateDomainGuards(resolvedDir, knownHashes);
     generateHarness(resolvedDir, detected, { addGuards, projectConfig });
+    const retired = retiredKernelGuards(io, resolvedDir, knownHashes);
     const cleanup = cleanupLegacyArtifacts(resolvedDir, previousSkill);
     const { ensureGitignoreEntries } = require('./gitignore');
     ensureGitignoreEntries(resolvedDir);
     injectUpdateRow(io, resolvedDir);
-    return { guardMigration: migration, legacyCleanup: cleanup };
+    return { retiredGuards: retired, legacyCleanup: cleanup };
   });
 
   return {
@@ -265,7 +249,7 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
     preserved,
     configWarnings: projectConfig.warnings,
     legacyCleanup,
-    guardMigration,
+    retiredGuards,
     plan: io.plan(),
     refreshed: {
       tools: true,
@@ -313,13 +297,8 @@ async function runUpdate(targetDir = process.cwd(), options = {}) {
     for (const warning of result.configWarnings) {
       console.log(`${colors.amber}⚠ ${warning}${colors.reset}`);
     }
-    const moveVerb = dryRun ? 'Would move' : 'Moved';
-    for (const movedPath of result.guardMigration.moved) {
-      const from = `tools/${path.basename(movedPath)}`;
-      console.log(`${colors.emerald}✔ ${moveVerb} ${from} -> ${movedPath} (now a project guard; the kernel no longer ships it)${colors.reset}`);
-    }
-    for (const { path: keptPath, reason } of result.guardMigration.kept) {
-      console.log(`${colors.amber}⚠ Kept ${keptPath} (${reason}); move it to ${PROJECT_GUARDS_REL}/ manually to keep running it${colors.reset}`);
+    for (const retiredPath of result.retiredGuards) {
+      console.log(`${colors.amber}⚠ ${retiredPath}: retired kernel guard kept as project guard (the kernel no longer ships it; the hook and the audit still run it)${colors.reset}`);
     }
     for (const { path: keptPath, reason } of result.legacyCleanup.kept) {
       console.log(`${colors.amber}⚠ Kept legacy artifact ${keptPath} (${reason}); review and remove it manually${colors.reset}`);

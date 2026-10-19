@@ -269,9 +269,10 @@ describe('project without stack signals (pom.xml only)', () => {
       assert.match(out, /UNKNOWN/, 'detected type must be unknown');
 
       const hook = fs.readFileSync(path.join(dir, '.githooks', 'pre-commit'), 'utf-8');
-      assert.ok(hook.includes('node tools/scan_secrets.js'), hook);
-      // Only the generic project guards line names python3, for tools/guards/*.py the project adds.
-      const kernelLines = hook.split('\n').filter((l) => !l.startsWith('for g in tools/guards/') && !l.startsWith('# Project guards'));
+      // sdds/unified-discovery: audit.js runs scan_secrets.js; the audit.py
+      // line only runs when tools/audit.py exists, which a generic install lacks.
+      assert.ok(hook.split('\n').includes('if [ -f tools/audit.js ]; then node tools/audit.js --hook; fi'), hook);
+      const kernelLines = hook.split('\n').filter((l) => !l.startsWith('if [ -f tools/audit.py ]') && !l.startsWith('[ -f tools/audit.js ] ||'));
       assert.ok(!kernelLines.join('\n').includes('python'), 'generic hook must not require Python');
       assert.ok(hook.split('\n').includes('set -e'));
       assert.ok(fs.existsSync(path.join(dir, 'tools', 'scan_secrets.js')));

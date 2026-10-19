@@ -37,6 +37,7 @@ function createHuskyProject(files = {}) {
 
 /** Without Husky, the frontend hook is written to .githooks/pre-commit. */
 const HOOK = path.join('.githooks', 'pre-commit');
+const AUDIT_JS = fs.readFileSync(path.join(__dirname, '..', 'tools', 'audit.js'), 'utf-8');
 
 describe('published package contains the skills the installer copies', () => {
   it('packs the clckernel_cli skill that installAgenticCLI reads', () => {
@@ -92,8 +93,11 @@ describe('generateHookFromManifest() produces a working hook', () => {
     }
   });
 
+  // sdds/unified-discovery: the hook runs the guards through the audit
+  // orchestrator, so these projects carry the real tools/audit.js.
   it('runs the emitted hook end-to-end in a project with the bundled guards', () => {
     const dir = createTmpProject({
+      'tools/audit.js': AUDIT_JS,
       'tools/scan_secrets.js': 'process.exit(0);\n',
     });
     try {
@@ -109,7 +113,7 @@ describe('generateHookFromManifest() produces a working hook', () => {
   });
 
   it('does not invoke an external CLI that is not installed in the target', () => {
-    const dir = createTmpProject({ 'tools/scan_secrets.js': 'process.exit(0);\n' });
+    const dir = createTmpProject({ 'tools/audit.js': AUDIT_JS, 'tools/scan_secrets.js': 'process.exit(0);\n' });
     try {
       generateHookFromManifest(makeAdapter(), dir);
       const hookFile = path.join(dir, HOOK);
@@ -136,8 +140,8 @@ describe('generateHookFromManifest() produces a working hook', () => {
       generateHookFromManifest(makeAdapter(), dir);
       const hook = fs.readFileSync(path.join(dir, HOOK), 'utf-8');
       assert.ok(
-        hook.includes('node tools/scan_secrets.js'),
-        'bundled guard commands must still run on commit'
+        hook.split('\n').includes('if [ -f tools/audit.js ]; then node tools/audit.js --hook; fi'),
+        'bundled guards must still run on commit (through the orchestrator)'
       );
     } finally {
       teardown(dir);
@@ -146,7 +150,8 @@ describe('generateHookFromManifest() produces a working hook', () => {
 
   it('runs every emitted command successfully in a bare project', () => {
     const dir = createTmpProject({
-      'tools/scan_secrets.js': 'module.exports = function() {};\n',
+      'tools/audit.js': AUDIT_JS,
+      'tools/scan_secrets.js': 'module.exports = async function() { return { exitCode: 0, name: "scan_secrets", data: {} }; };\n',
     });
     try {
       generateHookFromManifest(makeAdapter(), dir);

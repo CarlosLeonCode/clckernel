@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
 """
 Modular Audit Orchestrator — Python
-Discovers check_*.py, scan_*.py, verify_*.py and *_guard.py guard scripts at runtime, runs each with
-graceful degradation, then runs the project guards in tools/guards/ (*.py with
-python3, *.js with node) as processes, and generates an English audit report (05-audit-report.md).
-Self-contained: uses only Python stdlib.
+The single place that decides which guards run (sdds/unified-discovery):
+`clckernel audit` runs it to write a report, the pre-commit hook runs it with
+--hook. Same discovery, same guards, each exactly once:
+  - top-level tools/ guards: check_*, scan_*, verify_* or *_guard, .py/.js;
+  - every tools/guards/*.py and *.js (project guards).
+audit.py runs the .py guards; the .js ones belong to audit.js, unless
+tools/audit.js is not installed: then audit.py runs them too, with node.
+A top-level guard of this language that defines check() is called in
+process; every other guard runs as a process (exit code decides, a JSON
+result is optional). A guard listed in the managed registry but missing on
+disk fails the run. Without --hook an English report (05-audit-report.md) and
+a receipt (audit-receipt.json) are written; --hook writes nothing and prints
+one line per guard. Self-contained: uses only Python stdlib.
 """
 from __future__ import annotations
 
@@ -12,6 +21,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import traceback
@@ -19,6 +29,22 @@ import traceback
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 LENSES = ("correctness", "security", "architecture", "performance")
 PROJECT_GUARD_RUNNERS = {".py": sys.executable or "python3", ".js": "node"}
+OWN_EXT = ".py"
+SIBLING_EXT, SIBLING_ORCHESTRATOR = ".js", "audit.js"
+REGISTRY_FILE = ".clckernel-managed.json"
+GUARD_STEM = re.compile(r"^(check|scan|verify)_")
+
+# Runs a JS guard that exports a function (module contract) as a process:
+# prints its result as JSON and exits with its exitCode.
+JS_MODULE_RUNNER = (
+    "const p = require('path').resolve(process.argv[1]);"
+    "const m = require(p);"
+    "const fn = typeof m === 'function' ? m : Object.values(m || {}).find(v => typeof v === 'function');"
+    "if (!fn) { console.error('does not export a function'); process.exit(1); }"
+    "Promise.resolve(fn(process.cwd())).then(r => {"
+    " console.log(JSON.stringify(r)); process.exitCode = (r && r.exitCode) || 0; },"
+    " e => { console.error(e && e.message); process.exitCode = 1; });"
+)
 
 # ── Static name → lens mapping (4 RDD lenses) ──────────────────────────────────────────
 
@@ -81,38 +107,106 @@ def find_active_sdd(change_name: str | None = None) -> pathlib.Path | None:
     return None
 
 
+def is_guard_file(name: str) -> bool:
+    """A top-level guard file name: check_*, scan_*, verify_* or *_guard, .py or .js."""
+    stem, ext = os.path.splitext(name)
+    if ext not in (".py", ".js"):
+        return False
+    return bool(GUARD_STEM.match(stem)) or stem.endswith("_guard")
+
+
+def _regular_files(directory: pathlib.Path) -> list[pathlib.Path]:
+    if not directory.is_dir():
+        return []
+    return sorted((f for f in directory.iterdir() if f.is_file()), key=lambda f: f.name)
+
+
 def discover_guards(tools_dir: pathlib.Path) -> list[pathlib.Path]:
     """
-    Discover all check_*.py, scan_*.py, verify_*.py and *_guard.py guard
-    scripts in tools/ (the *_guard.py ones are technology guards such as
-    docker_guard.py). Excludes audit.py itself. Returns sorted list for
-    deterministic ordering.
+    Top-level guards of this orchestrator's language (.py) in tools/,
+    alphabetical: check_*, scan_*, verify_* and *_guard (technology guards
+    such as docker_guard.py). Helpers (_*) and audit.py never match.
     """
-    guards: list[pathlib.Path] = []
-    for f in sorted(tools_dir.iterdir()):
-        if not f.is_file():
-            continue
-        name = f.name
-        if not name.endswith(".py"):
-            continue
-        if name.startswith(("check_", "scan_", "verify_")) or name.endswith("_guard.py"):
-            guards.append(f)
-    return guards
+    return [f for f in _regular_files(tools_dir) if is_guard_file(f.name) and f.suffix == OWN_EXT]
 
 
 def discover_project_guards(tools_dir: pathlib.Path) -> list[pathlib.Path]:
     """
     Project guards (sdds/domain-agnostic, decision 3): every *.py and *.js
-    file in tools/guards/, alphabetical. They are project code, run the way
-    the pre-commit hook runs them.
+    file in tools/guards/, alphabetical.
     """
-    guards_dir = tools_dir / "guards"
-    if not guards_dir.is_dir():
+    return [f for f in _regular_files(tools_dir / "guards") if f.suffix in PROJECT_GUARD_RUNNERS]
+
+
+def registered_paths(tools_dir: pathlib.Path) -> list[str]:
+    """Paths the managed registry lists, in either format (list, or {files: [{path}]})."""
+    try:
+        data = json.loads((tools_dir / REGISTRY_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
         return []
-    return sorted(
-        (f for f in guards_dir.iterdir() if f.is_file() and f.suffix in PROJECT_GUARD_RUNNERS),
-        key=lambda f: f.name,
-    )
+    if isinstance(data, list):
+        entries = data
+    elif isinstance(data, dict) and isinstance(data.get("files"), list):
+        entries = [f.get("path") for f in data["files"] if isinstance(f, dict)]
+    else:
+        entries = []
+    return [p for p in entries if isinstance(p, str)]
+
+
+def _defines_check(path: pathlib.Path) -> bool:
+    try:
+        return re.search(r"^def check\s*\(", path.read_text(encoding="utf-8"), re.M) is not None
+    except (OSError, UnicodeDecodeError):
+        return False
+
+
+def _exports_module(path: pathlib.Path) -> bool:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return False
+    return re.search(r"\bmodule\.exports\b|^\s*exports\.[\w$]+\s*=", text, re.M) is not None
+
+
+def plan_guards(tools_dir: pathlib.Path) -> list[dict]:
+    """
+    The guards this orchestrator runs (sdds/unified-discovery), in order:
+    top-level guards, then tools/guards/*. mode 'module' = a top-level .py
+    guard that defines check(): called in process; 'process' = any other
+    guard of a language this orchestrator owns (.py, plus .js when
+    tools/audit.js is not installed); 'missing' = registered, not on disk.
+    """
+    exts = {OWN_EXT}
+    if not (tools_dir / SIBLING_ORCHESTRATOR).exists():
+        exts.add(SIBLING_EXT)
+    plan: list[dict] = []
+    top = [f for f in _regular_files(tools_dir) if is_guard_file(f.name) and f.suffix in exts]
+    for f in top:
+        module = f.suffix == OWN_EXT and _defines_check(f)
+        plan.append({"file": f, "label": f.name, "mode": "module" if module else "process"})
+    for f in discover_project_guards(tools_dir):
+        if f.suffix in exts:
+            plan.append({"file": f, "label": f"guards/{f.name}", "mode": "process"})
+    present = {f.name for f in top}
+    for rel in registered_paths(tools_dir):
+        if not rel.startswith("tools/"):
+            continue
+        name = rel[len("tools/"):]
+        if "/" in name or not is_guard_file(name) or os.path.splitext(name)[1] not in exts or name in present:
+            continue
+        plan.append({"file": tools_dir / name, "label": name, "mode": "missing"})
+    return plan
+
+
+def _missing_guard_result(entry: dict) -> dict:
+    name = os.path.splitext(entry["label"])[0]
+    return {
+        "exit_code": 1, "skipped": False, "name": name, "lens": get_lens(name),
+        "data": {"message": (
+            f"Kernel guard missing: tools/{entry['label']} is listed in tools/{REGISTRY_FILE} "
+            "but not on disk; restore it with `clckernel update`"
+        )},
+    }
 
 
 def _parse_guard_json(stdout: str):
@@ -135,24 +229,29 @@ def _last_line(text: str) -> str:
 
 def run_project_guard(guard_path: pathlib.Path, target_dir: str) -> dict:
     """
-    Run one project guard as a process with cwd = target_dir. The exit code
-    decides (non-zero fails); a JSON result with the standard shape
-    ({name, skipped, data: {message, violations}}) is used for the report,
-    plain output is reported by its last line. Lens: architecture unless the
-    JSON names one of the four.
+    Run one guard as a process with cwd = target_dir. The exit code decides
+    (non-zero fails); a JSON result with the standard shape
+    ({name, skipped, lens?, data: {message, violations}}) is used for the
+    report, plain output is reported by its last line. A .js guard that
+    exports a function is called through that contract. Lens: the JSON's,
+    else the guard name's, else architecture.
     """
     fallback_name = guard_path.stem
+    fallback_lens = get_lens(fallback_name)
+    runner = PROJECT_GUARD_RUNNERS[guard_path.suffix]
+    if guard_path.suffix == ".js" and _exports_module(guard_path):
+        args = [runner, "-e", JS_MODULE_RUNNER, str(guard_path)]
+    else:
+        args = [runner, str(guard_path)]
     try:
-        proc = subprocess.run(
-            [PROJECT_GUARD_RUNNERS[guard_path.suffix], str(guard_path)],
-            cwd=target_dir, capture_output=True, text=True,
-        )
+        proc = subprocess.run(args, cwd=target_dir, capture_output=True, text=True)
     except OSError as exc:
         return {
-            "exit_code": 1, "skipped": False, "name": fallback_name, "lens": "architecture",
+            "exit_code": 1, "skipped": False, "name": fallback_name, "lens": fallback_lens,
             "data": {"message": f"Guard crashed: {exc}"},
         }
     exit_code = proc.returncode
+    output = (proc.stdout or "") + (proc.stderr or "")
     result = _parse_guard_json(proc.stdout)
     if result is not None:
         data = result.get("data") if isinstance(result.get("data"), dict) else result
@@ -161,13 +260,15 @@ def run_project_guard(guard_path: pathlib.Path, target_dir: str) -> dict:
             "exit_code": exit_code,
             "skipped": exit_code == 0 and bool(result.get("skipped", False)),
             "name": name if isinstance(name, str) and name else fallback_name,
-            "lens": result.get("lens") if result.get("lens") in LENSES else "architecture",
+            "lens": result.get("lens") if result.get("lens") in LENSES else fallback_lens,
             "data": data,
+            "output": output,
         }
     line = _last_line(proc.stdout) if exit_code == 0 else (_last_line(proc.stderr) or _last_line(proc.stdout))
     return {
-        "exit_code": exit_code, "skipped": False, "name": fallback_name, "lens": "architecture",
+        "exit_code": exit_code, "skipped": False, "name": fallback_name, "lens": fallback_lens,
         "data": {"message": line or ("Passed" if exit_code == 0 else f"Exited with code {exit_code}")},
+        "output": output,
     }
 
 
@@ -253,17 +354,7 @@ def _format_guard_section(name: str, result: dict) -> str:
         lines.append(f"> {data.get('message', 'Issues found')}")
         lines.append("")
 
-        # Format violations or findings
-        violations = data.get("violations") or data.get("findings") or {}
-        if isinstance(violations, dict):
-            for filepath, items in violations.items():
-                if not isinstance(items, list):
-                    continue
-                for item in items:
-                    loc = f" (line {item.get('lineNo', '')})" if item.get("lineNo") else ""
-                    label = item.get("label") or item.get("rule") or item.get("module") or ""
-                    msg = item.get("reason") or item.get("message") or ""
-                    lines.append(f"- `{filepath}`{loc}: {f'[{label}] ' if label else ''}{msg}")
+        lines.extend(_violation_lines(data))
 
         # Handle list-style data (e.g. scope unauthorized files)
         for key in ("unrelated", "warnings", "authorized"):
@@ -421,10 +512,66 @@ def print_summary(results: list[dict], report_path: pathlib.Path, receipt_path: 
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
-def main(target_dir: str | None = None) -> int:
-    """Run all discovered guards and produce the audit report."""
+def _violation_lines(data: dict) -> list[str]:
+    """One bullet per violation (or finding) of a failed guard."""
+    lines: list[str] = []
+    violations = data.get("violations") or data.get("findings") or {}
+    if isinstance(violations, list):
+        for item in violations:
+            if isinstance(item, dict):
+                where = f"`{item['file']}`: " if item.get("file") else ""
+                lines.append(f"- {where}{item.get('message') or item.get('reason') or json.dumps(item)}")
+        return lines
+    if isinstance(violations, dict):
+        for filepath, items in violations.items():
+            for item in items if isinstance(items, list) else []:
+                if not isinstance(item, dict):
+                    continue
+                loc = f" (line {item.get('lineNo')})" if item.get("lineNo") else ""
+                label = item.get("label") or item.get("rule") or item.get("module") or ""
+                msg = item.get("reason") or item.get("message") or ""
+                lines.append(f"- `{filepath}`{loc}: {f'[{label}] ' if label else ''}{msg}")
+    return lines
+
+
+def _run_plan(plan: list[dict], dir_path: str) -> list[dict]:
+    results: list[dict] = []
+    for entry in plan:
+        if entry["mode"] == "missing":
+            results.append(_missing_guard_result(entry))
+        elif entry["mode"] == "module":
+            results.append(run_guard(entry["file"], dir_path))
+        else:
+            results.append(run_project_guard(entry["file"], dir_path))
+    return results
+
+
+def _print_hook_summary(results: list[dict]) -> None:
+    """--hook output: one line per guard; a failed one also prints its violations or raw output."""
+    for result in results:
+        skipped = result.get("skipped", False)
+        exit_code = result.get("exit_code", 0)
+        data = result.get("data") if isinstance(result.get("data"), dict) else {}
+        status = "skip" if skipped else ("ok  " if exit_code == 0 else "FAIL")
+        print(f"clckernel: {status} {result.get('name', 'unknown')}: {data.get('message', '')}")
+        if skipped or exit_code == 0:
+            continue
+        details = _violation_lines(data) or [l for l in (result.get("output") or "").rstrip().split("\n") if l]
+        for line in details:
+            print(f"    {line}")
+
+
+def main(target_dir: str | None = None, hook: bool = False) -> int:
+    """Run all discovered guards; without --hook also write the report and receipt."""
     tools_dir = pathlib.Path(__file__).resolve().parent
     dir_path = target_dir or os.getcwd()
+    plan = plan_guards(tools_dir)
+
+    if hook:
+        results = _run_plan(plan, dir_path)
+        sys.stdout.flush()
+        _print_hook_summary(results)
+        return 1 if any(not r.get("skipped") and r.get("exit_code", 0) != 0 for r in results) else 0
 
     sdd_dir = find_active_sdd()
     if sdd_dir is None:
@@ -436,22 +583,14 @@ def main(target_dir: str | None = None) -> int:
 
     print(f"\nRunning CLC Kernel audit for: {sdd_dir.name}\n")
 
-    guard_paths = discover_guards(tools_dir)
-    project_guards = discover_project_guards(tools_dir)
-
-    if not guard_paths and not project_guards:
+    if not plan:
         print("No guard tools found in tools/. Nothing to audit.")
         return 0
 
-    names = [p.stem for p in guard_paths] + [f"guards/{p.name}" for p in project_guards]
+    names = [os.path.splitext(e["label"])[0] if e["label"].endswith(OWN_EXT) else e["label"] for e in plan]
     print(f"Discovered {len(names)} guard(s): " + ", ".join(names) + "\n")
 
-    results: list[dict] = []
-    for guard_path in guard_paths:
-        result = run_guard(guard_path, dir_path)
-        results.append(result)
-    for guard_path in project_guards:
-        results.append(run_project_guard(guard_path, dir_path))
+    results = _run_plan(plan, dir_path)
 
     # Generate and write report
     report_content = generate_report(results, sdd_dir)
@@ -475,9 +614,11 @@ def main(target_dir: str | None = None) -> int:
 
 
 if __name__ == "__main__":
+    # argv: [target_dir] [--hook], in any order. Any crash fails closed.
     try:
-        target = sys.argv[1] if len(sys.argv) > 1 else None
-        sys.exit(main(target))
+        args = sys.argv[1:]
+        target = next((a for a in args if not a.startswith("--")), None)
+        sys.exit(main(target, hook="--hook" in args))
     except Exception:
         traceback.print_exc()
         sys.exit(1)

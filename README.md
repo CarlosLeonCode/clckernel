@@ -129,6 +129,8 @@ git commit -m "feat(auth): add user authentication endpoint"
 ```
 Pre-commit hooks automatically execute the installed guards (e.g. Clean Architecture, Secret Leaks, Migration Reversibility, depending on the stack). Any non-compliant commit is **blocked by the pre-commit hook** (`--no-verify` skips it; CI is the backstop).
 
+The hook does not list guards: it calls the audit orchestrators (`node tools/audit.js --hook`, `python3 tools/audit.py --hook`, each when installed) and then the stack's external tools (linters, test runners) when they are available. The orchestrators discover every guard — the kernel's and the project's own, either at the top of `tools/` (`check_*`, `scan_*`, `verify_*`, `*_guard`) or in `tools/guards/` — and run each exactly once, so the commit hook and `clckernel audit` always run the same set.
+
 ### 5️⃣ Step 5: Verify Repository Health Anytime (Doctor)
 ```bash
 npx clckernel doctor
@@ -150,7 +152,7 @@ CLC Kernel provides a deterministic command grammar supported natively by **Clau
 | `clckernel audit` | Verification | Runs `node tools/audit.js` or `python tools/audit.py` and emits the Educational Summary. |
 | `clckernel doctor` | Diagnostics | Checks Git pre-commit hooks, IDE mirror symlinks, and guard script integrity. |
 | `clckernel commit <message>` | Version Control | Pre-flight audit, verifies diff vs SDD scope, and commits with Conventional Commits (zero AI attribution). |
-| `clckernel guard create <name>` | Safeguards | Scaffolds a new guard script in the stack's native language in `tools/guards/`; the pre-commit hook and the audit run every `tools/guards/*.js` (node) and `*.py` (python3). |
+| `clckernel guard create <name>` | Safeguards | Scaffolds a new guard script in the stack's native language in `tools/guards/`; the pre-commit hook and the audit run every project guard (`tools/guards/*.js`/`*.py`, and unmanaged `check_*`/`scan_*`/`verify_*` files at the top of `tools/`). |
 | `clckernel update` | Maintenance | Non-destructive update: refreshes core tools, skills & IDE symlinks without overwriting SDDs, custom guards, or `.clckernel.yaml`. |
 | `clckernel start` | Setup | Auto-detects stack, proposes AIUP lifecycle, and generates `.clckernel.yaml`. |
 
@@ -173,7 +175,7 @@ clckernel update
 - **Refreshes & Upgrades:** Core orchestrators (`tools/audit.js`, `tools/audit.py`), the built-in guards your project has, Agent Skills (`.agents/skills/`), and the IDE symlinks your project has (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`, Copilot, Antigravity).
 - **100% Preserved:**
   - `sdds/`: All local specifications, plans, and verification receipts remain intact.
-  - `tools/guards/`: All team-authored custom guards are preserved without modification. Domain guards that earlier releases installed into `tools/` are moved here (never deleted) and become project guards.
+  - Project guards (`tools/guards/`, and guard files at the top of `tools/` the kernel does not own) are preserved without modification. A kernel guard the kernel no longer ships stays exactly where it is, leaves the registry and keeps running as a project guard; `update` reports it as a "retired kernel guard kept as project guard".
   - `.clckernel.yaml`: never rewritten; update reads it (see [Configuration](#configuration)).
   - Application source code and domain models are never touched.
 
