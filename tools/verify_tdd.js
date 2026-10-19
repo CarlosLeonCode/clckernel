@@ -22,6 +22,11 @@
  * group whose code changed without a changed test in the same group fails.
  * With a single root the result is the same as a whole-repository run.
  *
+ * The project config (.clckernel.yaml) widens or narrows what counts as
+ * production code: a file matching `tdd.code` is code whatever its language
+ * (e.g. Python tools tested by JS tests), a file matching `tdd.ignore` never
+ * is.
+ *
  * Self-contained: uses only Node.js built-ins. Commands run with argument
  * arrays, never through a shell.
  */
@@ -29,7 +34,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { changedFiles, listFiles, pureRenames } = require('./_changes');
+const { changedFiles, listFiles, pureRenames, projectConfig, globMatcher } = require('./_changes');
 
 const NAME = 'verify_tdd';
 const DEFAULT_TIMEOUT = 300;
@@ -59,6 +64,26 @@ function git(repo, args, options = {}) {
   return res.stdout;
 }
 
+/**
+ * What counts as code beyond JS/TS (tdd.code) and what never does (tdd.ignore).
+ * @param {string} repo - Repository root (where the config lives)
+ * @returns {{ extra: (rel: string) => boolean, ignore: (rel: string) => boolean }}
+ */
+function codeRules(repo) {
+  const config = projectConfig(repo);
+  return {
+    extra: globMatcher(config ? config.tdd.code : []),
+    ignore: globMatcher(config ? config.tdd.ignore : []),
+  };
+}
+
+const NO_RULES = { extra: () => false, ignore: () => false };
+
+/** True for a file the verifier looks at: JS/TS, or listed in tdd.code. */
+function inScope(rel, rules) {
+  return JS_EXTENSIONS.includes(path.posix.extname(rel)) || rules.extra(rel);
+}
+
 function revExists(repo, rev) {
   try {
     git(repo, ['rev-parse', '--verify', '--quiet', `${rev}^{commit}`]);
@@ -73,12 +98,12 @@ function revExists(repo, rev) {
  * renames (identical content moved to a new path) are not changes to verify:
  * they are listed apart in `renamed` and count neither as code nor as tests.
  */
-function resolveTrees(repo) {
+function resolveTrees(repo, rules = NO_RULES) {
   const all = changedFiles(repo);
   if (all.mode === null) throw new GitError('could not list the changed files');
   const pure = pureRenames(repo, all.mode);
   const changes = { mode: all.mode, files: all.files.filter((f) => !pure.has(f)) };
-  const renamed = all.files.filter((f) => pure.has(f) && JS_EXTENSIONS.includes(path.posix.extname(f)));
+  const renamed = all.files.filter((f) => pure.has(f) && inScope(f, rules));
   const hasHead = revExists(repo, 'HEAD');
 
   if (changes.mode === 'staged') {
@@ -99,12 +124,12 @@ function projectRoot(rel, files) {
   return '.';
 }
 
-/** Changed JS/TS files grouped by project root (Map, first seen first). */
-function byRoot(repo, trees) {
+/** Changed JS/TS (and tdd.code) files grouped by project root (Map, first seen first). */
+function byRoot(repo, trees, rules = NO_RULES) {
   const files = new Set(listFiles(repo, trees.snapshot));
   const roots = new Map();
   for (const rel of trees.changed) {
-    if (!JS_EXTENSIONS.includes(path.posix.extname(rel))) continue;
+    if (!inScope(rel, rules)) continue;
     const root = projectRoot(rel, files);
     if (!roots.has(root)) roots.set(root, []);
     roots.get(root).push(rel);
@@ -120,14 +145,19 @@ function relative(rel, root) {
  * test:    *.test.* / *.spec.*, or any file under __tests__/ (jest convention)
  * support: *.config.*, vitest/jest.setup.*, anything under a fixtures/ dir of a
  *          test dir, and helpers under test/ or tests/ without a test suffix
- * code:    everything else
+ * code:    everything else, plus any file matching tdd.code; a file matching
+ *          tdd.ignore is never code
  */
-function classify(changed) {
+function classify(changed, rules = NO_RULES) {
   const tests = [];
   const support = [];
   const code = [];
   for (const rel of changed) {
-    if (!JS_EXTENSIONS.includes(path.posix.extname(rel))) continue;
+    if (!inScope(rel, rules)) continue;
+    if (rules.extra(rel)) {
+      if (!rules.ignore(rel)) code.push(rel);
+      continue;
+    }
     const parts = rel.split('/');
     const name = parts[parts.length - 1];
     const dirs = parts.slice(0, -1);
@@ -139,7 +169,7 @@ function classify(changed) {
       tests.push(rel);
     } else if (testDirIdx >= 0) {
       support.push(rel);
-    } else {
+    } else if (!rules.ignore(rel)) {
       code.push(rel);
     }
   }
@@ -386,7 +416,7 @@ function precheck(groups, data) {
   }
   if (groups.tests.length === 0) {
     data.message =
-      `No test evidence: ${groups.code.length} JS/TS code file(s) changed ` +
+      `No test evidence: ${groups.code.length} production code file(s) changed ` +
       'without any changed test file.';
     return result(1, data);
   }
@@ -394,14 +424,14 @@ function precheck(groups, data) {
 }
 
 /** Several project roots: each group passes on its own, or the change fails. */
-function verifyRoots(repo, trees, roots, data) {
+function verifyRoots(repo, trees, roots, data, rules = NO_RULES) {
   const entries = [...roots].map(([root, files]) => {
-    const groups = classify(files);
+    const groups = classify(files, rules);
     const gdata = { root, changed_tests: groups.tests, changed_support: groups.support, changed_code: groups.code };
     const outcome = precheck(groups, gdata);
     if (outcome && outcome.exitCode === 1) {
       gdata.message =
-        `No test evidence: ${groups.code.length} JS/TS code file(s) changed in ${root} ` +
+        `No test evidence: ${groups.code.length} production code file(s) changed in ${root} ` +
         `without any changed test file in ${root}.`;
     }
     return { root, groups, gdata, outcome };
@@ -437,18 +467,25 @@ function verifyRoots(repo, trees, roots, data) {
 function check(targetDir) {
   const dir = targetDir || process.cwd();
   let repo;
-  let trees;
   try {
     repo = git(dir, ['rev-parse', '--show-toplevel'], { encoding: 'utf-8' }).trim();
-    trees = resolveTrees(repo);
   } catch {
+    return result(0, { message: 'Not a git repository: nothing to verify' }, true);
+  }
+  // An invalid config throws here: never verify against a config we cannot read.
+  const rules = codeRules(repo);
+  let trees;
+  try {
+    trees = resolveTrees(repo, rules);
+  } catch (err) {
+    if (!(err instanceof GitError)) throw err;
     return result(0, { message: 'Not a git repository: nothing to verify' }, true);
   }
   if (trees === null) {
     return result(0, { message: 'No commits and nothing staged: nothing to verify' }, true);
   }
 
-  const groups = classify(trees.changed);
+  const groups = classify(trees.changed, rules);
   const data = {
     mode: trees.mode,
     base: trees.base || '(empty tree)',
@@ -459,8 +496,8 @@ function check(targetDir) {
   };
   if (trees.renamed.length > 0) data.pure_renames = trees.renamed;
 
-  const roots = byRoot(repo, trees);
-  if (roots.size > 1) return verifyRoots(repo, trees, roots, data);
+  const roots = byRoot(repo, trees, rules);
+  if (roots.size > 1) return verifyRoots(repo, trees, roots, data, rules);
   const root = roots.size === 1 ? [...roots.keys()][0] : '.';
   if (root !== '.') data.root = root;
 

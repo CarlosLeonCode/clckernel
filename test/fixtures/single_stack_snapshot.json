@@ -12,11 +12,13 @@
       "uiLibrary": "N/A"
     },
     "hookFile": ".githooks/pre-commit",
-    "hook": "#!/usr/bin/env bash\nset -e\necho \"Running CLC Kernel FastAPI Framework Safeguards...\"\n\npython3 tools/scan_secrets.py\npython3 tools/check_architecture.py\npython3 tools/check_db_efficiency.py\npython3 tools/check_migrations.py\npython3 tools/verify_tdd.py\npython3 tools/check_custom.py\nif python3 -m ruff --version >/dev/null 2>&1; then python3 -m ruff check . --extend-exclude tools/_changes.py,tools/audit.py,tools/check_architecture.py,tools/check_custom.py,tools/check_db_efficiency.py,tools/check_migrations.py,tools/scan_secrets.py,tools/verify_tdd.py; else echo \"clckernel: ruff not available, skipped\"; fi\nif python3 -m pytest --version >/dev/null 2>&1; then python3 -m pytest || [ $? -eq 5 ]; else echo \"clckernel: pytest not available, skipped\"; fi\n\n# Project guards (tools/guards/): *.js with node, *.py with python3, alphabetical.\nfor g in tools/guards/*; do [ -f \"$g\" ] || continue; case \"$g\" in *.js) echo \"clckernel: project guard $g\"; node \"$g\" ;; *.py) echo \"clckernel: project guard $g\"; python3 \"$g\" ;; esac; done\n",
+    "hook": "#!/usr/bin/env bash\nset -e\necho \"Running CLC Kernel FastAPI Framework Safeguards...\"\n\npython3 tools/scan_secrets.py\npython3 tools/check_architecture.py\npython3 tools/check_db_efficiency.py\npython3 tools/check_migrations.py\npython3 tools/verify_tdd.py\npython3 tools/check_custom.py\nif python3 -m ruff --version >/dev/null 2>&1; then python3 -m ruff check . --extend-exclude tools/_changes.py,tools/_config.py,tools/_yaml.py,tools/audit.py,tools/check_architecture.py,tools/check_custom.py,tools/check_db_efficiency.py,tools/check_migrations.py,tools/scan_secrets.py,tools/verify_tdd.py; else echo \"clckernel: ruff not available, skipped\"; fi\nif python3 -m pytest --version >/dev/null 2>&1; then python3 -m pytest || [ $? -eq 5 ]; else echo \"clckernel: pytest not available, skipped\"; fi\n\n# Project guards (tools/guards/): *.js with node, *.py with python3, alphabetical.\nfor g in tools/guards/*; do [ -f \"$g\" ] || continue; case \"$g\" in *.js) echo \"clckernel: project guard $g\"; node \"$g\" ;; *.py) echo \"clckernel: project guard $g\"; python3 \"$g\" ;; esac; done\n",
     "agents": "# 🔨 CLC Kernel FastAPI Framework (BACKEND) — AGENTS\n\nThis document is the **authoritative law** for AI agents working in this repository.\nForged by **CLC Kernel: The AI Agent Governance Engine**.\n\n> 🚨 **RULE #0: MANDATORY EXECUTION OVERRIDE RULE (NO EXCEPTIONS)**\n> Even when the user issues a direct or urgent fix request (\"fix this bug\", \"fix this error\", \"quick fix\"):\n> YOU ARE STRICTLY FORBIDDEN from modifying source code directly without completing the full quality harness:\n> 1. **Research & Root Cause Analysis:** Investigate tracebacks and inspect affected files before editing.\n> 2. **TDD Verification (Red Phase):** Write a failing regression test first (Pytest).\n> 3. **Clean Architecture Implementation (Green Phase):** Make the test pass maintaining layer isolation.\n> 4. **Mandatory Educational Audit Gate:** Execute `node tools/audit.js` or `python tools/audit.py` and output the Educational Code Summary to stdout.\n> NEVER declare success or skip verification commands for quick fixes.\n\n## 1. The Loop (Every Task)\n1. **Research** — Inspect codebase / docs before writing code.\n2. **Plan** — Write an SDD under `sdds/{change-name}/`. SDDs live 100% locally and are gitignored.\n3. **Test** (TDD) — Write failing test first (Pytest).\n4. **Implement** — Make test pass.\n5. **Verify & Audit** — Run `node tools/audit.js` or `python tools/audit.py`.\n6. **DoD** — Lint, typecheck, tests, coverage, docs, memory.\n7. **Commit** — Pre-commit hook runs automated guards.\n8. **PR** — Generate PR body.\n\n## 2. Core AI Safeguards (FastAPI Framework)\n- Ruff Python Linter (external CLI)\n- Clean Architecture Guard (Python AST: Domain -> Application -> Routes)\n- N+1 Heuristic (ORM-like calls inside loops, Python AST)\n- Alembic Migration Reversibility Guard (upgrade/downgrade, destructive operations)\n- Red→Green TDD Verifier (runs changed tests with pytest)\n- Secret & Private Key Leak Scanner\n- Scope protocol (agent-enforced; not checked by a guard)\n- Educational Audit Gate (05-audit-report.md)\n- Memory protocol (agent-enforced; Engram / Graphify optional, not checked by a guard)\n",
     "tools": [
       ".clckernel-managed.json",
       "_changes.py",
+      "_config.py",
+      "_yaml.py",
       "audit.py",
       "check_architecture.py",
       "check_custom.py",
@@ -42,11 +44,13 @@
       "uiLibrary": "N/A"
     },
     "hookFile": ".githooks/pre-commit",
-    "hook": "#!/usr/bin/env bash\nset -e\necho \"Running CLC Kernel FastAPI Framework Safeguards...\"\n\npython3 tools/scan_secrets.py\npython3 tools/check_architecture.py\npython3 tools/check_db_efficiency.py\npython3 tools/check_migrations.py\npython3 tools/verify_tdd.py\npython3 tools/redis_guard.py\npython3 tools/docker_guard.py\npython3 tools/check_custom.py\nif python3 -m ruff --version >/dev/null 2>&1; then python3 -m ruff check . --extend-exclude tools/_changes.py,tools/audit.py,tools/check_architecture.py,tools/check_custom.py,tools/check_db_efficiency.py,tools/check_migrations.py,tools/docker_guard.py,tools/redis_guard.py,tools/scan_secrets.py,tools/verify_tdd.py; else echo \"clckernel: ruff not available, skipped\"; fi\nif python3 -m pytest --version >/dev/null 2>&1; then python3 -m pytest || [ $? -eq 5 ]; else echo \"clckernel: pytest not available, skipped\"; fi\n\n# Project guards (tools/guards/): *.js with node, *.py with python3, alphabetical.\nfor g in tools/guards/*; do [ -f \"$g\" ] || continue; case \"$g\" in *.js) echo \"clckernel: project guard $g\"; node \"$g\" ;; *.py) echo \"clckernel: project guard $g\"; python3 \"$g\" ;; esac; done\n",
+    "hook": "#!/usr/bin/env bash\nset -e\necho \"Running CLC Kernel FastAPI Framework Safeguards...\"\n\npython3 tools/scan_secrets.py\npython3 tools/check_architecture.py\npython3 tools/check_db_efficiency.py\npython3 tools/check_migrations.py\npython3 tools/verify_tdd.py\npython3 tools/redis_guard.py\npython3 tools/docker_guard.py\npython3 tools/check_custom.py\nif python3 -m ruff --version >/dev/null 2>&1; then python3 -m ruff check . --extend-exclude tools/_changes.py,tools/_config.py,tools/_yaml.py,tools/audit.py,tools/check_architecture.py,tools/check_custom.py,tools/check_db_efficiency.py,tools/check_migrations.py,tools/docker_guard.py,tools/redis_guard.py,tools/scan_secrets.py,tools/verify_tdd.py; else echo \"clckernel: ruff not available, skipped\"; fi\nif python3 -m pytest --version >/dev/null 2>&1; then python3 -m pytest || [ $? -eq 5 ]; else echo \"clckernel: pytest not available, skipped\"; fi\n\n# Project guards (tools/guards/): *.js with node, *.py with python3, alphabetical.\nfor g in tools/guards/*; do [ -f \"$g\" ] || continue; case \"$g\" in *.js) echo \"clckernel: project guard $g\"; node \"$g\" ;; *.py) echo \"clckernel: project guard $g\"; python3 \"$g\" ;; esac; done\n",
     "agents": "# 🔨 CLC Kernel FastAPI Framework (BACKEND) — AGENTS\n\nThis document is the **authoritative law** for AI agents working in this repository.\nForged by **CLC Kernel: The AI Agent Governance Engine**.\n\n> 🚨 **RULE #0: MANDATORY EXECUTION OVERRIDE RULE (NO EXCEPTIONS)**\n> Even when the user issues a direct or urgent fix request (\"fix this bug\", \"fix this error\", \"quick fix\"):\n> YOU ARE STRICTLY FORBIDDEN from modifying source code directly without completing the full quality harness:\n> 1. **Research & Root Cause Analysis:** Investigate tracebacks and inspect affected files before editing.\n> 2. **TDD Verification (Red Phase):** Write a failing regression test first (Pytest).\n> 3. **Clean Architecture Implementation (Green Phase):** Make the test pass maintaining layer isolation.\n> 4. **Mandatory Educational Audit Gate:** Execute `node tools/audit.js` or `python tools/audit.py` and output the Educational Code Summary to stdout.\n> NEVER declare success or skip verification commands for quick fixes.\n\n## 1. The Loop (Every Task)\n1. **Research** — Inspect codebase / docs before writing code.\n2. **Plan** — Write an SDD under `sdds/{change-name}/`. SDDs live 100% locally and are gitignored.\n3. **Test** (TDD) — Write failing test first (Pytest).\n4. **Implement** — Make test pass.\n5. **Verify & Audit** — Run `node tools/audit.js` or `python tools/audit.py`.\n6. **DoD** — Lint, typecheck, tests, coverage, docs, memory.\n7. **Commit** — Pre-commit hook runs automated guards.\n8. **PR** — Generate PR body.\n\n## 2. Core AI Safeguards (FastAPI Framework)\n- Ruff Python Linter (external CLI)\n- Clean Architecture Guard (Python AST: Domain -> Application -> Routes)\n- N+1 Heuristic (ORM-like calls inside loops, Python AST)\n- Alembic Migration Reversibility Guard (upgrade/downgrade, destructive operations)\n- Red→Green TDD Verifier (runs changed tests with pytest)\n- Secret & Private Key Leak Scanner\n- Scope protocol (agent-enforced; not checked by a guard)\n- Educational Audit Gate (05-audit-report.md)\n- Memory protocol (agent-enforced; Engram / Graphify optional, not checked by a guard)\n",
     "tools": [
       ".clckernel-managed.json",
       "_changes.py",
+      "_config.py",
+      "_yaml.py",
       "audit.py",
       "check_architecture.py",
       "check_custom.py",
@@ -71,11 +75,13 @@
       "uiLibrary": "N/A"
     },
     "hookFile": ".githooks/pre-commit",
-    "hook": "#!/usr/bin/env bash\nset -e\necho \"Running CLC Kernel Django Framework Safeguards...\"\n\npython3 tools/scan_secrets.py\npython3 tools/check_architecture.py\npython3 tools/check_db_efficiency.py\npython3 tools/verify_tdd.py\npython3 tools/check_custom.py\nif python3 -m ruff --version >/dev/null 2>&1; then python3 -m ruff check . --extend-exclude tools/_changes.py,tools/audit.py,tools/check_architecture.py,tools/check_custom.py,tools/check_db_efficiency.py,tools/scan_secrets.py,tools/verify_tdd.py; else echo \"clckernel: ruff not available, skipped\"; fi\nif [ -f manage.py ] >/dev/null 2>&1; then python3 manage.py test; else echo \"clckernel: manage not available, skipped\"; fi\n\n# Project guards (tools/guards/): *.js with node, *.py with python3, alphabetical.\nfor g in tools/guards/*; do [ -f \"$g\" ] || continue; case \"$g\" in *.js) echo \"clckernel: project guard $g\"; node \"$g\" ;; *.py) echo \"clckernel: project guard $g\"; python3 \"$g\" ;; esac; done\n",
+    "hook": "#!/usr/bin/env bash\nset -e\necho \"Running CLC Kernel Django Framework Safeguards...\"\n\npython3 tools/scan_secrets.py\npython3 tools/check_architecture.py\npython3 tools/check_db_efficiency.py\npython3 tools/verify_tdd.py\npython3 tools/check_custom.py\nif python3 -m ruff --version >/dev/null 2>&1; then python3 -m ruff check . --extend-exclude tools/_changes.py,tools/_config.py,tools/_yaml.py,tools/audit.py,tools/check_architecture.py,tools/check_custom.py,tools/check_db_efficiency.py,tools/scan_secrets.py,tools/verify_tdd.py; else echo \"clckernel: ruff not available, skipped\"; fi\nif [ -f manage.py ] >/dev/null 2>&1; then python3 manage.py test; else echo \"clckernel: manage not available, skipped\"; fi\n\n# Project guards (tools/guards/): *.js with node, *.py with python3, alphabetical.\nfor g in tools/guards/*; do [ -f \"$g\" ] || continue; case \"$g\" in *.js) echo \"clckernel: project guard $g\"; node \"$g\" ;; *.py) echo \"clckernel: project guard $g\"; python3 \"$g\" ;; esac; done\n",
     "agents": "# 🔨 CLC Kernel Django Framework (BACKEND) — AGENTS\n\nThis document is the **authoritative law** for AI agents working in this repository.\nForged by **CLC Kernel: The AI Agent Governance Engine**.\n\n> 🚨 **RULE #0: MANDATORY EXECUTION OVERRIDE RULE (NO EXCEPTIONS)**\n> Even when the user issues a direct or urgent fix request (\"fix this bug\", \"fix this error\", \"quick fix\"):\n> YOU ARE STRICTLY FORBIDDEN from modifying source code directly without completing the full quality harness:\n> 1. **Research & Root Cause Analysis:** Investigate tracebacks and inspect affected files before editing.\n> 2. **TDD Verification (Red Phase):** Write a failing regression test first (pytest-django / manage.py test).\n> 3. **Clean Architecture Implementation (Green Phase):** Make the test pass maintaining layer isolation.\n> 4. **Mandatory Educational Audit Gate:** Execute `node tools/audit.js` or `python tools/audit.py` and output the Educational Code Summary to stdout.\n> NEVER declare success or skip verification commands for quick fixes.\n\n## 1. The Loop (Every Task)\n1. **Research** — Inspect codebase / docs before writing code.\n2. **Plan** — Write an SDD under `sdds/{change-name}/`. SDDs live 100% locally and are gitignored.\n3. **Test** (TDD) — Write failing test first (pytest-django / manage.py test).\n4. **Implement** — Make test pass.\n5. **Verify & Audit** — Run `node tools/audit.js` or `python tools/audit.py`.\n6. **DoD** — Lint, typecheck, tests, coverage, docs, memory.\n7. **Commit** — Pre-commit hook runs automated guards.\n8. **PR** — Generate PR body.\n\n## 2. Core AI Safeguards (Django Framework)\n- Ruff Python Linter (external CLI)\n- Clean Architecture Guard (Python AST: Domain -> Application -> Views)\n- N+1 Heuristic (ORM-like calls inside loops, Python AST)\n- Django Migration Reversibility protocol (agent-enforced; no migration guard installed for this stack)\n- Red→Green TDD Verifier (runs changed tests with pytest)\n- Secret & Private Key Leak Scanner\n- Scope protocol (agent-enforced; not checked by a guard)\n- Educational Audit Gate (05-audit-report.md)\n- Memory protocol (agent-enforced; Engram / Graphify optional, not checked by a guard)\n",
     "tools": [
       ".clckernel-managed.json",
       "_changes.py",
+      "_config.py",
+      "_yaml.py",
       "audit.py",
       "check_architecture.py",
       "check_custom.py",
@@ -102,6 +108,7 @@
     "tools": [
       ".clckernel-managed.json",
       "_changes.js",
+      "_config.js",
       "audit.js",
       "check_a11y.js",
       "check_custom.js",
@@ -130,6 +137,7 @@
     "tools": [
       ".clckernel-managed.json",
       "_changes.js",
+      "_config.js",
       "audit.js",
       "check_a11y.js",
       "check_architecture.js",
@@ -161,6 +169,7 @@
     "tools": [
       ".clckernel-managed.json",
       "_changes.js",
+      "_config.js",
       "audit.js",
       "check_a11y.js",
       "check_architecture.js",
@@ -192,6 +201,7 @@
     "tools": [
       ".clckernel-managed.json",
       "_changes.js",
+      "_config.js",
       "audit.js",
       "check_custom.js",
       "scan_secrets.js",
@@ -216,6 +226,7 @@
     "tools": [
       ".clckernel-managed.json",
       "_changes.js",
+      "_config.js",
       "audit.js",
       "check_custom.js",
       "scan_secrets.js",
@@ -240,6 +251,7 @@
     "tools": [
       ".clckernel-managed.json",
       "_changes.js",
+      "_config.js",
       "audit.js",
       "check_custom.js",
       "scan_secrets.js",
@@ -264,6 +276,7 @@
     "tools": [
       ".clckernel-managed.json",
       "_changes.js",
+      "_config.js",
       "audit.js",
       "check_custom.js",
       "scan_secrets.js",
@@ -288,6 +301,7 @@
     "tools": [
       ".clckernel-managed.json",
       "_changes.js",
+      "_config.js",
       "audit.js",
       "check_custom.js",
       "check_data_files.js",
@@ -319,8 +333,10 @@
     "tools": [
       ".clckernel-managed.json",
       "_changes.js",
+      "_config.js",
       "audit.js",
-      "scan_secrets.js"
+      "scan_secrets.js",
+      "yaml.js"
     ]
   }
 }

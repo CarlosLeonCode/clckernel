@@ -5,7 +5,7 @@ Execute the repository test suite within the native environment runner.
 ## Mandatory Execution Protocol
 
 ### Step 1: Detect Test Runner
-1. Inspect \`.clckernel.yaml\` or project files to identify the configured test runner:
+1. Inspect the project files to identify the test runner:
    - Node: \`npm test\` / \`vitest\` / \`jest\`
    - Python: \`pytest\`
    - Go: \`go test ./...\`

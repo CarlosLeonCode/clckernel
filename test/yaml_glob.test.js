@@ -1,6 +1,6 @@
 /**
  * globToRegex (tools/yaml.js) must share the semantics of the Python
- * _glob_to_regex in tools/check_custom.py: `**` / `*` / `?` / `{a,b}` are
+ * glob_to_regex in tools/_yaml.py: `**` / `*` / `?` / `{a,b}` are
  * wildcards and every other character is matched literally.
  */
 

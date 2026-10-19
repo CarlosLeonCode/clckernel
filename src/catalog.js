@@ -2,9 +2,10 @@
  * CLC Kernel — Central Safeguard Catalog
  *
  * Single source of truth describing every safeguard/guard the clckernel
- * framework knows about. Drives config validation (src/config.js),
- * config-driven harness generation (src/generator.js), doctor checks, and
- * the future safeguard audit.
+ * framework knows about: descriptions and audit lenses (tools/audit.js).
+ * It does not choose what install puts in a project (the
+ * adapters' manifests do) and its severity/gate_mode fields are not
+ * configurable (sdds/config-foundation: `severities` is left for a later spec).
  *
  * Entry shape (design §1.2, additive fields noted):
  *   name        {string}        guard script basename WITHOUT extension
@@ -14,130 +15,127 @@
  *   applies_when{string}        applicability predicate key (stack/project conditions)
  *   severity    {string}        'error' | 'warning' | 'advisory' (catalog default)
  *   gate_mode   {string}        'hard' | 'advisory' (catalog default)
- *   config_keys {string[]}      .clckernel.yaml keys this safeguard consumes
+ *   config_keys {string[]}      .clckernel.yaml keys this safeguard reads (tools/_config.js)
  *   phase       {string}        10-phase harness phase: 'audit' | 'test' | 'review' | 'handover'
  *   file        {string|null}   bundled tools/ file(s), '+' separated; null = external CLI
  *   manifest    {boolean}       true = declared by >=1 adapter manifest (design §1.2)
  *   planned     {boolean}       true = tool file not yet materialized (future slice)
- *
- * The catalog is a JOIN, not a rewrite: the no-config adapter path never
- * consults it; only the config-driven generation path does.
  */
 
 const SAFEGUARD_CATALOG = [
   { name: 'scan_secrets', labels: ['scan_secrets', 'scan_secrets.js', 'scan_secrets.py'],
     checks: 'Secret & private-key leak scan', verify: ['verify_secret_leaks', 'verify_no_hardcoded_secrets'],
-    applies_when: 'always', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
+    applies_when: 'always', severity: 'error', gate_mode: 'hard', config_keys: ['exclude_paths'],
     phase: 'audit', file: 'scan_secrets.js+scan_secrets.py', manifest: true, planned: false, lens: 'security' },
 
   { name: 'check_architecture', labels: ['check_architecture', 'check_architecture.js', 'check_architecture.py'],
     checks: 'Clean Architecture layer / server-component boundaries', verify: ['verify_architecture_layers', 'verify_server_component_boundaries'],
-    applies_when: 'frontend,backend', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
+    applies_when: 'frontend,backend', severity: 'error', gate_mode: 'hard', config_keys: ['exclude_paths'],
     phase: 'audit', file: 'check_architecture.js+check_architecture.py', manifest: true, planned: false, lens: 'architecture' },
 
   { name: 'check_custom', labels: ['check_custom', 'check_custom.js', 'check_custom.py'],
     checks: 'User-defined regex rules from `.clckernel.yaml`', verify: ['verify_custom_rules', 'verify_user_defined_regex_rules'],
-    applies_when: 'always', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
+    applies_when: 'always', severity: 'error', gate_mode: 'hard', config_keys: ['rules', 'exclude_paths'],
     phase: 'audit', file: 'check_custom.js+check_custom.py', manifest: true, planned: false, lens: 'architecture' },
 
   { name: 'check_a11y', labels: ['check_a11y', 'check_a11y.js'],
     checks: 'ARIA + alt accessibility', verify: ['verify_a11y', 'verify_accessibility'],
-    applies_when: 'frontend', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
+    applies_when: 'frontend', severity: 'error', gate_mode: 'hard', config_keys: ['exclude_paths'],
     phase: 'audit', file: 'check_a11y.js', manifest: true, planned: false, lens: 'correctness' },
 
   { name: 'check_ui_reuse', labels: ['check_ui_reuse', 'check_ui_reuse.js'],
     checks: 'UI primitive reuse from components/ui/', verify: ['verify_ui_reuse', 'verify_component_reuse'],
-    applies_when: 'frontend', severity: 'warning', gate_mode: 'advisory', config_keys: ['scope', 'exclude_paths'],
+    applies_when: 'frontend', severity: 'warning', gate_mode: 'advisory', config_keys: ['exclude_paths'],
     phase: 'audit', file: 'check_ui_reuse.js', manifest: true, planned: false, lens: 'architecture' },
 
   { name: 'check_performance', labels: ['check_performance', 'check_performance.js'],
     checks: 'next/image + tree-shaking', verify: ['verify_performance', 'verify_image_optimization'],
-    applies_when: 'frontend', severity: 'warning', gate_mode: 'advisory', config_keys: ['scope', 'exclude_paths'],
+    applies_when: 'frontend', severity: 'warning', gate_mode: 'advisory', config_keys: ['exclude_paths'],
     phase: 'audit', file: 'check_performance.js', manifest: true, planned: false, lens: 'performance' },
 
   { name: 'check_responsive', labels: ['check_responsive', 'check_responsive.js'],
     checks: 'Mobile-first responsiveness, fixed-width overflow & touch target size', verify: ['verify_responsive', 'verify_mobile_adaptability'],
-    applies_when: 'frontend', severity: 'warning', gate_mode: 'advisory', config_keys: ['scope', 'exclude_paths'],
+    applies_when: 'frontend', severity: 'warning', gate_mode: 'advisory', config_keys: ['exclude_paths'],
     phase: 'audit', file: 'check_responsive.js', manifest: true, planned: false, lens: 'performance' },
 
   { name: 'check_seo', labels: ['check_seo', 'check_seo.js'],
     checks: 'SEO metadata, OpenGraph, GEO tags, semantic HTML & LCP priority', verify: ['verify_seo', 'verify_geo_metadata', 'verify_core_web_vitals'],
-    applies_when: 'frontend', severity: 'warning', gate_mode: 'advisory', config_keys: ['scope', 'exclude_paths'],
+    applies_when: 'frontend', severity: 'warning', gate_mode: 'advisory', config_keys: ['exclude_paths'],
     phase: 'audit', file: 'check_seo.js', manifest: true, planned: false, lens: 'performance' },
 
   { name: 'check_storybook', labels: ['check_storybook', 'check_storybook.js'],
     checks: 'Storybook coverage (`.stories.tsx`)', verify: ['verify_storybook_coverage'],
-    applies_when: 'frontend', severity: 'warning', gate_mode: 'advisory', config_keys: ['scope', 'exclude_paths'],
+    applies_when: 'frontend', severity: 'warning', gate_mode: 'advisory', config_keys: ['exclude_paths'],
     phase: 'audit', file: 'check_storybook.js', manifest: true, planned: false, lens: 'performance' },
 
   { name: 'check_api_contracts', labels: ['check_api_contracts', 'check_api_contracts.js'],
     checks: 'Zod response-schema parsing', verify: ['verify_api_contracts', 'verify_response_schemas'],
-    applies_when: 'frontend', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
+    applies_when: 'frontend', severity: 'error', gate_mode: 'hard', config_keys: ['exclude_paths'],
     phase: 'audit', file: 'check_api_contracts.js', manifest: true, planned: false, lens: 'correctness' },
 
   { name: 'check_migrations', labels: ['check_migrations', 'check_migrations.py'],
     checks: 'Alembic/Django migration reversibility (upgrade/downgrade, destructive operations)', verify: ['verify_migration_idempotency'],
-    applies_when: 'backend,fastapi,django', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
+    applies_when: 'backend,fastapi,django', severity: 'error', gate_mode: 'hard', config_keys: ['exclude_paths'],
     phase: 'audit', file: 'check_migrations.py', manifest: true, planned: false, lens: 'architecture' },
 
   { name: 'verify_tdd', labels: ['verify_tdd', 'verify_tdd.js', 'verify_tdd.py'],
     checks: 'red→green (pytest / vitest / jest / node:test): changed tests fail on BASE and pass on the staged code', verify: ['verify_tdd_red_green', 'verify_tdd_evidence'],
-    applies_when: 'frontend,backend,agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
+    applies_when: 'frontend,backend,agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['tdd', 'exclude_paths'],
     phase: 'audit', file: 'verify_tdd.js+verify_tdd.py', manifest: true, planned: false, lens: 'correctness' },
 
   { name: 'check_scope', labels: ['check_scope', 'check_scope.py'],
     checks: 'git-diff vs SDD-authorization scope guardrail', verify: ['verify_scope_authorization', 'verify_sdd_scope'],
-    applies_when: 'always', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
+    applies_when: 'always', severity: 'error', gate_mode: 'hard', config_keys: ['exclude_paths'],
     phase: 'audit', file: 'check_scope.py', manifest: false, planned: false, lens: 'correctness' },
 
   { name: 'celery_guard', labels: ['celery_guard', 'celery_guard.py'],
     checks: 'Broker URL exposure, ignore_result, result backend', verify: ['verify_celery_broker_config'],
-    applies_when: 'celery', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
+    applies_when: 'celery', severity: 'error', gate_mode: 'hard', config_keys: ['exclude_paths'],
     phase: 'audit', file: 'celery_guard.py', manifest: true, planned: false, lens: 'security' },
 
   { name: 'redis_guard', labels: ['redis_guard', 'redis_guard.py'],
     checks: 'decode_responses, connect timeout, hardcoded URLs', verify: ['verify_redis_config'],
-    applies_when: 'redis', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
+    applies_when: 'redis', severity: 'error', gate_mode: 'hard', config_keys: ['exclude_paths'],
     phase: 'audit', file: 'redis_guard.py', manifest: true, planned: false, lens: 'security' },
 
   { name: 'postgres_guard', labels: ['postgres_guard', 'postgres_guard.py'],
     checks: 'Raw SQL string formatting, hstore misuse', verify: ['verify_postgres_sql_usage'],
-    applies_when: 'postgresql', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
+    applies_when: 'postgresql', severity: 'error', gate_mode: 'hard', config_keys: ['exclude_paths'],
     phase: 'audit', file: 'postgres_guard.py', manifest: true, planned: false, lens: 'security' },
 
   { name: 'docker_guard', labels: ['docker_guard', 'docker_guard.py'],
     checks: 'Non-root USER, ENV secrets, missing HEALTHCHECK', verify: ['verify_dockerfile_security'],
-    applies_when: 'docker', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
+    applies_when: 'docker', severity: 'error', gate_mode: 'hard', config_keys: ['exclude_paths'],
     phase: 'audit', file: 'docker_guard.py', manifest: true, planned: false, lens: 'security' },
 
   { name: 'check_symlinks', labels: ['check_symlinks', 'check_symlinks.js'],
     checks: 'AI IDE rule mirrors (CLAUDE.md, GEMINI.md, .cursorrules, .windsurfrules) point to AGENTS.md: symlink or identical copy', verify: ['verify_symlinks', 'verify_rule_mirrors'],
-    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
+    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['mirrors'],
     phase: 'audit', file: 'check_symlinks.js', manifest: true, planned: false, lens: 'architecture' },
 
   { name: 'check_hitl', labels: ['check_hitl', 'check_hitl.js'],
     checks: 'Explicit Human-in-the-Loop marker (`HITL:` line or `## Human checkpoint` section) in changed skills and playbooks', verify: ['verify_hitl', 'verify_human_review_checkpoints'],
-    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
+    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['hitl', 'exclude_paths'],
     phase: 'audit', file: 'check_hitl.js', manifest: true, planned: false, lens: 'architecture' },
 
   { name: 'check_data_files', labels: ['check_data_files', 'check_data_files.js'],
     checks: 'Every changed .json file parses (snapshot content, any folder); reports the file and the parse error', verify: ['verify_data_files_parse'],
-    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
+    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: [],
     phase: 'audit', file: 'check_data_files.js', manifest: true, planned: false, lens: 'correctness' },
 
   { name: 'check_skills', labels: ['check_skills', 'check_skills.js'],
     checks: 'SKILL.md frontmatter: non-empty lowercase `name` unique in the repository, non-empty `description` of at most 1024 characters', verify: ['verify_skill_frontmatter'],
-    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
+    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: [],
     phase: 'audit', file: 'check_skills.js', manifest: true, planned: false, lens: 'correctness' },
 
   { name: 'check_links', labels: ['check_links', 'check_links.js'],
     checks: 'Relative links in changed Markdown point to files present in the commit', verify: ['verify_relative_links'],
-    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
+    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: [],
     phase: 'audit', file: 'check_links.js', manifest: true, planned: false, lens: 'correctness' },
 
   { name: 'check_placeholders', labels: ['check_placeholders', 'check_placeholders.js'],
     checks: 'Forgotten draft placeholders in changed Markdown, YAML and JSON (double-brace slots allowed in templates/)', verify: ['verify_no_placeholders'],
-    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: ['scope'],
+    applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: [],
     phase: 'audit', file: 'check_placeholders.js', manifest: true, planned: false, lens: 'correctness' },
 
   { name: 'ruff', labels: ['ruff'],
@@ -172,17 +170,17 @@ const SAFEGUARD_CATALOG = [
 
   { name: 'check_openapi_drift', labels: ['check_openapi_drift', 'check_openapi_drift.py'],
     checks: 'FastAPI OpenAPI schema drift vs app routes', verify: ['verify_openapi_drift'],
-    applies_when: 'fastapi', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
+    applies_when: 'fastapi', severity: 'error', gate_mode: 'hard', config_keys: ['exclude_paths'],
     phase: 'audit', file: 'check_openapi_drift.py', manifest: true, planned: true, lens: 'correctness' },
 
   { name: 'check_db_efficiency', labels: ['check_db_efficiency', 'check_db_efficiency.py'],
     checks: 'N+1 heuristic: ORM-like calls inside loops (Python AST)', verify: ['verify_db_efficiency', 'verify_no_n_plus_1'],
-    applies_when: 'django|sqlalchemy', severity: 'error', gate_mode: 'hard', config_keys: ['scope', 'exclude_paths'],
+    applies_when: 'django|sqlalchemy', severity: 'error', gate_mode: 'hard', config_keys: ['exclude_paths'],
     phase: 'audit', file: 'check_db_efficiency.py', manifest: true, planned: false, lens: 'performance' },
 
   { name: 'check_observability', labels: ['check_observability', 'check_observability.py'],
     checks: 'structlog structured logging; bare print/logger ban', verify: ['verify_structured_logging'],
-    applies_when: 'backend', severity: 'warning', gate_mode: 'advisory', config_keys: ['scope', 'exclude_paths'],
+    applies_when: 'backend', severity: 'warning', gate_mode: 'advisory', config_keys: ['exclude_paths'],
     phase: 'audit', file: 'check_observability.py', manifest: true, planned: true, lens: 'performance' },
 ];
 

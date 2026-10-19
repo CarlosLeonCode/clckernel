@@ -298,6 +298,20 @@ async function runCli() {
     return;
   }
 
+  // The project config is read before the prompt and before any write: an
+  // invalid one stops the install here (sdds/config-foundation).
+  const { readProjectConfig } = require('./config');
+  let projectConfig;
+  try {
+    projectConfig = readProjectConfig(targetDir);
+  } catch (err) {
+    if (err.name !== 'ConfigError') throw err;
+    process.stderr.write(`\n❌ ${err.message}\n   Nothing was written.\n\n`);
+    process.exitCode = 1;
+    return;
+  }
+  for (const warning of projectConfig.warnings) process.stderr.write(`⚠ ${warning}\n`);
+
   // 1. Print Pro ASCII Banner
   printBanner();
 
@@ -327,7 +341,7 @@ async function runCli() {
     s.start('Configurando salvaguardas y motor de gobernanza...');
   }
 
-  const { installedGuards, hook, plan } = generateHarness(targetDir, finalConfig, { dryRun }) || {};
+  const { installedGuards, hook, plan } = generateHarness(targetDir, finalConfig, { dryRun, projectConfig }) || {};
 
   if (s) {
     s.stop(dryRun ? 'Plan listo (dry run).' : 'Salvaguardas y motor de gobernanza configurados.');

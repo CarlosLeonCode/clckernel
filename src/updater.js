@@ -13,9 +13,7 @@ const path = require('path');
 const { autoDetectStack } = require('./detector');
 const { generateHarness, manifestGuardNames } = require('./generator');
 const { createIO, runWithIO, currentIO, sha256, NEW_SUFFIX } = require('./io');
-
-// Config names, canonical first; the rest are read for compatibility.
-const CONFIG_NAMES = ['.clckernel.yaml', '.clckernel.yml', '.clc-forge.yaml', '.clc-forge.yml'];
+const { CONFIG_NAMES, readProjectConfig, globMatcher } = require('./config');
 
 // Artifacts written by releases that still used the old project name.
 const SKILLS_REL = path.join('.agents', 'skills');
@@ -96,8 +94,9 @@ function cleanupLegacyArtifacts(dir, previousSkill) {
       const mismatch = legacySkillMismatch(skillDir, [bundled, previousSkill]);
       if (mismatch) {
         kept.push({ path: skillLabel, reason: mismatch });
+      } else if (currentIO(dir).remove(skillDir) === 'excluded') {
+        kept.push({ path: skillLabel, reason: 'excluded by config (update.exclude)' });
       } else {
-        currentIO(dir).remove(skillDir);
         removed.push(skillLabel);
       }
     }
@@ -109,8 +108,9 @@ function cleanupLegacyArtifacts(dir, previousSkill) {
     const pointsToAgents =
       ruleStat.isSymbolicLink() &&
       path.resolve(path.dirname(rulePath), fs.readlinkSync(rulePath)) === path.join(dir, 'AGENTS.md');
-    if (pointsToAgents) {
-      currentIO(dir).remove(rulePath);
+    if (pointsToAgents && currentIO(dir).remove(rulePath) === 'excluded') {
+      kept.push({ path: LEGACY_CURSOR_RULE, reason: 'excluded by config (update.exclude)' });
+    } else if (pointsToAgents) {
       removed.push(LEGACY_CURSOR_RULE);
     } else {
       kept.push({
@@ -123,8 +123,9 @@ function cleanupLegacyArtifacts(dir, previousSkill) {
   const jsonPath = path.join(dir, LEGACY_RESOLVED_JSON);
   const jsonStat = lstat(jsonPath);
   if (jsonStat) {
-    if (jsonStat.isFile()) {
-      currentIO(dir).remove(jsonPath);
+    if (jsonStat.isFile() && currentIO(dir).remove(jsonPath) === 'excluded') {
+      kept.push({ path: LEGACY_RESOLVED_JSON, reason: 'excluded by config (update.exclude)' });
+    } else if (jsonStat.isFile()) {
       removed.push(LEGACY_RESOLVED_JSON);
     } else {
       kept.push({ path: LEGACY_RESOLVED_JSON, reason: 'not a regular file' });
@@ -172,7 +173,10 @@ function migrateDomainGuards(dir, knownHashes) {
       kept.push({ path: fromRel, reason: 'modified locally, not moved' });
       continue;
     }
-    io.move(from, to);
+    if (io.move(from, to) === 'excluded') {
+      kept.push({ path: fromRel, reason: 'excluded by config (update.exclude)' });
+      continue;
+    }
     moved.push(toRel);
   }
   return { moved, kept };
@@ -212,6 +216,10 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
     throw new Error(`Target directory "${resolvedDir}" does not exist.`);
   }
 
+  // The project config is read before anything is written: an invalid one
+  // throws its ConfigError and the update writes nothing (sdds/config-foundation).
+  const projectConfig = readProjectConfig(resolvedDir);
+
   // 1. Detect Stack
   const detected = autoDetectStack(resolvedDir);
 
@@ -231,12 +239,18 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
   // ownership rule, and a dry run only records the plan.
   const { loadKnownHashes } = require('./io');
   const knownHashes = options.knownHashes || loadKnownHashes();
-  const io = createIO({ root: resolvedDir, dryRun: !!options.dryRun, knownHashes, mode: 'update' });
+  const io = createIO({
+    root: resolvedDir,
+    dryRun: !!options.dryRun,
+    knownHashes,
+    mode: 'update',
+    exclude: globMatcher(projectConfig.config.update.exclude),
+  });
   const { guardMigration, legacyCleanup } = runWithIO(io, () => {
     // Snapshot the installed skill first: the legacy copy is compared against it.
     const previousSkill = snapshotFiles(path.join(resolvedDir, SKILLS_REL, CURRENT_SKILL)).files;
     const migration = migrateDomainGuards(resolvedDir, knownHashes);
-    generateHarness(resolvedDir, detected, { addGuards });
+    generateHarness(resolvedDir, detected, { addGuards, projectConfig });
     const cleanup = cleanupLegacyArtifacts(resolvedDir, previousSkill);
     const { ensureGitignoreEntries } = require('./gitignore');
     ensureGitignoreEntries(resolvedDir);
@@ -249,6 +263,7 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
     targetDir: resolvedDir,
     dryRun: io.dryRun,
     preserved,
+    configWarnings: projectConfig.warnings,
     legacyCleanup,
     guardMigration,
     plan: io.plan(),
@@ -295,6 +310,9 @@ async function runUpdate(targetDir = process.cwd(), options = {}) {
   try {
     const result = updateHarness(targetDir, { dryRun, addGuards: options.addGuards });
 
+    for (const warning of result.configWarnings) {
+      console.log(`${colors.amber}⚠ ${warning}${colors.reset}`);
+    }
     const moveVerb = dryRun ? 'Would move' : 'Moved';
     for (const movedPath of result.guardMigration.moved) {
       const from = `tools/${path.basename(movedPath)}`;

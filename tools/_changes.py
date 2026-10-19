@@ -13,6 +13,12 @@ Files the harness installed itself are listed in tools/.clckernel-managed.json
 so no guard evaluates the harness's own code. Without a registry (e.g. the
 clckernel repository, where tools/ is source code) nothing is excluded.
 
+The project's `exclude_paths` (.clckernel.yaml) are dropped too, for every
+guard. The config is read through the sibling _config.py, which install ships
+next to this file; an older install without it fails closed when a config file
+appears (run `clckernel update`). An invalid config raises its
+ConfigError: a guard never runs on a config it cannot read.
+
 Self-contained: Python 3.9+ standard library only. Git runs with argument
 lists, never through a shell; paths are read NUL-separated (-z), so spaces and
 non-ASCII names survive.
@@ -22,10 +28,46 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-from typing import Optional
+import sys
+from typing import Callable, Optional
 
 BINARY_PROBE_BYTES = 8000
 MANAGED_REGISTRY = "tools/.clckernel-managed.json"
+CONFIG_NAMES = ('.clckernel.yaml', '.clckernel.yml', '.clc-forge.yaml', '.clc-forge.yml')
+
+
+def project_config(target_dir: Optional[str] = None) -> Optional[dict]:
+    """
+    The project's validated config (defaults filled in), or None when the
+    project has no config file. Deprecation warnings go to stderr once.
+
+    Raises ConfigError on an invalid config, RuntimeError when the sibling
+    _config.py (or _yaml.py) is missing.
+    """
+    root = str(target_dir or os.getcwd())
+    if not any(os.path.exists(os.path.join(root, name)) for name in CONFIG_NAMES):
+        return None
+    tools_dir = os.path.dirname(os.path.abspath(__file__))
+    if tools_dir not in sys.path:
+        sys.path.insert(0, tools_dir)
+    try:
+        import _config
+    except ImportError as exc:
+        raise RuntimeError(
+            f"The project config needs tools/_config.py and tools/_yaml.py ({exc}): "
+            "run `clckernel update` so the guards can read it"
+        ) from exc
+    loaded = _config.load_config(root)
+    _config.report_warnings(loaded)
+    return loaded["config"]
+
+
+def glob_matcher(globs) -> Callable[[str], bool]:
+    """A predicate for root-relative paths matching one of the globs (always False without globs)."""
+    if not globs:
+        return lambda rel: False
+    import _config
+    return _config.glob_matcher(globs)
 
 
 def _git(cwd: str, *args: str) -> Optional[bytes]:
@@ -52,8 +94,9 @@ def changed_files(target_dir: Optional[str] = None, extensions=None) -> dict:
     """
     List the files added, copied, modified or renamed in the snapshot.
 
-    Returns {"mode": "staged" | "last-commit" | None, "files": [...]}; when
-    extensions is given, only paths ending in one of them are kept.
+    Returns {"mode": "staged" | "last-commit" | None, "files": [...]}, minus
+    the registry-listed files and the config's exclude_paths; when extensions
+    is given, only paths ending in one of them are kept.
     """
     cwd = str(target_dir or os.getcwd())
     any_staged = _git(cwd, "diff", "--cached", "--name-only", "-z")
@@ -76,7 +119,9 @@ def changed_files(target_dir: Optional[str] = None, extensions=None) -> dict:
         return {"mode": None, "files": []}
 
     managed = _managed_files(cwd, mode)
-    files = [f for f in _split_nul(out) if f not in managed]
+    config = project_config(cwd)
+    excluded = glob_matcher(config["exclude_paths"] if config else [])
+    files = [f for f in _split_nul(out) if f not in managed and not excluded(f)]
     if extensions:
         files = [f for f in files if f.endswith(tuple(extensions))]
     return {"mode": mode, "files": files}

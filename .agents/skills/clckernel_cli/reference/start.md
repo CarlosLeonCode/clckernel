@@ -23,6 +23,8 @@ Present detected stack and proposal clearly:
 3. **STOP.** Wait for the user's response.
 
 ### Phase 3: Materialization
-1. Write or update `.clckernel.yaml` at project root.
+1. Write or update `.clckernel.yaml` at project root, only with the keys the README "Configuration"
+   table lists (`rules`, `exclude_paths`, `mirrors`, `hitl`, `update`, `tdd`) and only what differs from
+   the defaults.
 2. If hooks are configured, ensure `.githooks/pre-commit` or `.husky/pre-commit` are provisioned.
 3. Confirm completion with a concise summary.

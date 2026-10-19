@@ -9,14 +9,14 @@ const toolsDir = path.resolve(__dirname, '..', 'tools');
 const checkCustomPy = path.join(toolsDir, 'check_custom.py');
 
 /**
- * Evaluates check_custom._glob_to_regex for each [glob, path] pair in Python
+ * Evaluates _yaml.glob_to_regex (used by check_custom.py) for each [glob, path] pair in Python
  * and returns the list of booleans (true when the path matches the glob).
  */
 function globMatches(pairs) {
   const script = [
     'import json, sys',
     `sys.path.insert(0, ${JSON.stringify(toolsDir)})`,
-    'from check_custom import _glob_to_regex',
+    'from _yaml import glob_to_regex as _glob_to_regex',
     'pairs = json.loads(sys.stdin.read())',
     'print(json.dumps([bool(_glob_to_regex(g).match(p)) for g, p in pairs]))',
   ].join('\n');

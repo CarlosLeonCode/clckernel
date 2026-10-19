@@ -19,6 +19,10 @@ cwd and PYTHONPATH set to that root in the temporary tree; a group whose code
 changed without a changed test in the same group fails. With a single root
 the result is the same as a whole-repository run.
 
+The project config (.clckernel.yaml) widens or narrows what counts as
+production code: a file matching `tdd.code` is code whatever its language,
+a file matching `tdd.ignore` never is.
+
 Self-contained: Python 3.9+ standard library only.
 """
 from __future__ import annotations
@@ -54,6 +58,27 @@ class GitError(Exception):
     """Raised when a git command fails."""
 
 
+def _never(_rel: str) -> bool:
+    return False
+
+
+NO_RULES = {"extra": _never, "ignore": _never}
+
+
+def _code_rules(repo: str) -> dict:
+    """What counts as code beyond .py (tdd.code) and what never does (tdd.ignore)."""
+    config = _changes.project_config(repo)
+    return {
+        "extra": _changes.glob_matcher(config["tdd"]["code"] if config else []),
+        "ignore": _changes.glob_matcher(config["tdd"]["ignore"] if config else []),
+    }
+
+
+def _in_scope(rel: str, rules: dict) -> bool:
+    """True for a file the verifier looks at: .py, or listed in tdd.code."""
+    return rel.endswith(".py") or rules["extra"](rel)
+
+
 def _git(repo: str, *args: str) -> str:
     try:
         return subprocess.run(
@@ -72,7 +97,7 @@ def _rev_exists(repo: str, rev: str) -> bool:
         return False
 
 
-def _resolve_trees(repo: str) -> dict | None:
+def _resolve_trees(repo: str, rules: dict = NO_RULES) -> dict | None:
     """
     Pick BASE/CANDIDATE and list the changed files (deletions ignored). Pure
     renames (identical content moved to a new path) are not changes to verify:
@@ -83,7 +108,7 @@ def _resolve_trees(repo: str) -> dict | None:
         raise GitError("could not list the changed files")
     pure = _changes.pure_renames(repo, all_changes["mode"])
     changes = {"mode": all_changes["mode"], "files": [f for f in all_changes["files"] if f not in pure]}
-    renamed = [f for f in all_changes["files"] if f in pure and f.endswith(".py")]
+    renamed = [f for f in all_changes["files"] if f in pure and _in_scope(f, rules)]
     has_head = _rev_exists(repo, "HEAD")
 
     if changes["mode"] == "staged":
@@ -108,12 +133,12 @@ def _project_root(rel: str, files: set) -> str:
     return "."
 
 
-def _by_root(repo: str, trees: dict) -> dict:
-    """Changed .py files grouped by project root (insertion order: first seen)."""
+def _by_root(repo: str, trees: dict, rules: dict = NO_RULES) -> dict:
+    """Changed .py (and tdd.code) files grouped by project root (insertion order: first seen)."""
     files = set(_changes.list_files(repo, trees["snapshot"]))
     roots: dict = {}
     for rel in trees["changed"]:
-        if rel.endswith(".py"):
+        if _in_scope(rel, rules):
             roots.setdefault(_project_root(rel, files), []).append(rel)
     return roots
 
@@ -132,19 +157,24 @@ def _is_test_path(rel: str) -> bool:
     )
 
 
-def _classify(changed: list[str]) -> dict:
+def _classify(changed: list[str], rules: dict = NO_RULES) -> dict:
+    """Split into tests, support and code; tdd.code files are code, tdd.ignore files never are."""
     tests: list[str] = []
     support: list[str] = []
     code: list[str] = []
     for rel in changed:
-        if not rel.endswith(".py"):
+        if not _in_scope(rel, rules):
+            continue
+        if rules["extra"](rel):
+            if not rules["ignore"](rel):
+                code.append(rel)
             continue
         name = pathlib.PurePosixPath(rel).name
         if name == "conftest.py":
             support.append(rel)
         elif _is_test_path(rel):
             (support if name in SUPPORT_NAMES else tests).append(rel)
-        else:
+        elif not rules["ignore"](rel):
             code.append(rel)
     return {"tests": tests, "support": support, "code": code}
 
@@ -296,7 +326,7 @@ def _precheck(groups: dict, data: dict, lang_label: str = "Python") -> dict | No
         return _result(0, data)
     if not groups["tests"]:
         data["message"] = (
-            f"No test evidence: {len(groups['code'])} {lang_label} code file(s) changed "
+            f"No test evidence: {len(groups['code'])} production code file(s) changed "
             "without any changed test file."
         )
         return _result(1, data)
@@ -312,17 +342,17 @@ def _group_data(root: str, groups: dict) -> dict:
     }
 
 
-def _verify_roots(repo: str, trees: dict, roots: dict, data: dict) -> dict:
+def _verify_roots(repo: str, trees: dict, roots: dict, data: dict, rules: dict = NO_RULES) -> dict:
     """Several project roots: each group passes on its own, or the change fails."""
     results = []
     pending = []
     for root, files in roots.items():
-        groups = _classify(files)
+        groups = _classify(files, rules)
         gdata = _group_data(root, groups)
         early = _precheck(groups, gdata)
         if early is not None and early["exit_code"] == 1:
             gdata["message"] = (
-                f"No test evidence: {len(groups['code'])} Python code file(s) changed in {root} "
+                f"No test evidence: {len(groups['code'])} production code file(s) changed in {root} "
                 f"without any changed test file in {root}."
             )
         results.append((root, groups, gdata, early))
@@ -361,13 +391,18 @@ def check(target_dir: str | None = None) -> dict:
     dir_path = target_dir or os.getcwd()
     try:
         repo = _git(dir_path, "rev-parse", "--show-toplevel").strip()
-        trees = _resolve_trees(repo)
+    except GitError:
+        return _result(0, {"message": "Not a git repository: nothing to verify"}, skipped=True)
+    # An invalid config raises here: never verify against a config we cannot read.
+    rules = _code_rules(repo)
+    try:
+        trees = _resolve_trees(repo, rules)
     except GitError:
         return _result(0, {"message": "Not a git repository: nothing to verify"}, skipped=True)
     if trees is None:
         return _result(0, {"message": "No commits and nothing staged: nothing to verify"}, skipped=True)
 
-    groups = _classify(trees["changed"])
+    groups = _classify(trees["changed"], rules)
     data = {
         "mode": trees["mode"],
         "base": trees["base"] or "(empty tree)",
@@ -379,9 +414,9 @@ def check(target_dir: str | None = None) -> dict:
     if trees["renamed"]:
         data["pure_renames"] = trees["renamed"]
 
-    roots = _by_root(repo, trees)
+    roots = _by_root(repo, trees, rules)
     if len(roots) > 1:
-        return _verify_roots(repo, trees, roots, data)
+        return _verify_roots(repo, trees, roots, data, rules)
     root = next(iter(roots), ".")
     if root != ".":
         data["root"] = root

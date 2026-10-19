@@ -3,7 +3,7 @@
  *
  * Every fixture in test/fixtures/yaml/valid must parse to its sibling .json in
  * the JS parser (tools/yaml.js), the Python fallback parser
- * (check_custom._minimal_yaml_parse, forced even when PyYAML is installed) and
+ * (_yaml.minimal_yaml_parse, forced even when PyYAML is installed) and
  * PyYAML itself when it is importable (oracle; skipped otherwise).
  *
  * Every fixture in test/fixtures/yaml/invalid must be rejected by both of our
@@ -31,7 +31,7 @@ function listYaml(dir) {
 
 /**
  * Run every fixture through a Python parser in a single interpreter.
- * mode "fallback" forces check_custom._minimal_yaml_parse; mode "pyyaml" uses
+ * mode "fallback" forces _yaml.minimal_yaml_parse; mode "pyyaml" uses
  * yaml.safe_load and reports { skip: true } when PyYAML is not importable.
  * Returns a map: fixture path -> { value } | { error, type } | { skip }.
  */
@@ -49,7 +49,7 @@ function runPython(mode, files) {
     '        sys.exit(0)',
     '    parse = yaml.safe_load',
     'else:',
-    '    from check_custom import _minimal_yaml_parse as parse',
+    '    from _yaml import minimal_yaml_parse as parse',
     'out = {}',
     'for f in files:',
     '    with open(f, encoding="utf-8") as fh:',
@@ -98,7 +98,7 @@ describe('YAML conformance: valid fixtures', () => {
         assert.deepStrictEqual(parseYaml(text), fx.expected);
       });
 
-      it('Python _minimal_yaml_parse matches the expected object', () => {
+      it('Python minimal_yaml_parse matches the expected object', () => {
         const res = pyFallbackValid[fx.yamlPath];
         assert.ok(!res.error, `python fallback raised ${res.type}: ${res.error}`);
         assert.deepStrictEqual(res.value, fx.expected);
@@ -130,7 +130,7 @@ describe('YAML conformance: invalid fixtures', () => {
         });
       });
 
-      it('Python _minimal_yaml_parse raises ValueError naming the line', () => {
+      it('Python minimal_yaml_parse raises ValueError naming the line', () => {
         const res = pyFallbackInvalid[fx.yamlPath];
         assert.ok(res.error !== undefined, `expected an error, got ${JSON.stringify(res.value)}`);
         assert.strictEqual(res.type, 'ValueError');

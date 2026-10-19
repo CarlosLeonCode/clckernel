@@ -15,6 +15,12 @@
  * Without a registry (e.g. the clckernel repository, where tools/ is source
  * code) nothing is excluded.
  *
+ * The project's `exclude_paths` (.clckernel.yaml) are dropped too, for every
+ * guard. The config is read through the sibling _config.js, which install
+ * ships next to this file; an older install without it fails closed when a
+ * config file appears (run `clckernel update`). An invalid config
+ * throws its ConfigError: a guard never runs on a config it cannot read.
+ *
  * Self-contained: uses only Node.js built-ins. Git runs with argument arrays,
  * never through a shell; paths are read NUL-separated (-z), so spaces and
  * non-ASCII names survive.
@@ -26,6 +32,43 @@ const { spawnSync } = require('child_process');
 const BINARY_PROBE_BYTES = 8000;
 const MANAGED_REGISTRY = 'tools/.clckernel-managed.json';
 const MAX_BUFFER = 512 * 1024 * 1024;
+const CONFIG_NAMES = ['.clckernel.yaml', '.clckernel.yml', '.clc-forge.yaml', '.clc-forge.yml'];
+
+/**
+ * The project's validated config (defaults filled in), or null when the
+ * project has no config file. Deprecation warnings go to stderr once.
+ * @param {string} [dir] - Project root (default: cwd)
+ * @returns {object|null}
+ * @throws {Error} ConfigError on an invalid config; a plain Error when
+ *   tools/_config.js is missing
+ */
+function projectConfig(dir) {
+  const root = dir || process.cwd();
+  if (!CONFIG_NAMES.some(name => fs.existsSync(path.join(root, name)))) return null;
+  let configModule;
+  try {
+    configModule = require('./_config.js');
+  } catch (err) {
+    if (err && err.code === 'MODULE_NOT_FOUND') {
+      throw new Error(`The project config needs tools/_config.js and tools/yaml.js (${err.message.split('\n')[0]}): run \`clckernel update\` so the guards can read it`);
+    }
+    throw err;
+  }
+  const loaded = configModule.loadConfig(root);
+  configModule.reportWarnings(loaded);
+  return loaded.config;
+}
+
+/**
+ * A predicate for root-relative paths matching one of the globs (false for
+ * every path when there are none).
+ * @param {string[]} globs
+ * @returns {(rel: string) => boolean}
+ */
+function globMatcher(globs) {
+  if (!Array.isArray(globs) || globs.length === 0) return () => false;
+  return require('./_config.js').globMatcher(globs);
+}
 
 /** Runs git in dir; stdout Buffer on success, null on any failure. */
 function git(dir, args) {
@@ -43,7 +86,8 @@ function hasCommit(dir, rev) {
 }
 
 /**
- * Lists the files added, copied, modified or renamed in the snapshot.
+ * Lists the files added, copied, modified or renamed in the snapshot, minus
+ * the registry-listed files and the config's exclude_paths.
  * @param {string} dir - Directory inside the repository
  * @param {{ extensions?: string[], includeManaged?: boolean }} [options] - Keep only
  *   paths ending in one of `extensions`; `includeManaged` keeps registry-listed paths too
@@ -71,7 +115,9 @@ function changedFiles(dir, { extensions, includeManaged = false } = {}) {
   if (out === null) return { mode: null, files: [] };
 
   const managed = includeManaged ? new Set() : managedFiles(cwd, mode);
-  let files = splitNul(out).filter(f => !managed.has(f));
+  const config = projectConfig(cwd);
+  const excluded = globMatcher(config ? config.exclude_paths : []);
+  let files = splitNul(out).filter(f => !managed.has(f) && !excluded(f));
   if (Array.isArray(extensions) && extensions.length > 0) {
     files = files.filter(f => extensions.some(ext => f.endsWith(ext)));
   }
@@ -230,4 +276,4 @@ function nearestPackageDeps(dir, file, mode, cache = new Map()) {
   return deps;
 }
 
-module.exports = { changedFiles, pureRenames, readFile, exists, listFiles, nearestPackageDeps };
+module.exports = { changedFiles, pureRenames, readFile, exists, listFiles, nearestPackageDeps, projectConfig, globMatcher };

@@ -24,6 +24,7 @@ Los agentes de programación con IA (Cursor, Claude Code, Windsurf, Copilot) cod
 - [⚡ Guía Paso a Paso (Ciclo Completo)](#-guía-paso-a-paso-ciclo-completo)
 - [🎮 Interfaz Universal de Comandos](#-interfaz-universal-de-comandos)
 - [🔄 Actualización de Proyectos Existentes](#-actualización-de-proyectos-existentes)
+- [⚙️ Configuración (`.clckernel.yaml`)](#configuracion)
 - [🌐 Ecosistemas Soportados y Arquetipos](#-ecosistemas-soportados-y-arquetipos)
 - [🏛️ Arquitectura: Standalone vs. Simbiosis con Gentle AI](#-arquitectura-standalone-vs-simbiosis-con-gentle-ai)
 - [🧩 Herramientas Complementarias (Opcionales)](#-herramientas-complementarias-opcionales)
@@ -173,7 +174,7 @@ clckernel update
 - **100% Preservado:**
   - `sdds/`: Todas las especificaciones locales, planes y recibos de verificación permanecen intactos.
   - `tools/guards/`: Todos los guards personalizados creados por el equipo se conservan sin modificaciones. Los guards de dominio que versiones anteriores instalaban en `tools/` se mueven aquí (nunca se borran) y pasan a ser guards del proyecto.
-  - `.clckernel.yaml`: Todas las configuraciones y umbrales personalizados se mantienen.
+  - `.clckernel.yaml`: nunca se reescribe; update lo lee (ver [Configuración](#configuracion)).
   - El código fuente de la aplicación y modelos de dominio jamás se tocan.
 
 ### 🛡️ Los archivos que editaste nunca se sobrescriben
@@ -197,7 +198,8 @@ npx clckernel . --yes --dry-run
 - **Guards:** sólo se actualizan (y corre el hook) los guards del registro o presentes en `tools/`. Los
   guards nuevos de tu stack se listan como *available, not installed*; se agregan con `--add-guards` (desde
   ahí quedan instalados y se actualizan). Un nombre desconocido falla con exit 1 y no escribe nada. Los
-  archivos de soporte (`_changes.js/.py`, `yaml.js`, los orquestadores de audit) siguen a los guards instalados.
+  archivos de soporte (`_changes.js/.py`, los lectores de config `_config.js/.py`, `yaml.js`, `_yaml.py`, los
+  orquestadores de audit) siguen a los guards instalados.
 - **Mirrors:** un mirror que borraste (p. ej. `.cursor/rules/clckernel_context.mdc`) no se recrea; se reporta
   como *not present (skipped)*. Una instalación nueva los sigue creando todos.
 - **`.gitignore`:** una entrada cuya ruta git trackea (un mirror o la skill que commiteás) nunca se agrega, ni
@@ -206,6 +208,47 @@ npx clckernel . --yes --dry-run
 npx clckernel update . --add-guards check_skills,check_placeholders
 npx clckernel update . --add-guards all
 ```
+
+---
+
+<a id="configuracion"></a>
+## ⚙️ Configuración (`.clckernel.yaml`)
+
+Opcional. Sin el archivo rige cada valor por defecto de abajo (el comportamiento de un proyecto sin
+config). Install, update y cada guard lo leen desde la raíz del proyecto; un valor inválido los detiene
+con `Invalid .clckernel.yaml: key "<key>" — <motivo>` (no se escribe nada, el commit se bloquea).
+
+| Clave | Efecto | Por defecto | La lee |
+|---|---|---|---|
+| `rules` | Reglas regex propias (`name`, `pattern`, `message`, opcionales `severity`, `scope`, `exclude`) sobre los archivos cambiados | ninguna | `check_custom` |
+| `exclude_paths` | Globs que ningún guard basado en el diff evalúa (secretos, verificador TDD, reglas propias, …) | ninguno | `_changes.js/.py` |
+| `mirrors.list` | Mirrors de IDE (symlinks a `AGENTS.md`) que install crea y `check_symlinks` verifica | install: `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.cursor/rules/clckernel_context.mdc`, `.github/copilot-instructions.md`, `.antigravity/rules.md`; `check_symlinks`: `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.windsurfrules` | install/update, `check_symlinks` |
+| `mirrors.required` | `true`: un mirror listado que falta hace fallar `check_symlinks` | `false` | `check_symlinks` |
+| `hitl.markers` | Regex (sin distinguir mayúsculas, una línea, fuera de bloques de código) que cuentan como marcador Human-in-the-Loop; reemplazan a los de por defecto | una línea `HITL:` o un encabezado `## Human checkpoint` / `## HITL` | `check_hitl` |
+| `hitl.paths` | Globs de los archivos cambiados que evalúa `check_hitl` | skills (`SKILL.md`, `skills/*.md` planos) y `playbooks/**/*.md` | `check_hitl` |
+| `hitl.optOut` | `{ key, value }`: un archivo cuyo frontmatter tiene `key: value` queda exento | ninguno | `check_hitl` |
+| `update.exclude` | Globs relativos a la raíz que install y update nunca escriben, mueven ni borran; se listan como *excluded by config* | ninguno | install/update |
+| `tdd.code` | Globs extra que cuentan como código de producción (cualquier lenguaje), p. ej. tools en Python testeadas con tests JS | ninguno | `verify_tdd.js/.py` |
+| `tdd.ignore` | Globs que nunca cuentan como código de producción | ninguno | `verify_tdd.js/.py` |
+
+```yaml
+exclude_paths: ["vendor/**"]
+mirrors:
+  list: [CLAUDE.md, .github/copilot-instructions.md]
+  required: true
+hitl:
+  optOut: { key: checkpoint, value: none }
+update:
+  exclude: [AGENTS.md]
+tdd:
+  code: ["tools/**/*.py"]
+```
+
+Las claves que versiones anteriores aceptaban sin efecto alguno — `active_guards`, `phases`, `gate_mode`,
+`severities`, `layers`, `scope` — se ignoran con un aviso de deprecación; borralas. Una clave desconocida de
+primer nivel se ignora con un aviso. Los guards lo leen con `tools/_config.js` (+ `yaml.js`) y
+`tools/_config.py` (+ `_yaml.py`), instalados junto a `_changes.js/.py`, así que un archivo creado después de
+instalar aplica de inmediato.
 
 ---
 

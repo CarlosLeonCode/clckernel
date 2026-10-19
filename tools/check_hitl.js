@@ -13,12 +13,19 @@
  * though the harness registry lists it (other guards skip registry files).
  * Ignored: the retired kernel skill (clc_forge_cli, removed by `update`) and
  * skills vendored by third-party tool plugins (impeccable).
- * Self-contained: uses only Node.js built-ins.
+ *
+ * The project config (.clckernel.yaml) can change all three choices:
+ *   hitl.markers  regexes (case-insensitive, one line, outside code fences)
+ *                 that replace the two markers above
+ *   hitl.paths    globs of the changed files to check, replacing the selection above
+ *   hitl.optOut   { key, value }: a file whose frontmatter has `key: value` is exempt
+ * Self-contained: uses only Node.js built-ins (and the sibling _config.js
+ * when the project has a config file).
  *
  * @param {string} targetDir - Repository root (defaults to cwd)
  * @returns {{ exitCode: number, skipped: boolean, name: string, data: object }}
  */
-const { changedFiles, readFile } = require('./_changes');
+const { changedFiles, readFile, projectConfig, globMatcher } = require('./_changes');
 
 const NAME = 'check_hitl';
 const SKILL_ROOTS = ['skills/', '.agents/skills/', '.claude/skills/'];
@@ -42,8 +49,10 @@ function needsMarker(file) {
   return base === 'SKILL.md' || rest.length === 1;
 }
 
+const DEFAULT_MARKERS = [INLINE_MARKER_RE, HEADING_MARKER_RE];
+
 /** True when the Markdown text holds an explicit HITL marker outside code fences. */
-function hasMarker(text) {
+function hasMarker(text, markers = DEFAULT_MARKERS) {
   let fence = null;
   for (const line of text.split(/\r?\n/)) {
     const open = FENCE_RE.exec(line);
@@ -55,15 +64,46 @@ function hasMarker(text) {
       fence = open[1];
       continue;
     }
-    if (INLINE_MARKER_RE.test(line) || HEADING_MARKER_RE.test(line)) return true;
+    if (markers.some(re => re.test(line))) return true;
   }
   return false;
 }
 
+/**
+ * Value of a top-level `key:` line of the file's YAML frontmatter, unquoted;
+ * null without frontmatter or key.
+ */
+function frontmatterValue(text, key) {
+  const lines = text.split(/\r?\n/);
+  if (lines[0].trim() !== '---') return null;
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i].trim() === '---' || lines[i].trim() === '...') return null;
+    const sep = lines[i].indexOf(':');
+    if (sep <= 0 || lines[i].slice(0, sep) !== key) continue;
+    const value = lines[i].slice(sep + 1).replace(/\s+#.*$/, '').trim();
+    const quoted = /^(['"])(.*)\1$/.exec(value);
+    return quoted ? quoted[2] : value;
+  }
+  return null;
+}
+
+/** The selection, markers and opt-out of this project: config or defaults. */
+function settings(dir) {
+  const config = projectConfig(dir);
+  const hitl = config ? config.hitl : { markers: null, paths: null, optOut: null };
+  return {
+    select: hitl.paths ? globMatcher(hitl.paths) : needsMarker,
+    extensions: hitl.paths ? undefined : ['.md'],
+    markers: hitl.markers ? hitl.markers.map(source => new RegExp(source, 'i')) : DEFAULT_MARKERS,
+    optOut: hitl.optOut,
+  };
+}
+
 const check = async function checkHitl(targetDir) {
   const dir = targetDir || process.cwd();
-  const { mode, files } = changedFiles(dir, { extensions: ['.md'], includeManaged: true });
-  const targets = files.filter(needsMarker);
+  const { select, extensions, markers, optOut } = settings(dir);
+  const { mode, files } = changedFiles(dir, { extensions, includeManaged: true });
+  const targets = files.filter(select);
 
   if (targets.length === 0) {
     return {
@@ -77,7 +117,8 @@ const check = async function checkHitl(targetDir) {
   const violations = [];
   for (const file of targets) {
     const text = readFile(dir, file, mode);
-    if (text === null || hasMarker(text)) continue;
+    if (text === null || hasMarker(text, markers)) continue;
+    if (optOut && frontmatterValue(text, optOut.key) === optOut.value) continue;
     violations.push({
       file,
       message: 'Missing explicit Human-in-the-Loop checkpoint: add a `HITL:` line or a `## Human checkpoint` section',

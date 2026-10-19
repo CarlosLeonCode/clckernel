@@ -15,7 +15,6 @@ const { spawnSync } = require('child_process');
 const { createTmpProject, teardown } = require('./helpers');
 const { generateHarness } = require('../src/generator');
 const { updateHarness } = require('../src/updater');
-const { loadConfig } = require('../src/config');
 
 const ROOT = path.join(__dirname, '..');
 const BUNDLED_SKILL = path.join(ROOT, '.agents', 'skills', 'clckernel_cli');
@@ -60,11 +59,13 @@ describe('clc-forge sunset — install writes no legacy artifact', () => {
     }
   });
 
-  it('config-path install writes .clckernel.resolved.json only', () => {
-    const dir = createTmpProject({});
+  // sdds/config-foundation: the config-driven metadata path is gone; install
+  // reads .clckernel.yaml itself and writes no resolved copy of it.
+  it('install with a config writes no .clckernel.resolved.json nor its legacy copy', () => {
+    const dir = createTmpProject({ '.clckernel.yaml': 'exclude_paths:\n  - "vendor/**"\n' });
     try {
-      generateHarness(dir, loadConfig('active_guards:\n  - scan_secrets\n'));
-      assert.ok(exists(path.join(dir, '.clckernel.resolved.json')));
+      generateHarness(dir, null);
+      assert.strictEqual(exists(path.join(dir, '.clckernel.resolved.json')), false);
       assert.strictEqual(exists(path.join(dir, LEGACY_JSON_REL)), false);
     } finally {
       teardown(dir);
@@ -284,7 +285,7 @@ for (const lang of Object.keys(RUNNERS)) {
 describe('clc-forge sunset — config error names the canonical file', () => {
   it('ConfigError message says .clckernel.yaml', () => {
     const { validateConfig } = require('../src/config');
-    assert.throws(() => validateConfig({ active_guards: ['nope'] }), (err) => /Invalid \.clckernel\.yaml:/.test(err.message));
+    assert.throws(() => validateConfig({ tdd: { code: 'nope' } }), (err) => /Invalid \.clckernel\.yaml:/.test(err.message));
   });
 });
 

@@ -6,17 +6,27 @@
  * AGENTS.md, or a regular file whose content is identical to it. Broken
  * symlinks, symlinks to another file and diverging copies fail. A missing
  * mirror is not an error. Mirrors are gitignored, so the working copy is read.
- * Self-contained: uses only Node.js built-ins.
+ *
+ * The project config (.clckernel.yaml) can change both: `mirrors.list` is
+ * the list of mirrors to verify, and `mirrors.required: true` makes a listed
+ * mirror that is missing a violation.
+ * Self-contained: uses only Node.js built-ins (and the sibling _config.js
+ * when the project has a config file).
  *
  * @param {string} targetDir - Directory to scan (defaults to cwd)
  * @returns {{ exitCode: number, skipped: boolean, name: string, data: object }}
  */
+const DEFAULT_MIRRORS = ['CLAUDE.md', 'GEMINI.md', '.cursorrules', '.windsurfrules'];
+
 const check = async function checkSymlinks(targetDir) {
   const fs = require('fs');
   const path = require('path');
+  const { projectConfig } = require('./_changes');
 
   const dir = targetDir || process.cwd();
-  const rules = ['CLAUDE.md', 'GEMINI.md', '.cursorrules', '.windsurfrules'];
+  const config = projectConfig(dir);
+  const rules = config && config.mirrors.list ? config.mirrors.list : DEFAULT_MIRRORS;
+  const required = Boolean(config && config.mirrors.required);
   const violations = [];
 
   const agentsPath = path.join(dir, 'AGENTS.md');
@@ -38,6 +48,8 @@ const check = async function checkSymlinks(targetDir) {
     } catch (err) {
       if (err.code !== 'ENOENT') {
         violations.push({ file: rule, message: `Error reading mirror: ${err.message}` });
+      } else if (required) {
+        violations.push({ file: rule, message: 'Missing mirror: mirrors.required is true; create it as a symlink to AGENTS.md' });
       }
       continue;
     }

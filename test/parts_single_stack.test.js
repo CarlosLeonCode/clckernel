@@ -5,6 +5,9 @@
  * then regenerated deliberately for sdds/domain-agnostic: every hook gained
  * the project guards block (tools/guards/), and Agent-OS gained
  * check_data_files and the domain-neutral Clean Creation State rule.
+ * Regenerated for sdds/config-foundation: tools/ gained the config readers
+ * (_config.js + yaml.js, _config.py + _yaml.py) next to _changes.*, and the
+ * Python hooks' ruff --extend-exclude lists them; nothing else changed.
  */
 const { describe, it } = require('node:test');
 const assert = require('node:assert');

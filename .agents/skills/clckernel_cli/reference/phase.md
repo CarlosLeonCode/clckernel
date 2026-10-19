@@ -10,9 +10,12 @@ Use this playbook when adding, modifying, or removing lifecycle phases in the AI
    - Verification / Audit (e.g. Guard Audit, E2E, Smoke test)
    - Delivery (e.g. Git pre-commit, PR generation)
 
-2. **Update `.clckernel.yaml`:**
+2. **Update `AGENTS.md`:**
+   - Phases are agent instructions: record the new order in the Loop section of `AGENTS.md`, never in
+     `.clckernel.yaml` (its `phases` key is deprecated and has no effect).
    - Preserve execution order and dependencies.
-   - Specify whether the phase is blocking (`required: true`) or advisory (`required: false`).
+   - Say whether the phase is blocking or advisory; a blocking check belongs in a guard under
+     `tools/guards/`, which the pre-commit hook runs.
 
 3. **Confirm & Validate:**
    - Present the updated pipeline flow to the user.

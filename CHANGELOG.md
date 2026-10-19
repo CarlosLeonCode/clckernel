@@ -27,8 +27,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   "marketing operating system" description (`agent-os` and `ai-agents` still work). `clckernel update` moves
   copies installed by earlier releases from `tools/` to `tools/guards/` (never deletes them; when a file with
   that name already exists there it keeps both and warns), so they keep running as project guards.
+- **`.clckernel.yaml` is read by install, update and the guards; keys without an effect are gone
+  (sdds/config-foundation).** `active_guards`, `phases`, `gate_mode`, `severities`, `layers` and `scope` never
+  changed anything: they now print a deprecation warning and are ignored (per-guard warning levels are left for
+  a later change). The config-driven metadata path (`.clckernel.resolved.json`, `CLCKERNEL_SEVERITIES`) is
+  removed. An invalid value now stops install, update and every guard with
+  `Invalid .clckernel.yaml: key "<key>" — <reason>`.
 
 ### Added
+
+- **Configuration keys with a real effect (sdds/config-foundation).** `exclude_paths` (paths no diff-based guard
+  evaluates), `mirrors.list` / `mirrors.required` (mirrors install creates and `check_symlinks` verifies),
+  `hitl.markers` / `hitl.paths` / `hitl.optOut` (`check_hitl`), `update.exclude` (paths install/update never
+  write; reported as *excluded by config*) and `tdd.code` / `tdd.ignore` (what `verify_tdd.js/.py` count as
+  production code, e.g. Python tools tested by JS tests). Defaults keep the earlier behaviour. One schema in
+  `tools/_config.js` and its twin `tools/_config.py` (the Python YAML fallback parser moved to `tools/_yaml.py`),
+  installed next to `_changes.js/.py`. README "Configuration" lists every key.
 
 - **Safe `update` and `--dry-run` (sdds/safe-update).** `clckernel update` and a reinstall with `--yes` never
   overwrite a kernel file (`tools/*`, the pre-commit hook, the `clckernel_cli` skill) they cannot prove is

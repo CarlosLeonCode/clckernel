@@ -18,6 +18,9 @@
  * The registry (tools/.clckernel-managed.json) records, per owned file, the
  * sha256 of what the kernel last wrote: { kernelVersion, files: [{ path, sha256 }] }.
  * The older format (a sorted array of paths) is still read; it carries no hashes.
+ *
+ * Paths the project config lists in `update.exclude` are never written,
+ * moved, linked or removed: each is recorded as excluded and left as it is.
  */
 
 const fs = require('fs');
@@ -82,8 +85,10 @@ function registeredPaths(root) {
  * @param {object} [options.knownHashes] - { path: [sha256] } (defaults to src/known-hashes.json)
  * @param {'install'|'update'} [options.mode] - An update never adds guards or
  *   mirrors the project does not have (sdds/update-no-additions)
+ * @param {(rel: string) => boolean} [options.exclude] - Root-relative POSIX
+ *   paths never touched (the config's update.exclude)
  */
-function createIO({ root, dryRun = false, knownHashes = loadKnownHashes(), mode: sessionMode = 'install' } = {}) {
+function createIO({ root, dryRun = false, knownHashes = loadKnownHashes(), mode: sessionMode = 'install', exclude = () => false } = {}) {
   const projectRoot = path.resolve(root);
   const registry = readRegistry(projectRoot);
   // Dry-run overlay: what the plan would have put on disk, so later reads in
@@ -94,12 +99,21 @@ function createIO({ root, dryRun = false, knownHashes = loadKnownHashes(), mode:
     written: [], unchanged: [], protected: [], moved: [], removed: [], gitignore: [], gitConfig: [],
     // sdds/update-no-additions: what update left out on purpose.
     available: [], mirrorsSkipped: [], trackedNotIgnored: [],
+    // sdds/config-foundation: paths the config's update.exclude keeps out.
+    excluded: [],
   };
 
   const rel = (abs) => toPosix(path.relative(projectRoot, abs));
   const abs = (p) => (path.isAbsolute(p) ? p : path.join(projectRoot, p));
   const note = (list, value) => {
     if (!list.includes(value)) list.push(value);
+  };
+  /** True (and recorded) when the config excludes this absolute path. */
+  const excluded = (p) => {
+    const relPath = rel(p);
+    if (!exclude(relPath)) return false;
+    note(plan.excluded, relPath);
+    return true;
   };
 
   function lstat(p) {
@@ -134,7 +148,11 @@ function createIO({ root, dryRun = false, knownHashes = loadKnownHashes(), mode:
   }
 
   function mkdir(p) {
-    const dir = abs(p);
+    if (excluded(abs(p))) return;
+    ensureDir(abs(p));
+  }
+
+  function ensureDir(dir) {
     if (dryRun) {
       for (let d = dir; d.startsWith(projectRoot) && !exists(d); d = path.dirname(d)) overlay.set(d, { kind: 'dir' });
       return;
@@ -147,7 +165,7 @@ function createIO({ root, dryRun = false, knownHashes = loadKnownHashes(), mode:
       overlay.set(dest, { kind: 'file', bytes });
       return;
     }
-    mkdir(path.dirname(dest));
+    ensureDir(path.dirname(dest));
     fs.writeFileSync(dest, bytes);
     if (mode) {
       try { fs.chmodSync(dest, mode); } catch {}
@@ -161,6 +179,7 @@ function createIO({ root, dryRun = false, knownHashes = loadKnownHashes(), mode:
    */
   function writeFile(p, content, { mode } = {}) {
     const dest = abs(p);
+    if (excluded(dest)) return 'excluded';
     const bytes = Buffer.isBuffer(content) ? content : Buffer.from(String(content), 'utf-8');
     const current = read(dest);
     if (current && current.equals(bytes)) {
@@ -177,11 +196,12 @@ function createIO({ root, dryRun = false, knownHashes = loadKnownHashes(), mode:
    * @param {string} relPath - Path relative to the project root
    * @param {string|Buffer} content
    * @param {{ mode?: string }} [options]
-   * @returns {'written'|'unchanged'|'protected'}
+   * @returns {'written'|'unchanged'|'protected'|'excluded'}
    */
   function writeManaged(relPath, content, { mode } = {}) {
     const relKey = toPosix(relPath);
     const dest = abs(relKey);
+    if (excluded(dest)) return 'excluded';
     const bytes = Buffer.isBuffer(content) ? content : Buffer.from(String(content), 'utf-8');
     const sha = sha256(bytes);
     const prior = decisions.get(relKey);
@@ -233,6 +253,7 @@ function createIO({ root, dryRun = false, knownHashes = loadKnownHashes(), mode:
   /** Creates a symlink at `p` pointing to `target` (the caller decided it is safe). */
   function symlink(target, p) {
     const dest = abs(p);
+    if (excluded(dest)) return 'excluded';
     const stat = lstat(dest);
     if (stat && stat.kind === 'link' && stat.target === target) {
       note(plan.unchanged, rel(dest));
@@ -257,11 +278,12 @@ function createIO({ root, dryRun = false, knownHashes = loadKnownHashes(), mode:
    */
   function mirror(target, p) {
     const dest = abs(p);
+    if (excluded(dest)) return 'excluded';
     if (sessionMode === 'update' && !lstat(dest)) {
       note(plan.mirrorsSkipped, rel(dest));
       return 'skipped';
     }
-    if (!exists(path.dirname(dest))) mkdir(path.dirname(dest));
+    if (!exists(path.dirname(dest))) ensureDir(path.dirname(dest));
     return symlink(target, dest);
   }
 
@@ -278,6 +300,7 @@ function createIO({ root, dryRun = false, knownHashes = loadKnownHashes(), mode:
   /** Removes a file, symlink or directory tree. */
   function remove(p) {
     const dest = abs(p);
+    if (excluded(dest)) return 'excluded';
     if (dryRun) overlay.set(dest, { kind: 'gone' });
     else fs.rmSync(dest, { recursive: true, force: true });
     note(plan.removed, rel(dest));
@@ -287,11 +310,12 @@ function createIO({ root, dryRun = false, knownHashes = loadKnownHashes(), mode:
   function move(from, to) {
     const src = abs(from);
     const dest = abs(to);
+    if (excluded(src) || excluded(dest)) return 'excluded';
     if (dryRun) {
       overlay.set(dest, { kind: 'file', bytes: read(src) });
       overlay.set(src, { kind: 'gone' });
     } else {
-      mkdir(path.dirname(dest));
+      ensureDir(path.dirname(dest));
       fs.renameSync(src, dest);
     }
     plan.moved.push({ from: rel(src), to: rel(dest) });
@@ -300,6 +324,7 @@ function createIO({ root, dryRun = false, knownHashes = loadKnownHashes(), mode:
   /** Rewrites .gitignore with `content`, recording the entries it adds. */
   function appendGitignore(p, content, entries) {
     const dest = abs(p);
+    if (excluded(dest)) return 'excluded';
     put(dest, Buffer.from(content, 'utf-8'));
     for (const entry of entries) note(plan.gitignore, entry);
   }

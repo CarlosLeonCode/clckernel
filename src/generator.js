@@ -6,7 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { resolveConfig } = require('./config.js');
+const { readProjectConfig, globMatcher } = require('./config.js');
 const { createIO, runWithIO, activeIO, currentIO, registeredPaths, MANAGED_REGISTRY } = require('./io');
 
 /**
@@ -456,8 +456,13 @@ function installOrchestrators(targetDir, copiedFiles) {
   return written;
 }
 
-/** Shared modules the diff-based guards import from their own directory, by guard language. */
-const SNAPSHOT_HELPERS = { '.js': '_changes.js', '.py': '_changes.py' };
+/**
+ * Shared modules the diff-based guards import from their own directory, by
+ * guard language: the snapshot helper and the config reader it uses
+ * (sdds/config-foundation), so a config added after install works without
+ * `clckernel update`.
+ */
+const SNAPSHOT_HELPERS = { '.js': ['_changes.js', '_config.js', 'yaml.js'], '.py': ['_changes.py', '_config.py', '_yaml.py'] };
 
 /**
  * Installs tools from an adapter's manifest into the target tools/ directory.
@@ -532,7 +537,8 @@ function installYamlModule(targetDir) {
 
 /**
  * Copies the snapshot helper each installed guard imports as a sibling:
- * _changes.js when any JS file was copied into tools/, _changes.py when any
+ * _changes.js (with its config reader _config.js and yaml.js) when any JS file
+ * was copied into tools/, _changes.py (with _config.py and _yaml.py) when any
  * Python file was (technology guards can bring Python guards to a Node
  * stack). A stack without Python tools stays free of Python files. The `_`
  * prefix keeps the helpers out of the audit orchestrators' guard discovery.
@@ -542,7 +548,7 @@ function installYamlModule(targetDir) {
  * @returns {string[]} File names written into tools/
  */
 function installSnapshotHelpers(targetDir, copiedFiles) {
-  const helpers = new Set(copiedFiles.map(f => SNAPSHOT_HELPERS[path.extname(f)]).filter(Boolean));
+  const helpers = new Set(copiedFiles.flatMap(f => SNAPSHOT_HELPERS[path.extname(f)] || []));
   const written = [];
   for (const file of helpers) {
     const src = path.join(__dirname, '..', 'tools', file);
@@ -611,66 +617,6 @@ function generateFallbackHook(targetDir, projectType, keep = () => true) {
   const secretScan = isFront || projectType === 'unknown' ? 'scan_secrets.js' : 'scan_secrets.py';
   const command = secretScan.endsWith('.js') ? `node tools/${secretScan}` : `python3 tools/${secretScan}`;
   return writeHook(targetDir, isFront, keep(secretScan) ? [command] : [], 'Running CLC Kernel Safeguards...');
-}
-
-/**
- * Extended-schema keys that route a config through the config-driven path
- * (design §1.4). `rules` intentionally excluded: a rules-only YAML keeps the
- * legacy adapter/fallback path (check_custom reads rules at audit time).
- */
-const EXTENDED_CONFIG_KEYS = [
-  'active_guards',
-  'phases',
-  'gate_mode',
-  'severities',
-  'layers',
-  'scope',
-  'exclude_paths',
-];
-
-/** True when the object carries extended-schema keys (a config-path config). */
-function isExtendedConfig(config) {
-  if (!config || typeof config !== 'object' || Array.isArray(config)) return false;
-  return EXTENDED_CONFIG_KEYS.some((k) => Object.prototype.hasOwnProperty.call(config, k));
-}
-
-/**
- * Config-driven path (Slice A, minimal A-03 integration): resolve the raw
- * config (or reuse an already-resolved one marked by index.js/A-05) and emit
- * the resolved harness metadata to `.clckernel.resolved.json`
- * (deterministic: stable key order, 2-space JSON).
- * Full layout/tools/hook materialization is the A-04 work unit; here only
- * the metadata flows out.
- * @param {string} targetDir - Target project root
- * @param {object} configOrNull - Raw or resolved extended config
- * @returns {object} The resolved config (metadata written to disk)
- */
-function generateConfigPathHarness(targetDir, configOrNull) {
-  const alreadyResolved =
-    configOrNull.__clcKernelConfigPath === true ||
-    configOrNull.__clcForgeConfigPath === true || // legacy marker, still honored
-    Array.isArray(configOrNull.__catalog);
-  const resolved = alreadyResolved ? configOrNull : resolveConfig(configOrNull, {});
-
-  const metadata = {
-    activeGuards: resolved.activeGuards,
-    phases: resolved.phases,
-    gateMode: resolved.gateMode,
-    effectiveSeverities: resolved.effectiveSeverities,
-    layers: resolved.layers,
-    scope: resolved.scope,
-    excludePaths: resolved.excludePaths,
-    rules: resolved.rules || [],
-    framework: resolved.framework,
-    projectType: resolved.projectType,
-    testRunner: resolved.testRunner,
-    __catalog: resolved.__catalog,
-  };
-
-  const io = currentIO(targetDir);
-  io.mkdir(targetDir);
-  io.writeFile(path.join(targetDir, '.clckernel.resolved.json'), JSON.stringify(metadata, null, 2) + '\n');
-  return resolved;
 }
 
 /**
@@ -747,20 +693,34 @@ When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`,
 }
 
 /**
- * Generate a harness for a target project.
- * When the optional `configOrNull` is null (or an adapter-detected config
- * without extended-schema keys) the legacy path runs UNCHANGED. A config
- * carrying extended-schema keys (or the `__clcKernelConfigPath` marker set
- * by index.js) routes to the config-driven path — which for A-03 emits the
- * resolved metadata; full materialization lands in A-04.
+ * Generate a harness for a target project from its detected stack
+ * (`configOrNull`; null falls back to generic provisioning).
+ * The project's .clckernel.yaml is read first (sdds/config-foundation): an
+ * invalid one throws its ConfigError before anything is written. A caller
+ * that already read it (update, the CLI) passes `options.projectConfig`.
+ * @param {string} targetDir - Project root
+ * @param {object|null} configOrNull - Detected stack config
+ * @param {{ dryRun?: boolean, knownHashes?: object, addGuards?: string[]|'all',
+ *   projectConfig?: { file: string|null, config: object, warnings: string[] } }} [options]
  */
 function generateHarness(targetDir, configOrNull, options = {}) {
+  let projectConfig = options.projectConfig;
+  if (!projectConfig) {
+    projectConfig = readProjectConfig(targetDir);
+    for (const warning of projectConfig.warnings) console.warn(`Warning: ${warning}`);
+  }
+  const withConfig = { ...options, projectConfig };
   // One io session per install (sdds/safe-update): reuse the caller's (update)
   // or open one, real or dry-run.
   const active = activeIO();
-  if (active) return generateHarnessWith(active, targetDir, configOrNull, options);
-  const io = createIO({ root: targetDir, dryRun: !!options.dryRun, knownHashes: options.knownHashes });
-  const result = runWithIO(io, () => generateHarnessWith(io, targetDir, configOrNull, options));
+  if (active) return generateHarnessWith(active, targetDir, configOrNull, withConfig);
+  const io = createIO({
+    root: targetDir,
+    dryRun: !!options.dryRun,
+    knownHashes: options.knownHashes,
+    exclude: globMatcher(projectConfig.config.update.exclude),
+  });
+  const result = runWithIO(io, () => generateHarnessWith(io, targetDir, configOrNull, withConfig));
   if (result && typeof result === 'object' && !Array.isArray(result) && 'installedGuards' in result) {
     return { ...result, plan: io.plan() };
   }
@@ -768,13 +728,9 @@ function generateHarness(targetDir, configOrNull, options = {}) {
 }
 
 function generateHarnessWith(io, targetDir, configOrNull, options = {}) {
-  if (configOrNull && (configOrNull.__clcKernelConfigPath === true || configOrNull.__clcForgeConfigPath === true || isExtendedConfig(configOrNull))) {
-    return generateConfigPathHarness(targetDir, configOrNull);
-  }
-  // Legacy path: a null/absent config falls back to generic provisioning
-  // (byte-identical for every existing caller, which always passes a full
-  // detected config — defaults only kick in for a bare null).
+  // A null/absent config falls back to generic provisioning.
   const config = configOrNull || {};
+  const { projectConfig } = options;
 
   const multiPart = Array.isArray(config.parts) && config.parts.length > 0;
 
@@ -894,7 +850,7 @@ ${commandTable(testRunner)}`;
   }
 
   // Step 4: Install LLM Conversational CLI & Agent Context
-  installAgenticCLI(targetDir);
+  installAgenticCLI(targetDir, projectConfig.config.mirrors.list);
 
   // Step 5: Record what the kernel owns now, with hashes.
   writeManagedRegistry(io, targetDir);
@@ -902,11 +858,23 @@ ${commandTable(testRunner)}`;
   return { installedGuards, hook };
 }
 
+/** AI IDE mirrors (symlinks to AGENTS.md) install creates when the config lists none. */
+const DEFAULT_MIRRORS = [
+  'CLAUDE.md',                               // Cursor / Claude Desktop / Windsurf
+  'GEMINI.md',                               // Gemini / Project IDX
+  '.cursorrules',                            // Cursor legacy
+  '.cursor/rules/clckernel_context.mdc',     // Cursor modern (MDC)
+  '.github/copilot-instructions.md',         // GitHub Copilot
+  '.antigravity/rules.md'                    // Antigravity (Local Agent)
+];
+
 /**
- * Instala la CLI Conversacional (SKILL.md) y genera los symlinks universales
- * para que todos los LLMs (Cursor, Claude, Gemini) absorban el AGENTS.md.
+ * Installs the conversational CLI skill (SKILL.md and its playbooks) and the
+ * AI IDE mirrors of AGENTS.md: the config's mirrors.list, or DEFAULT_MIRRORS.
+ * @param {string} targetDir - Project root
+ * @param {string[]|null} [mirrors] - mirrors.list of the project config
  */
-function installAgenticCLI(targetDir) {
+function installAgenticCLI(targetDir, mirrors) {
   const io = currentIO(targetDir);
   // 1. Crear el Directorio de Skills
   const skillRel = '.agents/skills/clckernel_cli';
@@ -933,14 +901,7 @@ function installAgenticCLI(targetDir) {
 
   // 3. Crear Symlinks Dinámicos al AGENTS.md (El Single Source of Truth)
   const sourceFile = 'AGENTS.md';
-  const symlinks = [
-    'CLAUDE.md',                               // Cursor / Claude Desktop / Windsurf
-    'GEMINI.md',                               // Gemini / Project IDX
-    '.cursorrules',                            // Cursor legacy
-    '.cursor/rules/clckernel_context.mdc',     // Cursor modern (MDC)
-    '.github/copilot-instructions.md',         // GitHub Copilot
-    '.antigravity/rules.md'                    // Antigravity (Local Agent)
-  ];
+  const symlinks = Array.isArray(mirrors) ? mirrors : DEFAULT_MIRRORS;
 
   symlinks.forEach(link => {
     const linkPath = path.join(targetDir, link);

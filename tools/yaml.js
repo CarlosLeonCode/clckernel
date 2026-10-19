@@ -1,7 +1,7 @@
 /**
  * CLC Kernel — Zero-Dependency strict YAML subset parser.
- * Uses only Node.js built-ins (no npm deps). Twin of `_minimal_yaml_parse` in
- * tools/check_custom.py: same functions, same order, same error messages.
+ * Uses only Node.js built-ins (no npm deps). Twin of `minimal_yaml_parse` in
+ * tools/_yaml.py: same functions, same order, same error messages.
  *
  * Supported subset (anything else throws `Unsupported YAML syntax at line N`):
  *   - block mappings and block sequences, including a sequence at the SAME
@@ -393,7 +393,7 @@ function isBlankOrEnd(text, pos) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// Glob-to-Regex Converter (twin of _glob_to_regex in tools/check_custom.py)
+// Glob-to-Regex Converter (twin of glob_to_regex in tools/_yaml.py)
 // Handles: **/, trailing **, *, ?, {a,b} alternation; everything else literal
 // ═══════════════════════════════════════════════════════════════════════
 

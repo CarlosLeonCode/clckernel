@@ -220,6 +220,8 @@ function planLines(plan, { dryRun = false } = {}) {
   section('Available, not installed (add with --add-guards <name,...|all>)', plan.available || [], colors.cyan);
   section('Mirrors not present (skipped)', plan.mirrorsSkipped || [], colors.cyan);
   section('Tracked, not ignored (git tracks them; no .gitignore entry added)', plan.trackedNotIgnored || [], colors.cyan);
+  // sdds/config-foundation: update.exclude in .clckernel.yaml.
+  section('Excluded by config (update.exclude; left as they are)', plan.excluded || [], colors.cyan);
   if (plan.protected.length > 0) {
     lines.push('');
     lines.push(`${colors.amber}⚠ ${plan.protected.length} file(s) ${dryRun ? 'would be' : 'were'} protected: the kernel cannot prove they are its own and intact.${colors.reset}`);
