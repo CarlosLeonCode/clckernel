@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-26
+
 ### ⚠ BREAKING CHANGES
 
 - **Strict YAML subset for `.clckernel.yaml`.** `check_custom` (JS and Python) now parses a documented YAML
@@ -237,5 +239,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Previous release.
 
-[Unreleased]: https://github.com/CarlosLeonCode/clc_forge/compare/v1.2.19...HEAD
+[Unreleased]: https://github.com/CarlosLeonCode/clc_forge/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/CarlosLeonCode/clc_forge/compare/v1.2.19...v2.0.0
 [1.2.19]: https://github.com/CarlosLeonCode/clc_forge/releases/tag/v1.2.19

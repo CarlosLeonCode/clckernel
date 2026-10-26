@@ -26,7 +26,10 @@ describe('open source project metadata', () => {
   }
 
   it('records the breaking YAML change in the changelog', () => {
-    assert.match(read('CHANGELOG.md'), /## \[Unreleased\][\s\S]*BREAKING/);
+    const changelog = read('CHANGELOG.md');
+    assert.match(changelog, /^## \[Unreleased\]$/m);
+    assert.match(changelog, /^## \[2\.0\.0\] - \d{4}-\d{2}-\d{2}\n\n### ⚠ BREAKING CHANGES/m);
+    assert.match(changelog, /^\[2\.0\.0\]: https:\/\/github\.com\/CarlosLeonCode\/clc_forge\/compare\/v1\.2\.19\.\.\.v2\.0\.0$/m);
   });
 
   it('has GitHub issue and pull request templates', () => {
