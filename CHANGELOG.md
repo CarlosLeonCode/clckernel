@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- `npx clckernel` no longer prints the `clc-forge` deprecation notice. The legacy `clc-forge` and
+  `create-clc-forge` binaries now point to `bin/deprecated.js`, so npx runs the bin named like the package
+  instead of the first (alphabetically sorted) one.
+
 ## [2.0.0] - 2026-10-26
 
 ### ⚠ BREAKING CHANGES

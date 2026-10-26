@@ -17,8 +17,8 @@
     "clckernel": "bin/cli.js",
     "create-clckernel": "bin/cli.js",
     "clc-kernel": "bin/cli.js",
-    "clc-forge": "bin/cli.js",
-    "create-clc-forge": "bin/cli.js"
+    "clc-forge": "bin/deprecated.js",
+    "create-clc-forge": "bin/deprecated.js"
   },
   "keywords": [
     "clckernel",

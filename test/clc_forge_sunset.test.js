@@ -292,19 +292,41 @@ describe('clc-forge sunset — config error names the canonical file', () => {
 // ── 5. Legacy binaries ─────────────────────────────────────────────────
 
 describe('clc-forge sunset — legacy binary names', () => {
+  const pkg = require('../package.json');
+  const { version } = pkg;
+  const DEPRECATION = '"clc-forge" is deprecated; use "clckernel"';
+
+  /** Run a bin the way npm links it: a symlink named `name` to the file package.json maps it to. */
   function runVia(name) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'clckernel-bin-'));
     try {
       const link = path.join(dir, name);
-      fs.symlinkSync(CLI, link);
+      fs.symlinkSync(path.join(ROOT, pkg.bin[name]), link);
       return spawnSync(process.execPath, [link, '--version'], { encoding: 'utf-8' });
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   }
 
-  const { version } = require('../package.json');
-  const DEPRECATION = '"clc-forge" is deprecated; use "clckernel"';
+  /**
+   * The bin `npx clckernel` runs, as libnpmexec's get-bin-from-manifest picks it:
+   * when every bin points to the same file it takes the FIRST key, otherwise the
+   * one named like the package. The registry stores the bin keys sorted, so the
+   * first key is "clc-forge" whenever all bins share a file.
+   */
+  function binNpxRuns(manifest) {
+    const sorted = Object.fromEntries(Object.entries(manifest.bin).sort(([a], [b]) => a.localeCompare(b)));
+    if (new Set(Object.values(sorted)).size === 1) return Object.keys(sorted)[0];
+    return sorted[manifest.name] ? manifest.name : null;
+  }
+
+  it('npx clckernel runs the clckernel bin and prints no deprecation', () => {
+    const name = binNpxRuns(pkg);
+    assert.strictEqual(name, 'clckernel');
+    const res = runVia(name);
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(res.stderr, '');
+  });
 
   for (const name of ['clc-forge', 'create-clc-forge']) {
     it(`${name} prints the deprecation to stderr and behaves the same`, () => {
