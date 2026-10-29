@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- `check_a11y` reads each JSX tag whole: attributes on later lines (an `aria-label`, an `alt`, an
+  `onKeyDown`) are seen, hidden inputs are skipped, inputs labelled through `htmlFor`/`for` or wrapped by a
+  `<label>` pass, spread props are not reported, and components named `Input`/`Img` are no longer treated
+  as native elements.
 - `npx clckernel` no longer prints the `clc-forge` deprecation notice. The legacy `clc-forge` and
   `create-clc-forge` binaries now point to `bin/deprecated.js`, so npx runs the bin named like the package
   instead of the first (alphabetically sorted) one.
