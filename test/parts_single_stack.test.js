@@ -26,6 +26,11 @@
  * Regenerated for sdds/onboarding: only AGENTS.md changed — every template
  * ends with the "First session after install" section (src/onboarding.js);
  * hooks, config and tools/ are byte-identical.
+ * Regenerated for sdds/kernel-bug-protocol: only AGENTS.md changed — every
+ * template gains the "If the bug is in CLC Kernel" section (src/onboarding.js,
+ * before the first-session section) and the command tables of agent-os and
+ * generic gain the `clckernel report-bug <summary>` row; hooks, config and
+ * tools/ are byte-identical.
  */
 const { describe, it } = require('node:test');
 const assert = require('node:assert');

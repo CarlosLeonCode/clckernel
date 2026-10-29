@@ -10,6 +10,7 @@
     "ad2a194abce6a2029ee8187ca16d6fb841e24bdb03dce8c12d3d6235f974cf57",
     "c582b2ae0d83609def911996d180b9d3843fd0b3d211febbb007e73d09dfe2bd",
     "d09cd53486d20a589a9860a6e082b479eba02ac042421705151953a739a46c6f",
+    "d0f2ec2121faba9c36d7a6891ce6c1f8ad1b8c182e27914b8f021198f1543cbb",
     "f0982bf3f59b18108e6d5ce8720f4b22558e969baea674dc50fe938890f652d5"
   ],
   ".agents/skills/clckernel_cli/reference/audit.md": [
@@ -34,7 +35,8 @@
     "ae1ea7748e897027047fec55a5fa3de48e6bd9f4c26f7a79c15e5779ebce5841"
   ],
   ".agents/skills/clckernel_cli/reference/fix.md": [
-    "6c20139fa3cd9cda0045cb9a61425d9b8592f084908a85e18cf97995dbd1c05a"
+    "6c20139fa3cd9cda0045cb9a61425d9b8592f084908a85e18cf97995dbd1c05a",
+    "ee317b5bde558d2de95c22248c026bdcbe4ee9ea744f783e058e11b5959848a6"
   ],
   ".agents/skills/clckernel_cli/reference/guard.md": [
     "16f149aa25a88e41be5aa2dc936e7df5e116c669d9123c623816b4b5048a62f4",
@@ -46,6 +48,9 @@
     "780b20009190240ccc2b4435ce782aa292e2a75b6d571fe17e1b4872e2e1510d",
     "ace0864b562fcec6fc5be0d6caf5e30f2c886fa9bdbbb8c25d10c4ba4628b561",
     "f42845062305fb67f9d88e77e8b24044150769949492111d51fae4e3f3842548"
+  ],
+  ".agents/skills/clckernel_cli/reference/report-bug.md": [
+    "3ae64e13277cea1a1384b9288990ab2ae243a0825c4d23d30f6460d51ba2fe95"
   ],
   ".agents/skills/clckernel_cli/reference/start.md": [
     "23e25e448c678dbddd71c246375a75c253272a1cc6ad2ec4ec6b4479b994af07",

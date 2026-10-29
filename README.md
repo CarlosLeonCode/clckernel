@@ -224,6 +224,7 @@ CLC Kernel defines a command grammar in `AGENTS.md`, which the agents read throu
 | `clckernel doctor` | Diagnostics | Runs `npx clckernel doctor [dir]`: checks AGENTS.md, sdds/, tools/, the pre-commit hook and that the guard scripts load. |
 | `clckernel commit <message>` | Version Control | Pre-flight audit, verifies diff vs SDD scope, and commits with Conventional Commits (zero AI attribution). |
 | `clckernel guard create <name>` | Safeguards | Scaffolds a new guard script in the stack's native language in `tools/guards/`; the pre-commit hook and the audit run every project guard (`tools/guards/*.js`/`*.py`, and unmanaged `check_*`/`scan_*`/`verify_*` files at the top of `tools/`). |
+| `clckernel report-bug <summary>` | Kernel Bug | When the root cause is in a kernel-owned file: never patches it in your project; offers a temporary `.clckernel.yaml` workaround, prepares a bug report and explains the fork + pull request path (or an issue), with your approval at each outward step. |
 | `clckernel update` | Maintenance | Non-destructive update: refreshes core tools, skills & IDE symlinks without overwriting SDDs, custom guards, or `.clckernel.yaml`. |
 | `clckernel start` | Setup | Agent command: auto-detects the stack, proposes the AIUP lifecycle, installs the harness (`npx clckernel . --yes`) if missing; `.clckernel.yaml` is optional and written only for non-default settings (keeping the defaults writes a comment-only file). |
 
@@ -480,6 +481,9 @@ CLC Kernel focuses strictly on governance and runs with **zero foreign dependenc
 | **Agent-OS** | An operating system archetype for non-tech domain workflows (e.g. Marketing OS, Content Ops, Research OS) made of skills, playbooks, rules, prompts and templates, governed by a dual-layer AGENTS.md, explicit HITL checkpoints and document guards (skill frontmatter, links, placeholders). |
 
 ---
+
+### Found a bug in CLC Kernel itself?
+If the problem is in a kernel guard, the hook, the audit orchestrators, the CLI or the skill (not in your code or your own guards), ask your agent for `clckernel report-bug <summary>`. It does not patch the kernel file in your project (`update` would keep the edit and the fix would never reach the kernel); it offers a temporary `.clckernel.yaml` workaround (`severities`, `exclude_paths`, `update.exclude`, `tdd.ignore`), writes a bug report with a minimal reproduction, and explains how to fix it upstream: fork the repository, open it with your own AI agent (Claude Code, Antigravity, Cursor, Copilot, Gemini…) and send a pull request, or open an [issue](https://github.com/CarlosLeonCode/clc_forge/issues). It never forks, pushes or opens anything without your approval. See [CONTRIBUTING.md](CONTRIBUTING.md#found-a-bug-while-using-clc-kernel-in-your-project).
 
 ## 🤝 Contributing & Community
 Contributions are welcome. Start with these documents:

@@ -11,7 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const BaseAdapter = require('./base');
 const { currentIO, registeredPaths } = require('../io');
-const { FIRST_SESSION_SECTION } = require('../onboarding');
+const { FIRST_SESSION_SECTION, KERNEL_BUG_SECTION } = require('../onboarding');
 
 /** Skills the harness installs itself: never a detection signal. */
 const HARNESS_SKILLS = new Set(['clckernel_cli', 'clc_forge_cli']);
@@ -252,6 +252,7 @@ When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`,
 | \`clckernel audit\` | Verification | Run \`npx clckernel audit [dir] [--change <name>]\` (every installed orchestrator: \`tools/audit.js\` and/or \`tools/audit.py\`) and output the Educational Summary; only \`--change\` writes the report to \`sdds/<name>/\`. |
 | \`clckernel doctor\` | Diagnostics | Run \`npx clckernel doctor [dir]\`: checks AGENTS.md, sdds/, tools/, the pre-commit hook and that the guard scripts load. |
 | \`clckernel commit <message>\` | Version Control | Run full audit, verify tests pass, ensure no changes outside SDD scope, and commit with conventional commits (never add AI attribution). |
+| \`clckernel report-bug <summary>\` | Kernel Bug | The root cause is in a kernel-owned file: never patch it here; offer a temporary \`.clckernel.yaml\` workaround, prepare a bug report and explain the fork + pull request path (or an issue), and wait for approval (\`reference/report-bug.md\`). |
 | \`clckernel guard create <name>\` | Safeguards | Scaffold a new guard script in the stack's native language in \`tools/guards/\`. |
 | \`clckernel update\` | Maintenance | Non-destructive update: run \`npx clckernel update [dir]\` (\`--dry-run\` previews, \`--add-guards <a,b\\|all>\` adds guards); refreshes kernel tools, hook, playbooks & symlinks (preserves SDDs, project guards, edited files & \`.clckernel.yaml\`). |
 | \`clckernel start\` | Setup | Scan codebase and propose a governance plan; if the harness is missing, install it with \`npx clckernel . --yes\`. \`.clckernel.yaml\` is optional: write it only for settings that differ from the defaults. |
@@ -263,6 +264,7 @@ ${this.getSafeguards().map(s => `- ${s}`).join('\n')}
 
 ---
 
+${KERNEL_BUG_SECTION}
 ${FIRST_SESSION_SECTION}`;
 
     // Guard: never overwrite a project-customized AGENTS.md (e.g. a law file

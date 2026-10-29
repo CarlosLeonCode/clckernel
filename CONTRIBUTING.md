@@ -6,6 +6,25 @@ repository, what the pre-commit hook checks, and how a change goes from idea to 
 By participating you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md). Security problems go through
 [SECURITY.md](SECURITY.md), never through public issues.
 
+## Found a bug while using CLC Kernel in your project?
+
+When the root cause is in a kernel-owned file (listed in `tools/.clckernel-managed.json`, the generated hook,
+`.agents/skills/clckernel_cli/` or the `clckernel` CLI), do not patch it inside your project: `clckernel update`
+keeps the edited file, writes the new version next to it as `<file>.clckernel-new`, and the fix never reaches
+anyone else. Ask your AI agent for `clckernel report-bug <summary>`; the playbook
+(`.agents/skills/clckernel_cli/reference/report-bug.md`) prepares a report and a temporary `.clckernel.yaml`
+workaround. Then:
+
+1. Search the [existing issues](https://github.com/CarlosLeonCode/clc_forge/issues) first.
+2. Fork this repository, clone your fork and create a branch (`git checkout -b fix/<short-name>`).
+3. Open the fork with your AI agent (Claude Code, Antigravity, Cursor, Copilot, Gemini…) and give it the
+   report. This repository's `AGENTS.md` makes it write a failing test first, and the pre-commit hook checks
+   red→green (see below).
+4. Push and open a pull request (see [Pull requests](#pull-requests)).
+
+If you prefer not to fix it yourself, open an issue with the bug report form instead. Keep the reproduction
+minimal and free of your project's code, names and data.
+
 ## Prerequisites
 
 - **Node.js 18 or newer** (`engines.node` is `>=18.0.0`; CI runs 18, 20 and 22).

@@ -7,7 +7,8 @@ description: >-
   or /clckernel, or asks to initiate a feature, fix a bug, audit architecture, run tests,
   diagnose health, or commit changes in a project governed by CLC Kernel. Also use in the
   first session after install (tools/.clckernel-managed.json present, no .clckernel.yaml) to
-  orient the user and offer the start playbook.
+  orient the user and offer the start playbook. Also use for clckernel report-bug, or when a
+  bug's root cause is in CLC Kernel itself (a kernel-owned guard, hook, CLI or this skill).
 ---
 
 # 🤖 CLC Kernel — Agent Governance Engine
@@ -26,6 +27,7 @@ When the developer issues a \`clckernel <command>\` or \`/clckernel <command>\` 
 | `audit` | Verification | Run mandatory educational audit gate & guard checks | [reference/audit.md](reference/audit.md) |
 | `doctor` | Diagnostics | Check configuration health, hook parity, symlinks & guard scripts | [reference/doctor.md](reference/doctor.md) |
 | `commit` | Version Control | Pre-flight audit, verify SDD scope, and commit with Conventional Commits | [reference/commit.md](reference/commit.md) |
+| `report-bug` | Kernel Bug | The root cause is in a kernel-owned file: never patch it in the project; temporary workaround, bug report, fork + pull request (or issue) | [reference/report-bug.md](reference/report-bug.md) |
 | `update` | Maintenance | Non-destructive update: refresh core tools, playbooks & symlinks (preserves SDDs & custom guards) | [reference/update.md](reference/update.md) |
 | `start` | Setup | Discover tech stack, install the harness if missing (`npx clckernel . --yes`) & propose an optional `.clckernel.yaml` | [reference/start.md](reference/start.md) |
 | `create_guard` | Safeguards | Scaffold a new pattern-based/linter guard in native stack language | [reference/guard.md](reference/guard.md) |
@@ -45,6 +47,7 @@ When the developer issues a \`clckernel <command>\` or \`/clckernel <command>\` 
    - *"Auditar / verificar arquitectura"* -> Route to `audit` ([reference/audit.md](reference/audit.md))
    - *"Revisar estado / diagnóstico"* -> Route to `doctor` ([reference/doctor.md](reference/doctor.md))
    - *"Commitear / guardar cambios"* -> Route to `commit` ([reference/commit.md](reference/commit.md))
+   - *"Bug in CLC Kernel / a kernel guard is wrong"* -> Route to `report-bug` ([reference/report-bug.md](reference/report-bug.md)); `fix` also switches to it when the root cause is in a kernel-owned file
 4. **First session after install** (`tools/.clckernel-managed.json` exists, `.clckernel.yaml` does not):
    follow the "First session after install" section of AGENTS.md. The user's own request comes first;
    otherwise explain briefly what is installed, ask ONE question (run [reference/start.md](reference/start.md)

@@ -226,6 +226,7 @@ CLC Kernel define una gramática de comandos en `AGENTS.md`, que los agentes lee
 | `clckernel doctor` | Diagnóstico | Ejecuta `npx clckernel doctor [dir]`: verifica AGENTS.md, sdds/, tools/, el hook de pre-commit y que los scripts de guards carguen. |
 | `clckernel commit <mensaje>` | Control de Versiones | Auditoría pre-flight, verificación de scope diff vs SDD y commit con Conventional Commits (cero atribución de IA). |
 | `clckernel guard create <nombre>` | Salvaguardas | Genera el scaffold de un nuevo script de guard en el lenguaje nativo del stack en `tools/guards/`; el hook de pre-commit y el audit ejecutan cada guard del proyecto (`tools/guards/*.js`/`*.py`, y los archivos `check_*`/`scan_*`/`verify_*` no gestionados en la raíz de `tools/`). |
+| `clckernel report-bug <resumen>` | Bug del Kernel | Cuando la causa raíz está en un archivo del kernel: nunca lo parchea en su proyecto; ofrece un workaround temporal en `.clckernel.yaml`, prepara un reporte del bug y explica el camino fork + pull request (o un issue), con su aprobación en cada paso hacia afuera. |
 | `clckernel update` | Mantenimiento | Actualización no destructiva: refresca herramientas core, skills y symlinks de IDEs sin sobreescribir SDDs, guards personalizados ni `.clckernel.yaml`. |
 | `clckernel start` | Configuración | Comando del agente: detecta el stack, propone el ciclo de vida AIUP e instala el arnés (`npx clckernel . --yes`) si falta; `.clckernel.yaml` es opcional y solo se escribe para ajustes distintos de los valores por defecto (mantener los valores por defecto escribe un archivo con solo un comentario). |
 
@@ -485,6 +486,9 @@ CLC Kernel se enfoca estrictamente en gobernanza y opera con **cero dependencias
 | **Agent-OS** | Arquetipo de sistema operativo para flujos de agentes y dominios no técnicos (por ejemplo: Marketing OS, Content Ops, Research OS) compuesto por skills, playbooks, reglas, prompts y templates, gobernado por un AGENTS.md de dos capas, checkpoints HITL explícitos y guards de documentos (frontmatter de skills, links, placeholders). |
 
 ---
+
+### ¿Encontró un bug en CLC Kernel?
+Si el problema está en un guard del kernel, el hook, los orquestadores de auditoría, la CLI o la skill (no en su código ni en sus propios guards), pídale a su agente `clckernel report-bug <resumen>`. No parchea el archivo del kernel en su proyecto (`update` conservaría la edición y la corrección nunca llegaría al kernel); ofrece un workaround temporal en `.clckernel.yaml` (`severities`, `exclude_paths`, `update.exclude`, `tdd.ignore`), redacta un reporte con una reproducción mínima y explica cómo corregirlo en el origen: haga un fork del repositorio, ábralo con su propio agente de IA (Claude Code, Antigravity, Cursor, Copilot, Gemini…) y envíe un pull request, o abra un [issue](https://github.com/CarlosLeonCode/clc_forge/issues). Nunca hace un fork, un push ni abre nada sin su aprobación. Consulte [CONTRIBUTING.md](CONTRIBUTING.md#found-a-bug-while-using-clc-kernel-in-your-project).
 
 ## 🤝 Contribuciones y Comunidad
 Las contribuciones son bienvenidas. Consulte estos documentos (en inglés):

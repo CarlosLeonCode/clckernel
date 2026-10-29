@@ -70,7 +70,7 @@ function parseUpdateArgs(rest) {
  * executed by the AI agent, not by this CLI; without this list they would be
  * taken as an install target directory.
  */
-const AGENT_COMMANDS = new Set(['test', 'start', 'feature', 'fix', 'commit', 'guard']);
+const AGENT_COMMANDS = new Set(['test', 'start', 'feature', 'fix', 'commit', 'guard', 'report-bug']);
 
 const HELP_TEXT = `
 ${'clckernel'} — CLC Kernel: The AI Agent Governance Engine
@@ -105,8 +105,10 @@ WRITES TO THE TARGET PROJECT
   refuses to install.
 
 AGENT COMMANDS
-  test, start, feature, fix, commit, guard are defined in AGENTS.md and are
-  run by your AI agent, not by this CLI.
+  test, start, feature, fix, commit, guard, report-bug are defined in
+  AGENTS.md and are run by your AI agent, not by this CLI. report-bug: when
+  the bug is in CLC Kernel itself, your agent prepares a report and the fork +
+  pull request steps (or an issue) instead of patching kernel files.
 
 EXAMPLES
   clckernel --help
@@ -141,9 +143,12 @@ function rejectUnknownInput(args) {
  * @returns {number} Process exit code
  */
 function rejectAgentCommand(word) {
+  // sdds/kernel-bug-protocol: report-bug also points to where kernel bugs go.
+  const issues = word === 'report-bug' ? `   Known kernel bugs and new reports: ${require('../package.json').bugs.url}\n` : '';
   process.stderr.write(
     `\n❌ \`${word}\` is an agent command defined in AGENTS.md, not a CLI command.\n` +
-      '   Ask your AI agent to run it, or run `clckernel --help` to see CLI commands.\n\n'
+      '   Ask your AI agent to run it, or run `clckernel --help` to see CLI commands.\n' +
+      `${issues}\n`
   );
   return 1;
 }

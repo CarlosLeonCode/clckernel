@@ -8,6 +8,7 @@ Enforce deterministic bug fixing without quick-fix shortcuts or superficial patc
 1. Analyze the issue description, error logs, and stack trace.
 2. Inspect the relevant files and surrounding architecture to pinpoint the exact failure mechanism.
 3. **DO NOT** edit source code directly to "try things out".
+4. If the root cause is in a kernel-owned file (listed in `tools/.clckernel-managed.json`, the generated hook, `.agents/skills/clckernel_cli/` or the `clckernel` CLI), stop here and switch to [report-bug.md](report-bug.md): never patch kernel files in the project.
 
 ### Step 2: TDD Red Phase (Regression Test)
 1. Write a focused test that reproduces the bug demonstrably.

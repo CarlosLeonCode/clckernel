@@ -7,6 +7,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `clckernel report-bug <summary>`: an agent command (playbook `reference/report-bug.md`) for bugs in CLC
+  Kernel itself. The agent decides whether the failing file is kernel-owned, never patches it in the project,
+  offers a temporary `.clckernel.yaml` workaround (`severities`, `exclude_paths`, `update.exclude`,
+  `tdd.ignore`), prepares a bug report and explains the fork + pull request path (or an issue), waiting for the
+  user's approval before anything outward-facing. Every generated AGENTS.md gains an "If the bug is in CLC
+  Kernel" section (and a `report-bug` row in the command tables); the `fix` playbook switches to it when the
+  root cause is kernel-owned; `npx clckernel report-bug` prints the agent-command message and the issues URL.
+
 ### Fixed
 
 - `check_a11y` reads each JSX tag whole: attributes on later lines (an `aria-label`, an `alt`, an
