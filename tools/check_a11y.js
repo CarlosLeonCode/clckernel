@@ -83,7 +83,23 @@ function wrappingLabelRanges(content, tags) {
 }
 
 /**
- * An <input> has an accessible name when it is hidden, has aria-label /
+ * True when the element is not exposed to assistive technology, so it needs
+ * no accessible name: the `hidden` attribute, aria-hidden="true", a class
+ * token that is exactly "hidden" (display: none; a responsive variant like
+ * "md:hidden" or a visually-hidden class like "sr-only" does not count), or
+ * an inline display: none.
+ */
+function removedFromAccessibilityTree(attrs) {
+  if (/(?:^|\s)hidden(?=\s|\/|$|=\s*\{\s*true\s*\})/.test(attrs)) return true;
+  if (/(?:^|\s)aria-hidden\s*=\s*(?:"true"|'true'|\{\s*true\s*\})/.test(attrs)) return true;
+  const classes = attrs.match(/(?:^|\s)class(?:Name)?\s*=\s*("[^"]*"|'[^']*'|\{[^}]*\})/);
+  if (classes && /(?:^|[\s"'`])hidden(?=[\s"'`]|$)/.test(classes[1])) return true;
+  return /display\s*:\s*["']?none\b/.test(attrs);
+}
+
+/**
+ * An <input> has an accessible name when it is hidden or removed from the
+ * accessibility tree, has aria-label /
  * aria-labelledby (aria-describedby kept for compatibility), is the target of
  * a label's htmlFor, or sits inside a <label>. Spread props ({...props}) may
  * carry the label, so they are not reported.
@@ -91,6 +107,7 @@ function wrappingLabelRanges(content, tags) {
 function inputIsLabelled(tag, labelled, labelRanges) {
   const { attrs } = tag;
   if ((attrValue(attrs, 'type') || '').toLowerCase() === 'hidden') return true;
+  if (removedFromAccessibilityTree(attrs)) return true;
   if (/(?:^|\s)aria-(?:label|labelledby|describedby)\s*=/.test(attrs)) return true;
   if (/\{\s*\.\.\./.test(attrs)) return true;
   const id = attrValue(attrs, 'id');

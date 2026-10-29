@@ -137,4 +137,34 @@ describe('check_a11y reads whole JSX tags', () => {
     ].join('\n'));
     assert.deepStrictEqual(found, []);
   });
+
+  it('ignores inputs removed from the accessibility tree (hidden attribute, aria-hidden, class "hidden", display none)', async () => {
+    const { found } = await rulesFor([
+      'export const Upload = () => (',
+      '  <>',
+      '    <input',
+      '      type="file"',
+      '      className="hidden"',
+      '      ref={fileRef}',
+      '    />',
+      '    <input type="file" hidden onChange={pick} />',
+      '    <input type="file" aria-hidden="true" tabIndex={-1} />',
+      '    <input type="file" style={{ display: "none" }} />',
+      '  </>',
+      ');',
+    ].join('\n'));
+    assert.deepStrictEqual(found, []);
+  });
+
+  it('still reports inputs that are only visually hidden or hidden at some breakpoints', async () => {
+    const { found } = await rulesFor([
+      'export const F = () => (',
+      '  <>',
+      '    <input type="text" className="sr-only" />',
+      '    <input type="text" className="md:hidden w-full" />',
+      '  </>',
+      ');',
+    ].join('\n'));
+    assert.deepStrictEqual(found, ['input-label@3', 'input-label@4']);
+  });
 });
