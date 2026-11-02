@@ -275,7 +275,7 @@ npx clckernel . --yes --dry-run
   guards nuevos de tu stack se listan como *available, not installed*; se agregan con `--add-guards` (desde
   ahí quedan instalados y se actualizan). Un nombre desconocido falla con exit 1 y no escribe nada. Los
   archivos de soporte (`_changes.js/.py`, los lectores de config `_config.js/.py`, `yaml.js`, `_yaml.py`, los
-  orquestadores de audit) siguen a los guards instalados.
+  orquestadores de audit, `tools/package.json`) siguen a los guards instalados.
 - **Mirrors:** un mirror que borraste (p. ej. `.cursor/rules/clckernel_context.mdc`) no se recrea; se reporta
   como *not present (skipped)*. Una instalación nueva los sigue creando todos.
 - **`.gitignore`:** una entrada cuya ruta git trackea (un mirror o la skill que commiteas) nunca se agrega, ni
@@ -402,7 +402,15 @@ Go/Cargo/Composer (sus partes solo se detectan por los directorios convencionale
   con Husky): en Windows necesita un bash/sh como Git Bash.
 - **La configuración propia de lint-staged / ESLint puede analizar los archivos del arnés en `tools/`.** Los
   archivos del kernel están listados en `tools/.clckernel-managed.json`; conviene excluir `tools/` (o esas rutas)
-  en la configuración del linter.
+  en la configuración del linter. Los guards son CommonJS, así que las reglas contra `require` (p. ej.
+  `@typescript-eslint/no-require-imports` de `eslint-config-next`) los reportan: agregá `tools/**` a los ignores
+  del linter.
+- **Proyectos con `"type": "module"`.** Los guards corren como CommonJS sea cual sea el tipo de módulo del
+  proyecto: cuando install o update ponen un archivo JS en `tools/`, también escriben `tools/package.json`
+  (`{ "type": "commonjs" }`), un archivo del kernel listado en el registro. Un `tools/package.json` propio se
+  conserva (la versión del kernel va a `tools/package.json.clckernel-new`); si el tuyo declara
+  `"type": "module"`, `npx clckernel doctor` falla el check *tools/ JS runs as CommonJS* y te dice qué cambiar.
+  Los guards del proyecto en `tools/guards/` también son CommonJS.
 - **Tests unitarios inline de Rust** (`#[cfg(test)]`): no se pueden separar para la corrida roja; ver
   [Rojo→Verde en Go, Rust, Ruby y PHP](#rojo-verde-otros-stacks).
 - **Las instalaciones existentes conservan su `AGENTS.md`.** `update` nunca lo reescribe, así que la sección

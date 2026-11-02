@@ -543,7 +543,28 @@ function installToolsFromManifest(targetDir, manifest, config) {
     written.push(...installYamlModule(targetDir));
   }
   written.push(...installSnapshotHelpers(targetDir, copiedPaths));
+  written.push(...installModuleTypeMarker(targetDir, written));
   return { installed, written };
+}
+
+/** tools/package.json the kernel writes next to its JS files (sdds/esm-tools-commonjs). */
+const MODULE_TYPE_MARKER = `${JSON.stringify({ type: 'commonjs' }, null, 2)}\n`;
+
+/**
+ * Writes tools/package.json = { "type": "commonjs" } when any JS file was
+ * written into tools/. The guards are CommonJS; without their own package
+ * scope Node applies the project's, and a project with "type": "module" would
+ * load every tools/*.js as ESM and crash on require. Kernel-owned: an existing
+ * project tools/package.json is kept (the ownership rule in src/io.js).
+ *
+ * @param {string} targetDir - Target project root
+ * @param {string[]} writtenFiles - tools/ file names written for this project
+ * @returns {string[]} File names written into tools/
+ */
+function installModuleTypeMarker(targetDir, writtenFiles) {
+  if (!writtenFiles.some(f => path.extname(f) === '.js')) return [];
+  currentIO(targetDir).writeManaged('tools/package.json', MODULE_TYPE_MARKER);
+  return ['package.json'];
 }
 
 /**
@@ -630,6 +651,7 @@ function installFallbackTools(targetDir, projectType, keep = () => true) {
     written.push(...installYamlModule(targetDir));
   }
   written.push(...installSnapshotHelpers(targetDir, fallbackFiles));
+  written.push(...installModuleTypeMarker(targetDir, written));
   return { installed: [...installed], written };
 }
 

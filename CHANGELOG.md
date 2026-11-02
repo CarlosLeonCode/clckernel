@@ -19,6 +19,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Projects with `"type": "module"` in `package.json`: install and update write `tools/package.json`
+  (`{ "type": "commonjs" }`, kernel-owned, listed in `tools/.clckernel-managed.json`; a project file is kept)
+  whenever a JS file goes into `tools/`, so the CommonJS guards and the pre-commit hook no longer crash with
+  `require is not defined in ES module scope`. `doctor` gains a *tools/ JS runs as CommonJS* check whose
+  failure says what to run or change; `verify_tdd.js` does not treat that marker as a project root; the
+  install's Next steps tell to add `tools/**` to the linter's ignores.
 - `check_a11y` reads each JSX tag whole: attributes on later lines (an `aria-label`, an `alt`, an
   `onKeyDown`) are seen, hidden inputs and inputs removed from the accessibility tree (`hidden`, `aria-hidden="true"`, a `hidden`
   class, inline `display: none`) are skipped while `sr-only` and responsive `md:hidden` inputs are still checked, inputs labelled through `htmlFor`/`for` or wrapped by a

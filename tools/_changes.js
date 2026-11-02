@@ -276,4 +276,4 @@ function nearestPackageDeps(dir, file, mode, cache = new Map()) {
   return deps;
 }
 
-module.exports = { changedFiles, pureRenames, readFile, exists, listFiles, nearestPackageDeps, projectConfig, globMatcher };
+module.exports = { changedFiles, pureRenames, readFile, exists, listFiles, managedFiles, nearestPackageDeps, projectConfig, globMatcher };

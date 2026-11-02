@@ -43,7 +43,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { changedFiles, listFiles, pureRenames, projectConfig, globMatcher } = require('./_changes');
+const { changedFiles, listFiles, managedFiles, pureRenames, projectConfig, globMatcher } = require('./_changes');
 
 const NAME = 'verify_tdd';
 const DEFAULT_TIMEOUT = 300;
@@ -375,7 +375,7 @@ function resolveTrees(repo, rules = NO_RULES) {
   const all = changedFiles(repo);
   if (all.mode === null) throw new GitError('could not list the changed files');
   const pure = pureRenames(repo, all.mode);
-  const files = new Set(listFiles(repo, all.mode));
+  const files = snapshotFiles(repo, all.mode);
   const changes = { mode: all.mode, files: all.files.filter((f) => !pure.has(f)) };
   const renamed = all.files.filter((f) => pure.has(f) && locate(f, files, rules) !== null);
   const hasHead = revExists(repo, 'HEAD');
@@ -386,6 +386,16 @@ function resolveTrees(repo, rules = NO_RULES) {
   }
   const base = revExists(repo, 'HEAD~1') ? 'HEAD~1' : null;
   return { mode: 'manual', base, candidate: 'HEAD', changed: changes.files, renamed, snapshot: changes.mode, files };
+}
+
+/**
+ * Paths of the snapshot, without a package.json the harness registry lists:
+ * that is the kernel's module-type marker (tools/package.json, which keeps
+ * the guards CommonJS), not a project root.
+ */
+function snapshotFiles(repo, mode) {
+  const managed = managedFiles(repo, mode);
+  return new Set(listFiles(repo, mode).filter((f) => !(managed.has(f) && path.posix.basename(f) === 'package.json')));
 }
 
 /** Nearest ancestor dir of rel holding a package.json; '.' for the repository root. */
@@ -403,7 +413,7 @@ function projectRoot(rel, files) {
  * first: a Map of key -> { lang, root, files }.
  */
 function byRoot(repo, trees, rules = NO_RULES) {
-  const files = trees.files || new Set(listFiles(repo, trees.snapshot));
+  const files = trees.files || snapshotFiles(repo, trees.snapshot);
   const roots = new Map();
   for (const rel of trees.changed) {
     const where = locate(rel, files, rules);

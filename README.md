@@ -271,8 +271,8 @@ npx clckernel . --yes --dry-run
 - **Guards:** only the guards in the registry or present in `tools/` are refreshed and run by the hook. New
   guards of your stack are listed as *available, not installed*; opt in with `--add-guards` (they stay
   installed and updated from then on). An unknown name fails with exit 1 and writes nothing. Support files
-  (`_changes.js/.py`, the config readers `_config.js/.py`, `yaml.js`, `_yaml.py`, the audit orchestrators)
-  follow the installed guards.
+  (`_changes.js/.py`, the config readers `_config.js/.py`, `yaml.js`, `_yaml.py`, the audit orchestrators,
+  `tools/package.json`) follow the installed guards.
 - **Mirrors:** a mirror you deleted (e.g. `.cursor/rules/clckernel_context.mdc`) is not recreated; it is
   reported as *not present (skipped)*. A fresh install still creates them all.
 - **`.gitignore`:** an entry whose path git tracks (a mirror or the skill you commit) is never added, on
@@ -398,7 +398,15 @@ workspaces (their parts are found only through the conventional directories).
 - **Windows is not tested.** The pre-commit hook is a shell script (`#!/usr/bin/env bash`, or `sh` under
   Husky): on Windows it needs a bash/sh such as Git Bash.
 - **Your own lint-staged / ESLint config may lint the harness files under `tools/`.** The kernel's files are
-  listed in `tools/.clckernel-managed.json`; exclude `tools/` (or those paths) in your linter config.
+  listed in `tools/.clckernel-managed.json`; exclude `tools/` (or those paths) in your linter config. The guards
+  are CommonJS, so rules against `require` (e.g. `@typescript-eslint/no-require-imports` in `eslint-config-next`)
+  report them: add `tools/**` to the linter's ignores.
+- **Projects with `"type": "module"`.** The guards run as CommonJS whatever the project's module type: when
+  install or update puts a JS file in `tools/`, it also writes `tools/package.json` (`{ "type": "commonjs" }`),
+  a kernel-owned file listed in the registry. A `tools/package.json` of your own is kept (the kernel's version
+  goes to `tools/package.json.clckernel-new`); if yours sets `"type": "module"`, `npx clckernel doctor` fails
+  the *tools/ JS runs as CommonJS* check and tells you what to change. Project guards in `tools/guards/` are
+  CommonJS too.
 - **Rust inline unit tests** (`#[cfg(test)]`) cannot be separated for the red run; see
   [Red→Green on Go, Rust, Ruby and PHP](#red-green-other-stacks).
 - **Existing installs keep their `AGENTS.md`.** `update` never rewrites it, so the *First session after

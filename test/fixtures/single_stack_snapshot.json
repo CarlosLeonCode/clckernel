@@ -114,6 +114,7 @@
       "check_custom.js",
       "check_responsive.js",
       "check_seo.js",
+      "package.json",
       "scan_secrets.js",
       "verify_tdd.js",
       "yaml.js"
@@ -146,6 +147,7 @@
       "check_responsive.js",
       "check_seo.js",
       "check_ui_reuse.js",
+      "package.json",
       "scan_secrets.js",
       "verify_tdd.js",
       "yaml.js"
@@ -178,6 +180,7 @@
       "check_responsive.js",
       "check_seo.js",
       "check_ui_reuse.js",
+      "package.json",
       "scan_secrets.js",
       "verify_tdd.js",
       "yaml.js"
@@ -204,6 +207,7 @@
       "_config.js",
       "audit.js",
       "check_custom.js",
+      "package.json",
       "scan_secrets.js",
       "verify_tdd.js",
       "yaml.js"
@@ -230,6 +234,7 @@
       "_config.js",
       "audit.js",
       "check_custom.js",
+      "package.json",
       "scan_secrets.js",
       "verify_tdd.js",
       "yaml.js"
@@ -256,6 +261,7 @@
       "_config.js",
       "audit.js",
       "check_custom.js",
+      "package.json",
       "scan_secrets.js",
       "verify_tdd.js",
       "yaml.js"
@@ -282,6 +288,7 @@
       "_config.js",
       "audit.js",
       "check_custom.js",
+      "package.json",
       "scan_secrets.js",
       "verify_tdd.js",
       "yaml.js"
@@ -314,6 +321,7 @@
       "check_placeholders.js",
       "check_skills.js",
       "check_symlinks.js",
+      "package.json",
       "scan_secrets.js",
       "verify_tdd.js",
       "yaml.js"
@@ -339,6 +347,7 @@
       "_changes.js",
       "_config.js",
       "audit.js",
+      "package.json",
       "scan_secrets.js",
       "yaml.js"
     ]

@@ -11,6 +11,7 @@ Project guards hold the rules of this project's domain; the kernel ships none. T
 - **Audit:** the report lists them (architecture lens unless the JSON result names another). `--hook` writes no report: it prints one line per guard and the details of each failure.
 - **Contract:** a non-zero exit code blocks the commit and fails the audit. Printing the standard JSON result is optional; when present the audit uses it for the report: `{ "exitCode": 0, "skipped": false, "name": "check_x", "data": { "message": "...", "violations": [{ "file": "...", "message": "..." }] } }` (optional `"lens"`: `correctness`, `security`, `architecture` or `performance`). Plain output is reported by its last line.
 - **Snapshot helpers:** evaluate the commit being made, not the working copy. A JS guard imports `require('../_changes')`; a Python guard imports `_changes` after adding the parent directory to `sys.path`. Each helper exists only when the harness installed it (`tools/_changes.js` with JS guards, `tools/_changes.py` with Python guards).
+- **Module type:** JS guards are CommonJS (`require`, `module.exports`), even in a project with `"type": "module"`: `tools/package.json` (`{ "type": "commonjs" }`, written by the harness) sets the module type of everything under `tools/`.
 
 ## 🛠️ Create Guard
 

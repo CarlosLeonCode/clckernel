@@ -13,6 +13,38 @@ const PY_PARSE_SCRIPT = 'import ast, sys\nast.parse(open(sys.argv[1]).read())';
 const { colors } = require('./ui');
 
 /**
+ * How Node loads tools/*.js (sdds/esm-tools-commonjs): the nearest
+ * package.json from tools/ upwards decides, and the JS guards are CommonJS.
+ * "type": "module" there makes every guard crash on require, so the check
+ * fails with the fix that applies.
+ * @param {string} targetDir - Project root
+ * @param {string} toolsDir - targetDir/tools
+ * @returns {{ name: string, status: boolean, detail?: string }|null} null when tools/ holds no JS file
+ */
+function moduleTypeCheck(targetDir, toolsDir) {
+  if (!fs.existsSync(toolsDir) || !fs.readdirSync(toolsDir).some(f => f.endsWith('.js'))) return null;
+  const name = 'tools/ JS runs as CommonJS';
+  for (let dir = toolsDir; ; dir = path.dirname(dir)) {
+    const pkgFile = path.join(dir, 'package.json');
+    if (fs.existsSync(pkgFile)) {
+      let type;
+      try {
+        type = JSON.parse(fs.readFileSync(pkgFile, 'utf-8')).type;
+      } catch {
+        type = undefined; // Malformed: the load checks below report it.
+      }
+      if (type !== 'module') return { name, status: true };
+      const detail = dir === toolsDir
+        ? 'tools/package.json sets "type": "module": set it to "type": "commonjs"'
+        : `${path.relative(targetDir, pkgFile).split(path.sep).join('/')} sets "type": "module" and tools/ has no ` +
+          'package.json of its own: run `npx clckernel update .` to add tools/package.json ({ "type": "commonjs" })';
+      return { name, status: false, detail };
+    }
+    if (path.dirname(dir) === dir) return { name, status: true };
+  }
+}
+
+/**
  * Runs every health check against targetDir and prints the results.
  * @param {string} targetDir - Project to inspect
  * @returns {number} Number of failed checks (0 means healthy)
@@ -40,6 +72,9 @@ function runDoctor(targetDir) {
   const hasHusky = fs.existsSync(path.join(targetDir, '.husky', 'pre-commit'));
   const hasGithooks = fs.existsSync(path.join(targetDir, '.githooks', 'pre-commit'));
   checks.push({ name: 'pre-commit git hooks', status: hasHusky || hasGithooks });
+
+  const moduleType = moduleTypeCheck(targetDir, toolsDir);
+  if (moduleType) checks.push(moduleType);
 
   // === Tool functionality validation ===
   if (fs.existsSync(toolsDir)) {

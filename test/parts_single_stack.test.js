@@ -31,6 +31,10 @@
  * before the first-session section) and the command tables of agent-os and
  * generic gain the `clckernel report-bug <summary>` row; hooks, config and
  * tools/ are byte-identical.
+ * Regenerated for sdds/esm-tools-commonjs: only tools/ changed — every stack
+ * that installs a JS file into tools/ gains tools/package.json (the CommonJS
+ * module-type marker); Python-only stacks, hooks, config and AGENTS.md are
+ * byte-identical.
  */
 const { describe, it } = require('node:test');
 const assert = require('node:assert');

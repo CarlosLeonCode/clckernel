@@ -294,6 +294,12 @@ function nextStepsLines(hook, plan, config = {}) {
   lines.push(`     ${agents}`);
   lines.push(`  3. Run ${cmd('npx clckernel audit')} anytime to see every guard's result.`);
   lines.push('  4. Project-specific checks go in tools/guards/ (the hook and the audit run them).');
+  // sdds/esm-tools-commonjs: tools/ is CommonJS whatever the project's "type".
+  const paths = [...(plan && plan.written) || [], ...(plan && plan.unchanged) || []];
+  if (paths.includes('tools/package.json')) {
+    lines.push('     tools/ is CommonJS (tools/package.json). If your linter checks tools/** (e.g. ESLint\'s');
+    lines.push('     no-require-imports), add tools/** to its ignores.');
+  }
   lines.push(`  5. Later, preview kernel updates with ${cmd('npx clckernel update --dry-run')}.`);
   return lines;
 }
