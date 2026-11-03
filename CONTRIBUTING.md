@@ -130,4 +130,21 @@ job runs `npm ci` and `npm test`; the Node 22 / Python 3.13 job also runs `node 
 
 ## License
 
-By contributing, you agree that your contributions are licensed under the [MIT License](LICENSE).
+CLC Kernel is licensed under [AGPL-3.0-only](LICENSE) with the
+[Installed Files Exception](LICENSE-EXCEPTION.md) (see [NOTICE](NOTICE)). Contributions are accepted under the
+same terms (inbound = outbound): by contributing, you agree that your contributions are licensed under
+AGPL-3.0-only with the same Installed Files Exception. The names and logo are covered by
+[TRADEMARKS.md](TRADEMARKS.md). Releases up to and including 2.0.4 were published under the MIT License.
+
+### Developer Certificate of Origin (DCO)
+
+Every commit must be signed off under the [Developer Certificate of Origin](https://developercertificate.org/).
+The sign-off is a line at the end of the commit message stating that you wrote the change, or otherwise have
+the right to submit it under the project's license:
+
+```
+Signed-off-by: Your Name <you@example.com>
+```
+
+`git commit -s` adds it using your `user.name` and `user.email`. To sign off commits you already made on your
+branch, run `git rebase --signoff main` and force-push the branch.

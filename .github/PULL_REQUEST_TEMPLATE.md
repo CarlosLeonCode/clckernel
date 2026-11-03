@@ -15,3 +15,4 @@
 - [ ] The PR title follows Conventional Commits (`fix(scope): ...`, `feat(scope): ...`).
 - [ ] No secrets, tokens or private data in code, tests, fixtures or logs.
 - [ ] `npm test` passes locally.
+- [ ] Every commit has a DCO `Signed-off-by:` line (`git commit -s`), and I agree that this contribution is licensed under AGPL-3.0-only with the Installed Files Exception (see CONTRIBUTING.md).

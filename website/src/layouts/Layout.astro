@@ -36,7 +36,7 @@ const jsonLd = {
   applicationCategory: 'DeveloperApplication',
   url: siteUrl,
   description,
-  license: 'https://opensource.org/licenses/MIT',
+  license: 'https://www.gnu.org/licenses/agpl-3.0.html',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   author: { '@type': 'Person', name: 'CarlosLeonCode', url: 'https://www.carlosleoncode.com' },
   creator: { '@type': 'Person', name: 'CarlosLeonCode', url: 'https://www.carlosleoncode.com' },
@@ -144,11 +144,12 @@ const jsonLd = {
           <ul class="space-y-1">
             <li><a class="footer-link" href={links.github} rel="noopener noreferrer">GitHub</a></li>
             <li><a class="footer-link" href={links.license} rel="noopener noreferrer">{t['footer.license']}</a></li>
+            <li><a class="footer-link" href={links.trademarks} rel="noopener noreferrer">{t['footer.trademarks']}</a></li>
             <li><a class="footer-link" href={links.issues} rel="noopener noreferrer">Issues</a></li>
           </ul>
         </div>
         <div class="md:col-span-12 pt-8 border-t rule-ink flex flex-col sm:flex-row justify-between gap-3 mono-label text-fog">
-          <span>MIT · © {new Date().getFullYear()} · {t['footer.by']} <a class="underline hover:text-paper" href="https://www.carlosleoncode.com" rel="author noopener" target="_blank">CarlosLeonCode<span class="sr-only"> {t['hero.credit.new']}</span></a></span>
+          <span>AGPL-3.0 · © {new Date().getFullYear()} · {t['footer.by']} <a class="underline hover:text-paper" href="https://www.carlosleoncode.com" rel="author noopener" target="_blank">CarlosLeonCode<span class="sr-only"> {t['hero.credit.new']}</span></a></span>
           <span>npx clckernel . --yes</span>
         </div>
       </div>

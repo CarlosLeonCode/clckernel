@@ -4,7 +4,7 @@
 # 🤖 CLC Kernel (`clckernel`)
 
 [![npm version](https://img.shields.io/npm/v/clckernel.svg)](https://www.npmjs.com/package/clckernel)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![Español](https://img.shields.io/badge/README-Español-blue.svg)](./README.es.md)
 
 **Deterministic AI Agent Governance Engine & AIUP Orchestrator.**
@@ -509,4 +509,15 @@ Contributions are welcome. Start with these documents:
 
 <a id="license"></a>
 ## 📄 License
-MIT © [CarlosLeonCode](https://github.com/carlosleoncode) — see [LICENSE](LICENSE).
+Copyright © 2025-2026 [CarlosLeonCode](https://github.com/carlosleoncode). See [NOTICE](NOTICE).
+
+- **The kernel is AGPL-3.0-only.** The CLI, its source and this repository are licensed under the GNU Affero
+  General Public License v3 only — see [LICENSE](LICENSE).
+- **Files installed into your project are yours to use under your project's license.** The guards, hook,
+  `AGENTS.md`, configuration and skill files that CLC Kernel writes into your project can be used, changed and
+  shipped as part of that project under its own terms, per the
+  [Installed Files Exception](LICENSE-EXCEPTION.md).
+- **The name and logo are trademarks.** Their use is covered by [TRADEMARKS.md](TRADEMARKS.md); forks need
+  their own name and logo.
+
+Releases up to and including 2.0.4 were published under the MIT License and remain available under MIT.

@@ -11,6 +11,9 @@
     "README.md",
     "README.es.md",
     "LICENSE",
+    "LICENSE-EXCEPTION.md",
+    "NOTICE",
+    "TRADEMARKS.md",
     "CHANGELOG.md"
   ],
   "bin": {
@@ -42,7 +45,7 @@
     "safeguards"
   ],
   "author": "Carlos Leon Code",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/CarlosLeonCode/clc_forge.git"

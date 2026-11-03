@@ -6,11 +6,11 @@ const { lang = 'en' } = Astro.props;
 const isEs = lang === 'es';
 
 const facts = isEs ? [
-  { k: 'Licencia MIT', v: 'Gratis para uso personal y comercial.' },
+  { k: 'Licencia AGPL-3.0', v: 'Gratis. Los archivos que instala en tu proyecto se usan bajo la licencia de tu proyecto (consulta LICENSE-EXCEPTION.md).' },
   { k: 'Se ejecuta en local', v: 'Los guards son scripts en la carpeta tools/ de tu repositorio, sin servicio externo ni cuenta.' },
   { k: 'Extensible', v: 'Añade tus guards en tools/guards/ y tus reglas regex en .clckernel.yaml; el hook y la auditoría los ejecutan.' },
 ] : [
-  { k: 'MIT license', v: 'Free for personal and commercial use.' },
+  { k: 'AGPL-3.0 license', v: 'Free. The files it installs in your project are used under your project\'s license (see LICENSE-EXCEPTION.md).' },
   { k: 'Runs locally', v: 'The guards are scripts in your repository\'s tools/ folder, with no external service and no account.' },
   { k: 'Extensible', v: 'Add your guards in tools/guards/ and your regex rules in .clckernel.yaml; the hook and the audit run them.' },
 ];

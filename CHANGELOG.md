@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- Relicensed from MIT to AGPL-3.0-only with the Installed Files Exception (`LICENSE-EXCEPTION.md`): files
+  CLC Kernel installs into a project can be used under that project's own terms. Trademark policy added
+  (`TRADEMARKS.md`), copyright notice in `NOTICE`, and contributions now need a DCO sign-off
+  (`git commit -s`). Releases up to and including 2.0.4 remain available under the MIT License.
+
 ### Added
 
 - `clckernel report-bug <summary>`: an agent command (playbook `reference/report-bug.md`) for bugs in CLC

@@ -1,0 +1,33 @@
+CLC Kernel — Copyright (C) 2025-2026 CarlosLeonCode
+https://www.carlosleoncode.com
+
+CLC Kernel (clckernel): an agnostic AI-governance harness.
+Copyright (C) 2025-2026 CarlosLeonCode
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, version 3.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero
+General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+Additional terms and policies:
+
+- LICENSE               The full text of the GNU Affero General Public
+                        License, version 3.
+- LICENSE-EXCEPTION.md  The CLC Kernel Installed Files Exception, an
+                        additional permission under section 7 of the
+                        GNU AGPL v3 for the files CLC Kernel installs
+                        into a project.
+- TRADEMARKS.md         The policy for the "CLC Kernel" and "clckernel"
+                        names and the logo. The license grants no
+                        trademark rights.
+
+Earlier releases: versions up to and including 2.0.4 were published under
+the MIT License. Copies of those releases remain available under the MIT
+License, as published.

@@ -9,6 +9,7 @@ export const links = {
   github: 'https://github.com/CarlosLeonCode/clc_forge',
   npm: 'https://www.npmjs.com/package/clckernel',
   license: 'https://github.com/CarlosLeonCode/clc_forge/blob/main/LICENSE',
+  trademarks: 'https://github.com/CarlosLeonCode/clc_forge/blob/main/TRADEMARKS.md',
   issues: 'https://github.com/CarlosLeonCode/clc_forge/issues',
 };
 
@@ -30,7 +31,7 @@ export const ui = {
     'copy.label': 'Copy the install command',
 
     'meta.home.title': 'CLC Kernel: a safety check for the work your AI assistant does',
-    'meta.home.desc': 'CLC Kernel gives every AI assistant the same rulebook and checks each change before it is saved: leaked keys, untested code, broken links, forgotten placeholders. Open source, MIT, runs locally.',
+    'meta.home.desc': 'CLC Kernel gives every AI assistant the same rulebook and checks each change before it is saved: leaked keys, untested code, broken links, forgotten placeholders. Open source (AGPL-3.0), runs locally.',
     'meta.how.title': 'How CLC Kernel works: rulebook, guards and the pre-commit hook',
     'meta.how.desc': 'The technical side of CLC Kernel: the AGENTS.md rulebook and its mirrors, the guards in tools/, the pre-commit hook, red-to-green TDD, supported stacks, quickstart and glossary.',
 
@@ -96,7 +97,7 @@ export const ui = {
     ],
 
     'strip.label': 'The facts',
-    'strip': ['Open source', 'MIT license', 'Free', 'Runs on your machine'],
+    'strip': ['Open source (AGPL-3.0)', 'Free', 'Runs on your machine'],
     'strip.works': 'Works with',
 
     'cta.line1': 'Give your AI a rulebook.',
@@ -106,7 +107,8 @@ export const ui = {
     'footer.tagline': 'A rulebook and automatic checks for AI-assisted work.',
     'footer.product': 'Product',
     'footer.project': 'Project',
-    'footer.license': 'MIT license',
+    'footer.license': 'License (AGPL-3.0)',
+    'footer.trademarks': 'Trademarks',
     'footer.by': 'Created by',
     'hero.credit.by': 'Created by',
     'hero.credit.new': '(opens in a new tab)',
@@ -124,7 +126,7 @@ export const ui = {
     'copy.label': 'Copiar el comando de instalación',
 
     'meta.home.title': 'CLC Kernel: un control de seguridad para el trabajo de tu asistente de IA',
-    'meta.home.desc': 'CLC Kernel da a todos los asistentes de IA el mismo reglamento y revisa cada cambio antes de guardarlo: claves filtradas, código sin pruebas, enlaces rotos, marcadores olvidados. Código abierto, MIT, se ejecuta en local.',
+    'meta.home.desc': 'CLC Kernel da a todos los asistentes de IA el mismo reglamento y revisa cada cambio antes de guardarlo: claves filtradas, código sin pruebas, enlaces rotos, marcadores olvidados. Código abierto (AGPL-3.0), se ejecuta en local.',
     'meta.how.title': 'Cómo funciona CLC Kernel: reglamento, guards y el hook de pre-commit',
     'meta.how.desc': 'La parte técnica de CLC Kernel: el reglamento AGENTS.md y sus mirrors, los guards de tools/, el hook de pre-commit, TDD de rojo a verde, stacks compatibles, inicio rápido y glosario.',
 
@@ -190,7 +192,7 @@ export const ui = {
     ],
 
     'strip.label': 'Los hechos',
-    'strip': ['Código abierto', 'Licencia MIT', 'Gratis', 'Se ejecuta en tu equipo'],
+    'strip': ['Código abierto (AGPL-3.0)', 'Gratis', 'Se ejecuta en tu equipo'],
     'strip.works': 'Funciona con',
 
     'cta.line1': 'Dale un reglamento a tu IA.',
@@ -200,7 +202,8 @@ export const ui = {
     'footer.tagline': 'Un reglamento y controles automáticos para el trabajo asistido por IA.',
     'footer.product': 'Producto',
     'footer.project': 'Proyecto',
-    'footer.license': 'Licencia MIT',
+    'footer.license': 'Licencia (AGPL-3.0)',
+    'footer.trademarks': 'Marcas',
     'footer.by': 'Creado por',
     'hero.credit.by': 'Creado por',
     'hero.credit.new': '(se abre en una pestaña nueva)',
