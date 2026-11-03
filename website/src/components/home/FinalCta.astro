@@ -1,0 +1,42 @@
+---
+import { ui, localePath, assistants, links } from '../../i18n/ui.js';
+import CommandCopy from '../CommandCopy.astro';
+
+interface Props { lang?: 'en' | 'es' }
+const { lang = 'en' } = Astro.props;
+const t = ui[lang];
+const facts = t['strip'] as string[];
+---
+
+<section class="band-ink" aria-labelledby="cta-title">
+  <div class="wrap">
+    <div class="py-8 border-b rule-ink flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <h2 class="sr-only">{t['strip.label']}</h2>
+      <ul class="mono-label flex flex-wrap gap-x-6 gap-y-2 text-paper">
+        {facts.map((f) => <li class="flex items-center gap-2"><span class="fact-dot" aria-hidden="true"></span>{f}</li>)}
+      </ul>
+      <p class="mono-label text-fog">
+        {t['strip.works']} <span class="text-paper">{assistants.join(' · ')}</span>
+      </p>
+    </div>
+
+    <div class="py-28 md:py-40">
+      <h2 id="cta-title" class="display text-[clamp(2.5rem,6vw,5.5rem)]">
+        <span class="block">{t['cta.line1']}</span>
+        <span class="block text-signal">{t['cta.line2']}</span>
+      </h2>
+      <div class="mt-12 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
+        <CommandCopy lang={lang} />
+        <a href={localePath(lang, '/how-it-works')} class="link-arrow text-paper">
+          {t['cta.more']}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <a href={links.github} class="link-arrow text-fog hover:text-paper" rel="noopener noreferrer">GitHub</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .fact-dot { width: 6px; height: 6px; background: var(--color-signal); border-radius: 1px; display: inline-block; }
+</style>

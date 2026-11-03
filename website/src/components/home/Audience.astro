@@ -1,0 +1,26 @@
+---
+import { ui } from '../../i18n/ui.js';
+
+interface Props { lang?: 'en' | 'es' }
+const { lang = 'en' } = Astro.props;
+const t = ui[lang];
+const groups = t['who'] as { title: string; body: string }[];
+---
+
+<section class="bg-paper-2 text-ink on-paper" aria-labelledby="who-title">
+  <div class="wrap py-24 md:py-32 grid gap-12 md:grid-cols-12">
+    <h2 id="who-title" class="h-section md:col-span-4">{t['who.title']}</h2>
+    <ul class="md:col-span-8 md:col-start-5 divide-y rule-paper border-y rule-paper">
+      {groups.map((g) => (
+        <li class="py-10 md:py-12 grid gap-4 md:grid-cols-8">
+          <h3 class="md:col-span-4 text-[clamp(1.375rem,2vw,1.75rem)] font-semibold leading-[1.15] tracking-[-0.02em] text-balance">{g.title}</h3>
+          <p class="md:col-span-4 text-stone leading-relaxed">{g.body}</p>
+        </li>
+      ))}
+    </ul>
+  </div>
+</section>
+
+<style>
+  .divide-y > :not(:last-child) { border-bottom-width: 1px; border-color: rgb(14 14 12 / 0.16); }
+</style>

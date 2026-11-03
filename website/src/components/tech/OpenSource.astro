@@ -1,0 +1,38 @@
+---
+import { links, localePath } from '../../i18n/ui.js';
+import CommandCopy from '../CommandCopy.astro';
+interface Props { lang?: 'en' | 'es' }
+const { lang = 'en' } = Astro.props;
+const isEs = lang === 'es';
+
+const facts = isEs ? [
+  { k: 'Licencia MIT', v: 'Gratis para uso personal y comercial.' },
+  { k: 'Se ejecuta en local', v: 'Los guards son scripts en la carpeta tools/ de tu repositorio, sin servicio externo ni cuenta.' },
+  { k: 'Extensible', v: 'Añade tus guards en tools/guards/ y tus reglas regex en .clckernel.yaml; el hook y la auditoría los ejecutan.' },
+] : [
+  { k: 'MIT license', v: 'Free for personal and commercial use.' },
+  { k: 'Runs locally', v: 'The guards are scripts in your repository\'s tools/ folder, with no external service and no account.' },
+  { k: 'Extensible', v: 'Add your guards in tools/guards/ and your regex rules in .clckernel.yaml; the hook and the audit run them.' },
+];
+---
+
+<section class="band-ink" aria-labelledby="oss-title" id="opensource">
+  <div class="wrap py-24 md:py-32">
+    <h2 id="oss-title" class="display text-[clamp(2.25rem,5vw,4.5rem)] max-w-[16ch]">
+      {isEs ? 'Código abierto, ejecutado en tu equipo.' : 'Open source, run on your machine.'}
+    </h2>
+    <dl class="mt-14 grid gap-8 md:grid-cols-3 border-t rule-ink pt-8">
+      {facts.map((f) => (
+        <div>
+          <dt class="font-semibold text-lg">{f.k}</dt>
+          <dd class="mt-2 text-fog leading-relaxed">{f.v}</dd>
+        </div>
+      ))}
+    </dl>
+    <div class="mt-16 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
+      <CommandCopy lang={lang} />
+      <a href={links.github} class="link-arrow text-paper" rel="noopener noreferrer">GitHub</a>
+      <a href={localePath(lang, '/docs')} class="link-arrow text-fog hover:text-paper">{isEs ? 'Documentación' : 'Documentation'}</a>
+    </div>
+  </div>
+</section>

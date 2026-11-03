@@ -1,0 +1,62 @@
+---
+import SectionHead from './SectionHead.astro';
+interface Props { lang?: 'en' | 'es' }
+const { lang = 'en' } = Astro.props;
+const isEs = lang === 'es';
+
+const items = isEs ? [
+  { title: 'Fuga de secretos', point: 'Detecta claves privadas, tokens de AWS, Stripe, OpenAI, Anthropic, Google, Slack y GitHub, JWTs y asignaciones de contraseñas en los archivos staged, mediante patrones regex (puede haber falsos positivos).', tag: 'scan_secrets' },
+  { title: 'Rojo → verde', point: 'Un cambio de código necesita un test cambiado que falle contra HEAD sin el cambio y pase con él.', tag: 'verify_tdd' },
+  { title: 'Límites de arquitectura', point: 'Marca imports que cruzan capas: Dominio → Casos de uso → Infraestructura.', tag: 'check_architecture (Python AST / regex)' },
+  { title: 'Heurística N+1', point: 'Marca llamadas tipo ORM dentro de bucles for/while en stacks Python.', tag: 'check_db_efficiency (Python AST)' },
+  { title: 'Infraestructura', point: 'Revisa contenedores rootless, reversibilidad de migraciones y secretos en variables de entorno.', tag: 'docker_guard / check_migrations' },
+  { title: 'Agent-OS y documentos', point: 'Exige marcadores Human-in-the-Loop y revisa el frontmatter de las skills, los enlaces relativos, los marcadores olvidados, los JSON y los mirrors de AGENTS.md.', tag: 'check_hitl / check_skills / check_links / check_placeholders' },
+  { title: 'Reglas propias', point: 'Tus reglas regex en .clckernel.yaml y tus guards en tools/guards/ se ejecutan en el hook y en la auditoría.', tag: 'check_custom + tools/guards/' },
+] : [
+  { title: 'Secret leaks', point: 'Matches private keys, AWS, Stripe, OpenAI, Anthropic, Google, Slack and GitHub tokens, JWTs and password assignments in staged files, using regex patterns (false positives are possible).', tag: 'scan_secrets' },
+  { title: 'Red → green', point: 'A code change needs a changed test that fails against HEAD without the change and passes with it.', tag: 'verify_tdd' },
+  { title: 'Architecture boundaries', point: 'Flags imports that cross layers: Domain → Use cases → Infrastructure.', tag: 'check_architecture (Python AST / regex)' },
+  { title: 'N+1 heuristic', point: 'Flags ORM-like calls inside for/while loops on Python stacks.', tag: 'check_db_efficiency (Python AST)' },
+  { title: 'Infrastructure', point: 'Checks rootless containers, migration reversibility and secrets in environment variables.', tag: 'docker_guard / check_migrations' },
+  { title: 'Agent-OS and documents', point: 'Requires Human-in-the-Loop markers and checks skill frontmatter, relative links, forgotten placeholders, JSON data files and AGENTS.md mirrors.', tag: 'check_hitl / check_skills / check_links / check_placeholders' },
+  { title: 'Your own rules', point: 'Your regex rules in .clckernel.yaml and your guards in tools/guards/ run in the hook and in the audit.', tag: 'check_custom + tools/guards/' },
+];
+const flow = isEs
+  ? [['Entrada', 'Diff staged'], ['Guards', 'tools/audit.js · audit.py'], ['Resultado', 'Commit o cancelación']]
+  : [['Input', 'Staged diff'], ['Guards', 'tools/audit.js · audit.py'], ['Result', 'Commit or abort']];
+---
+
+<section class="band-paper on-paper" aria-labelledby="safeguards-title" id="safeguards">
+  <div class="wrap py-24 md:py-32">
+    <SectionHead id="safeguards-title"
+      title={isEs ? 'Los guards' : 'The guards'}
+      lede={isEs ? 'Scripts pequeños en el lenguaje de tu proyecto, sin dependencias. La mayoría se basa en patrones; en stacks Python algunos analizan el código con Python AST.' : 'Small scripts in your project\'s own runtime, with no dependencies. Most are pattern-based; on Python stacks some parse code with Python AST.'} />
+
+    <ol class="flow grid sm:grid-cols-3 border rule-paper rounded-[10px] mb-14" aria-label={isEs ? 'Flujo de un commit' : 'Flow of a commit'}>
+      {flow.map(([k, v], i) => (
+        <li class:list={['p-5', { 'flow__mid': i === 1 }]}>
+          <span class="mono-label text-stone">{k}</span>
+          <span class="block mt-1 font-mono text-sm">{v}</span>
+        </li>
+      ))}
+    </ol>
+
+    <ul class="border-t rule-paper">
+      {items.map((item) => (
+        <li class="grid gap-2 md:gap-6 md:grid-cols-12 py-6 border-b rule-paper items-baseline">
+          <h3 class="md:col-span-3 text-lg font-semibold tracking-[-0.015em]">{item.title}</h3>
+          <p class="md:col-span-6 text-stone leading-relaxed">{item.point}</p>
+          <code class="md:col-span-3 font-mono text-[0.8125rem] text-signal-ink break-words">{item.tag}</code>
+        </li>
+      ))}
+    </ul>
+    <p class="mt-8 text-stone max-w-[68ch]">{isEs ? 'Qué guards se instalan depende del stack detectado. clckernel update --add-guards añade los que todavía no tienes.' : 'Which guards are installed depends on the detected stack. clckernel update --add-guards adds the ones you do not have yet.'}</p>
+  </div>
+</section>
+
+<style>
+  .flow > li + li { border-top: 1px solid rgb(14 14 12 / 0.16); }
+  @media (min-width: 640px) { .flow > li + li { border-top: 0; border-left: 1px solid rgb(14 14 12 / 0.16); } }
+  .flow__mid { background: var(--color-ink); color: var(--color-paper); }
+  .flow__mid .mono-label { color: var(--color-signal); }
+</style>

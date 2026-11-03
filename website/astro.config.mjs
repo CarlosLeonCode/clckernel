@@ -14,5 +14,7 @@ export default defineConfig({
   },
   vite: {
     plugins: [tailwindcss()],
+    // three.js is one lazy chunk (~130 kB gzip) loaded only for the hero figure.
+    build: { chunkSizeWarningLimit: 600 },
   },
 });

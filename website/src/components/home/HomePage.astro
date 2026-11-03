@@ -1,0 +1,25 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Hero from './Hero.astro';
+import Statement from './Statement.astro';
+import Steps from './Steps.astro';
+import Audience from './Audience.astro';
+import FinalCta from './FinalCta.astro';
+import { ui } from '../../i18n/ui.js';
+
+interface Props { lang?: 'en' | 'es' }
+const { lang = 'en' } = Astro.props;
+const t = ui[lang];
+---
+
+<Layout lang={lang} route="/" title={t['meta.home.title']} description={t['meta.home.desc']}>
+  <Hero lang={lang} />
+  <Statement lang={lang} />
+  <Steps lang={lang} />
+  <Audience lang={lang} />
+  <FinalCta lang={lang} />
+</Layout>
+
+<script>
+  import '../../scripts/home.js';
+</script>

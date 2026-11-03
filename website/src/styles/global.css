@@ -1,129 +1,210 @@
 @import "tailwindcss";
 
+/*
+ * CLC Kernel visual language
+ * - ink: warm near-black for the dark bands (hero, technical bands, footer)
+ * - paper: warm off-white for the editorial bands
+ * - signal: the single accent. A green-yellow "pass" light: it reads as
+ *   "checked / allowed through" to anyone, it is not the reference's red,
+ *   and it holds 14:1 on ink. On paper it is only used as a fill behind
+ *   ink text; text that must look "accent" on paper uses signal-ink.
+ */
+@theme {
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --color-ink: #0e0e0c;
+  --color-ink-2: #18181a;
+  --color-ink-3: #232326;
+  --color-paper: #f2efe8;
+  --color-paper-2: #e7e3d9;
+  --color-fog: #a5a198;      /* secondary text on ink: 7.5:1 */
+  --color-stone: #59554d;    /* secondary text on paper: 6.4:1 */
+  --color-signal: #b8f03f;
+  --color-signal-ink: #3a6000; /* accent-coloured text on paper: 6.4:1 */
+
+  /* Legacy cyan utilities (docs pages) are remapped onto the signal scale. */
+  --color-cyan-50: #f3fbdf;
+  --color-cyan-100: #e4f6b9;
+  --color-cyan-200: #d0ee8c;
+  --color-cyan-300: #b9e35c;
+  --color-cyan-400: #9ccf38;
+  --color-cyan-500: #7fb321;
+  --color-cyan-600: #557d0f;
+  --color-cyan-700: #46680b;
+  --color-cyan-800: #385308;
+  --color-cyan-900: #2d4307;
+  --color-cyan-950: #1d2c04;
+}
+
 @layer base {
   :root {
-    --bg-canvas: #ffffff;
-    --bg-surface: #ffffff;
-    --bg-surface-subtle: #f8fafc;
-    --border-subtle: #e2e8f0;
-    --border-active: #10b981;
-    --accent-emerald: #059669;
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-tertiary: #64748b;
+    --gutter: clamp(1rem, 4vw, 3rem);
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    color-scheme: light;
   }
 
   html {
-    scroll-behavior: smooth;
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background-color: #ffffff;
-    color: #0f172a;
+    font-family: var(--font-sans);
+    background-color: var(--color-ink);
+    color: var(--color-ink);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "ss01", "cv11";
   }
 
-  /* Custom sleek scrollbar */
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-  ::-webkit-scrollbar-track {
-    background: #f1f5f9;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 4px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+  @media (prefers-reduced-motion: no-preference) {
+    html { scroll-behavior: smooth; }
   }
 
-  /* Text selection */
+  body {
+    background-color: var(--color-paper);
+    overflow-x: hidden;
+  }
+
+  code, pre, kbd, samp { font-family: var(--font-mono); }
+
   ::selection {
-    background-color: #d1fae5;
-    color: #065f46;
+    background-color: var(--color-signal);
+    color: var(--color-ink);
   }
 
-  /* Focus ring accessibility */
   :focus-visible {
-    outline: 2px solid #059669;
-    outline-offset: 2px;
+    outline: 2px solid var(--color-signal);
+    outline-offset: 3px;
+    border-radius: 2px;
   }
+  .on-paper :focus-visible,
+  .on-paper:focus-visible {
+    outline-color: var(--color-ink);
+  }
+
+  a { text-underline-offset: 0.22em; text-decoration-thickness: 1px; }
+
+  html { scrollbar-color: #4a4a48 var(--color-ink); }
 }
 
-.surface-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
-  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-}
+@layer components {
+  .wrap > * { min-width: 0; }
+  .wrap {
+    width: 100%;
+    max-width: 88rem;
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+  }
 
-.surface-card:hover {
-  border-color: #cbd5e1;
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08);
-}
+  /* Small technical caption: figures, coordinates, commands, nav. */
+  .mono-label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.4;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
 
-.terminal-window {
-  position: relative;
-  background: radial-gradient(120% 120% at 50% 0%, #0d1527 0%, #060a12 100%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  box-shadow: 
-    0 0 0 1px rgba(255, 255, 255, 0.05),
-    0 25px 60px -15px rgba(0, 0, 0, 0.6),
-    0 0 50px -10px rgba(16, 185, 129, 0.12);
-  backdrop-filter: blur(20px);
-}
+  .band-ink { background: var(--color-ink); color: var(--color-paper); }
+  .band-ink-2 { background: var(--color-ink-2); color: var(--color-paper); }
+  .band-paper { background: var(--color-paper); color: var(--color-ink); }
 
-.terminal-window::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  pointer-events: none;
-}
+  .display {
+    font-weight: 600;
+    letter-spacing: -0.035em;
+    line-height: 0.96;
+    text-wrap: balance;
+  }
 
-@keyframes terminalPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
-}
+  .h-section {
+    font-weight: 600;
+    font-size: clamp(2rem, 4.6vw, 3.75rem);
+    letter-spacing: -0.03em;
+    line-height: 1.02;
+    text-wrap: balance;
+  }
 
-@keyframes pulseGlow {
-  0%, 100% { transform: scale(1); opacity: 0.8; }
-  50% { transform: scale(1.04); opacity: 1; }
-}
+  .lede {
+    font-size: clamp(1.0625rem, 1.4vw, 1.25rem);
+    line-height: 1.55;
+    max-width: 38rem;
+    text-wrap: pretty;
+  }
 
-@keyframes scanline {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(1000%); }
-}
+  .rule-ink { border-color: rgb(242 239 232 / 0.14); }
+  .rule-paper { border-color: rgb(14 14 12 / 0.16); }
 
-.cursor-blink {
-  animation: terminalPulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
+  /* Command box with copy button (hero, final CTA, technical page). */
+  .cmd {
+    display: inline-flex;
+    align-items: stretch;
+    max-width: 100%;
+    min-width: 0;
+    border: 1px solid rgb(242 239 232 / 0.22);
+    border-radius: 10px;
+    font-family: var(--font-mono);
+    font-size: 0.9375rem;
+    overflow: hidden;
+  }
+  .cmd__text {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    padding: 0.85rem 1rem;
+    white-space: nowrap;
+    overflow-x: auto;
+    min-width: 0;
+  }
+  .cmd__prompt { color: var(--color-fog); }
+  .cmd__btn {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0 1.1rem;
+    min-height: 48px;
+    background: var(--color-signal);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.9375rem;
+    cursor: pointer;
+    transition: background-color 150ms var(--ease-out), transform 150ms var(--ease-out);
+  }
+  .cmd__btn:hover { background: #cdf76f; }
+  .cmd__btn:active { transform: scale(0.97); }
+  .cmd__btn:focus-visible { outline-offset: -4px; outline-color: var(--color-ink); }
+  @media (max-width: 400px) {
+    .cmd { font-size: 0.8125rem; }
+    .cmd__text { padding-inline: 0.75rem; }
+    .cmd__btn { padding: 0 0.8rem; }
+  }
+  .cmd--paper { border-color: rgb(14 14 12 / 0.22); }
+  .cmd--paper .cmd__prompt { color: var(--color-stone); }
 
-.glow-pill {
-  animation: pulseGlow 3s cubic-bezier(0.16, 1, 0.3, 1) infinite;
-}
+  .link-arrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 48px;
+    font-weight: 500;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    transition: text-decoration-color 150ms var(--ease-out);
+  }
+  .link-arrow:hover { text-decoration-color: currentColor; }
+  .link-arrow svg { transition: transform 200ms var(--ease-out); }
+  .link-arrow:hover svg { transform: translateX(3px); }
 
-/* Apple Spring Easing Utilities */
-.apple-ease {
-  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-}
+  .code-block {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.7;
+    white-space: pre;
+    overflow-x: auto;
+    tab-size: 2;
+  }
 
-.step-node-active {
-  background-color: rgba(16, 185, 129, 0.15);
-  border-color: rgba(16, 185, 129, 0.8);
-  color: #34d399;
-}
-
-.step-node-idle {
-  background-color: rgba(15, 23, 42, 0.6);
-  border-color: rgba(30, 41, 59, 0.8);
-  color: #64748b;
+  .sr-only-focusable:not(:focus) {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap;
+  }
 }

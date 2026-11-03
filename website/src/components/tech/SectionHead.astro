@@ -1,0 +1,9 @@
+---
+interface Props { id: string; title: string; lede?: string; surface?: 'ink' | 'paper' }
+const { id, title, lede, surface = 'paper' } = Astro.props;
+---
+
+<div class="grid gap-6 md:grid-cols-12 mb-14 md:mb-20">
+  <h2 id={id} class="h-section md:col-span-7">{title}</h2>
+  {lede && <p class:list={['lede md:col-span-5 self-end', surface === 'ink' ? 'text-fog' : 'text-stone']}>{lede}</p>}
+</div>

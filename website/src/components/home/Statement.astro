@@ -1,0 +1,43 @@
+---
+import { ui } from '../../i18n/ui.js';
+
+interface Props { lang?: 'en' | 'es' }
+const { lang = 'en' } = Astro.props;
+const t = ui[lang];
+
+const words = (text: string) => text.split(/\s+/).filter(Boolean);
+---
+
+<section class="band-paper on-paper" aria-label={lang === 'es' ? 'Por qué existe CLC Kernel' : 'Why CLC Kernel exists'}>
+  <div class="wrap py-28 md:py-40">
+    <p class="statement" data-reveal>
+      <span class="statement__a">
+        {words(t['statement.a']).map((w) => <span class="w">{w} </span>)}
+      </span>
+      <span class="statement__b">
+        {words(t['statement.b']).map((w) => <span class="w">{w} </span>)}
+        <mark>{words(t['statement.mark']).map((w) => <span class="w">{w} </span>)}</mark>
+        {words(t['statement.c']).map((w) => <span class="w">{w} </span>)}
+      </span>
+    </p>
+  </div>
+</section>
+
+<style>
+  .statement {
+    font-size: clamp(1.875rem, 4.4vw, 4rem);
+    font-weight: 500;
+    line-height: 1.12;
+    letter-spacing: -0.028em;
+    max-width: 22em;
+    text-wrap: pretty;
+  }
+  .statement__a { display: block; color: var(--color-stone); margin-bottom: 0.6em; }
+  .statement__b { display: block; color: var(--color-ink); }
+  .statement mark {
+    background: linear-gradient(var(--color-signal), var(--color-signal)) no-repeat 0 88% / 100% 0.42em;
+    color: inherit;
+    padding: 0 0.04em;
+  }
+  .w { display: inline; }
+</style>

@@ -1,0 +1,147 @@
+---
+import { ui, localePath } from '../../i18n/ui.js';
+import CommandCopy from '../CommandCopy.astro';
+
+interface Props { lang?: 'en' | 'es' }
+const { lang = 'en' } = Astro.props;
+const t = ui[lang];
+
+// Static isometric fallback of the 3D figure: a 3x3x3 cluster of blocks with
+// one accent block in the same slot the WebGL scene animates. It is what
+// visitors see before WebGL loads, without WebGL, or with reduced motion.
+const CELL = 46;
+const SIZE = 38;
+const A = 0.866;
+const B = 0.5;
+const ACCENT = '2,0,2';
+const project = (x: number, y: number, z: number) => [(x - y) * A, (x + y) * B - z];
+const cubes: { key: string; faces: { pts: string; fill: string }[] }[] = [];
+const order: [number, number, number][] = [];
+for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) order.push([i, j, k]);
+order.sort((p, q) => (p[0] + p[1] + p[2]) - (q[0] + q[1] + q[2]));
+for (const [i, j, k] of order) {
+  const key = `${i},${j},${k}`;
+  const ox = i * CELL, oy = j * CELL, oz = k * CELL;
+  const v = (dx: number, dy: number, dz: number) => {
+    const [px, py] = project(ox + dx * SIZE, oy + dy * SIZE, oz + dz * SIZE);
+    return `${(px + 200).toFixed(1)},${(py + 150).toFixed(1)}`;
+  };
+  const isAccent = key === ACCENT;
+  cubes.push({
+    key,
+    faces: [
+      { pts: [v(0, 0, 1), v(1, 0, 1), v(1, 1, 1), v(0, 1, 1)].join(' '), fill: isAccent ? '#d4f77f' : '#a9a79f' },
+      { pts: [v(1, 0, 0), v(1, 1, 0), v(1, 1, 1), v(1, 0, 1)].join(' '), fill: isAccent ? '#b8f03f' : '#7d7b75' },
+      { pts: [v(0, 1, 0), v(1, 1, 0), v(1, 1, 1), v(0, 1, 1)].join(' '), fill: isAccent ? '#8fc21f' : '#56554f' },
+    ],
+  });
+}
+---
+
+<section class="band-ink relative overflow-hidden" id="hero" aria-labelledby="hero-title">
+  <div class="wrap grid gap-12 lg:gap-8 lg:grid-cols-12 items-center pt-14 pb-20 md:pt-20 md:pb-28 lg:min-h-[calc(100svh-4rem)] lg:max-h-[60rem]">
+    <div class="lg:col-span-7 relative z-10 min-w-0">
+      <h1 id="hero-title" class="display text-[clamp(2.75rem,6.4vw,5.75rem)]">
+        <span class="hero-line"><span>{t['hero.line1']}</span></span>
+        <span class="hero-line text-signal"><span>{t['hero.line2']}</span></span>
+      </h1>
+      <p class="lede text-fog mt-8 hero-fade">{t['hero.sub']}</p>
+      <div class="mt-10 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 hero-fade">
+        <CommandCopy lang={lang} />
+        <a href={localePath(lang, '/how-it-works')} class="link-arrow text-paper">
+          {t['hero.secondary']}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+      <p class="mono-label text-fog mt-5 normal-case tracking-normal hero-fade">{t['hero.cmdNote']}</p>
+    </div>
+
+    <figure class="lg:col-span-5 relative gate" data-gate aria-labelledby="gate-caption">
+      <div class="gate__stage" data-gate-stage>
+        <svg class="gate__fallback" viewBox="60 40 280 300" role="img" aria-label={t['hero.figAlt']}>
+          <g transform="translate(0 40)">
+            {cubes.map((c) => (
+              <g data-key={c.key}>
+                {c.faces.map((f) => <polygon points={f.pts} fill={f.fill} stroke="#0e0e0c" stroke-width="1" stroke-linejoin="round" />)}
+              </g>
+            ))}
+          </g>
+        </svg>
+      </div>
+
+      <!-- Measurement frame: corner ticks and readouts. -->
+      <span class="gate__tick gate__tick--tl" aria-hidden="true"></span>
+      <span class="gate__tick gate__tick--tr" aria-hidden="true"></span>
+      <span class="gate__tick gate__tick--bl" aria-hidden="true"></span>
+      <span class="gate__tick gate__tick--br" aria-hidden="true"></span>
+
+      <figcaption id="gate-caption" class="mono-label gate__label gate__label--tl">{t['hero.fig']}</figcaption>
+      <span class="mono-label gate__label gate__label--tr text-fog" aria-hidden="true">{t['hero.sim']}</span>
+      <span class="mono-label gate__label gate__label--bl text-fog tabular-nums" aria-hidden="true">
+        <span>X <span data-readout="x">+0.000</span></span>
+        <span>Y <span data-readout="y">+0.000</span></span>
+        <span>R <span data-readout="r">045.0</span>°</span>
+      </span>
+      <span class="mono-label gate__label gate__label--br tabular-nums" aria-hidden="true">
+        <span class="gate__dot" data-gate-dot></span>
+        {t['hero.status']} · <span data-readout="n">001</span>
+      </span>
+    </figure>
+  </div>
+</section>
+
+<style>
+  .hero-line { display: block; overflow: hidden; padding-bottom: 0.06em; }
+  .hero-line > span { display: inline-block; }
+
+  /* Entrance is armed only when JS runs and motion is allowed (see Layout). */
+  @media (prefers-reduced-motion: no-preference) {
+    :global(.js) .hero-line > span { transform: translateY(105%); }
+    :global(.js) .hero-fade { opacity: 0; }
+  }
+
+  .gate {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    max-width: 36rem;
+    margin-inline: auto;
+    padding: 2.25rem 0;
+  }
+  .gate__stage { position: absolute; inset: 2.25rem 0.5rem; }
+  .gate__fallback { width: 100%; height: 100%; display: block; transition: opacity 600ms var(--ease-out); }
+  .gate__stage :global(canvas) {
+    position: absolute; inset: 0; width: 100% !important; height: 100% !important;
+    opacity: 0; transition: opacity 700ms var(--ease-out);
+  }
+  .gate.is-live .gate__stage :global(canvas) { opacity: 1; }
+  .gate.is-live .gate__fallback { opacity: 0; }
+
+  .gate__tick { position: absolute; width: 14px; height: 14px; border-color: rgb(242 239 232 / 0.35); border-style: solid; border-width: 0; }
+  .gate__tick--tl { top: 0; left: 0; border-top-width: 1px; border-left-width: 1px; }
+  .gate__tick--tr { top: 0; right: 0; border-top-width: 1px; border-right-width: 1px; }
+  .gate__tick--bl { bottom: 0; left: 0; border-bottom-width: 1px; border-left-width: 1px; }
+  .gate__tick--br { bottom: 0; right: 0; border-bottom-width: 1px; border-right-width: 1px; }
+
+  .gate__label { position: absolute; font-size: 0.6875rem; display: flex; gap: 0.9em; align-items: center; white-space: nowrap; }
+  .gate__label--tl { top: 0.15rem; left: 1.4rem; }
+  .gate__label--tr { top: 0.15rem; right: 1.4rem; }
+  .gate__label--bl { bottom: 0.15rem; left: 1.4rem; }
+  .gate__label--br { bottom: 0.15rem; right: 1.4rem; gap: 0.5em; }
+  .gate__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-signal); display: inline-block; }
+
+  /* The readouts depend on the figure's width, not the viewport's: in the
+     two-column layout the figure can be narrow on a wide screen. */
+  .gate { container-type: inline-size; }
+  @container (max-width: 560px) {
+    .gate__label--bl > span:nth-child(3) { display: none; }
+  }
+  @container (max-width: 400px) {
+    .gate__label--bl { display: none; }
+  }
+  @media (max-width: 420px) {
+    .gate__label { font-size: 0.625rem; }
+    .gate__label--tl, .gate__label--bl { left: 1.1rem; }
+    .gate__label--tr, .gate__label--br { right: 1.1rem; }
+  }
+</style>

@@ -1,0 +1,16 @@
+---
+import SectionHead from './SectionHead.astro';
+import HarnessFileTree from '../HarnessFileTree.astro';
+interface Props { lang?: 'en' | 'es' }
+const { lang = 'en' } = Astro.props;
+const isEs = lang === 'es';
+---
+
+<section class="bg-paper-2 text-ink on-paper" aria-labelledby="files-title" id="files">
+  <div class="wrap py-24 md:py-32">
+    <SectionHead id="files-title"
+      title={isEs ? 'Qué se escribe en tu repositorio' : 'What lands in your repository'}
+      lede={isEs ? 'Archivos de texto y scripts que puedes leer, versionar y cambiar. Selecciona uno para ver qué hace.' : 'Plain files and scripts you can read, commit and change. Pick one to see what it does.'} />
+    <HarnessFileTree lang={lang} />
+  </div>
+</section>

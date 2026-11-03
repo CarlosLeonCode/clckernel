@@ -16,6 +16,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   user's approval before anything outward-facing. Every generated AGENTS.md gains an "If the bug is in CLC
   Kernel" section (and a `report-bug` row in the command tables); the `fix` playbook switches to it when the
   root cause is kernel-owned; `npx clckernel report-bug` prints the agent-command message and the issues URL.
+- Website: a new plain-language home page (EN `/`, ES `/es/`) with a lazy-loaded three.js figure and GSAP
+  motion, and a separate technical page (`/how-it-works`, `/es/how-it-works`) holding the loop, guards, stacks,
+  file anatomy, quickstart, known limits and glossary. The unused `ogl` background was removed.
 
 ### Fixed
 

@@ -1,0 +1,38 @@
+---
+import { ui, INSTALL_CMD } from '../i18n/ui.js';
+
+interface Props {
+  lang?: 'en' | 'es';
+  command?: string;
+  surface?: 'ink' | 'paper';
+}
+
+const { lang = 'en', command = INSTALL_CMD, surface = 'ink' } = Astro.props;
+const t = ui[lang];
+---
+
+<div class:list={['cmd', { 'cmd--paper': surface === 'paper' }]}>
+  <code class="cmd__text">
+    <span class="cmd__prompt" aria-hidden="true">$</span><span>{command}</span>
+  </code>
+  <button
+    type="button"
+    class="cmd__btn"
+    data-copy={command}
+    data-idle={t['copy.idle']}
+    data-done={t['copy.done']}
+    data-fail={t['copy.fail']}
+    aria-label={`${t['copy.label']}: ${command}`}
+  >
+    <svg class="copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
+    <svg class="done-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+    <span data-copy-text>{t['copy.idle']}</span>
+  </button>
+  <span class="sr-only" role="status" aria-live="polite" data-copy-status></span>
+</div>
+
+<style>
+  .done-icon { display: none; }
+  .cmd__btn[data-state='done'] .copy-icon { display: none; }
+  .cmd__btn[data-state='done'] .done-icon { display: block; }
+</style>

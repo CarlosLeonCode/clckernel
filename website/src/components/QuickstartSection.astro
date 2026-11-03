@@ -1,18 +1,51 @@
 ---
-import { ui } from '../i18n/ui.js';
-
-interface Props {
-  lang?: 'en' | 'es';
-}
-
+import SectionHead from './tech/SectionHead.astro';
+import CommandCopy from './CommandCopy.astro';
+interface Props { lang?: 'en' | 'es' }
 const { lang = 'en' } = Astro.props;
-const t = ui[lang];
 const isEs = lang === 'es';
 
-// After install: the AGENTS.md "First session after install" section (src/onboarding.js).
+// Real output of a Next.js install (README "What happens after install").
+const install = `$ npx clckernel . --yes
+  Detected: Next.js (App Router) · Vitest / Jest · Git hooks: githooks
+  9 guard(s): scan_secrets, check_a11y, check_responsive, check_seo,
+     check_ui_reuse, check_architecture, check_performance, verify_tdd, check_custom
+  AGENTS.md, sdds/, docs/Journal/
+  Git hook: active hook .githooks/pre-commit (node tools/audit.js --hook)
+  Mirrors: CLAUDE.md, GEMINI.md, .cursorrules, .cursor/rules/clckernel_context.mdc,
+     .github/copilot-instructions.md, .antigravity/rules.md -> AGENTS.md
+
+Next steps
+  1. Review and commit the harness: git add -A && git commit -m "chore: install clckernel"
+     The pre-commit hook (.githooks/pre-commit) runs on this commit.
+  2. Open your AI agent and ask it to run clckernel start to tailor the rules (.clckernel.yaml),
+     or just start working: it follows AGENTS.md.
+     AGENTS.md mirrors written for: Claude Code (CLAUDE.md), Gemini (GEMINI.md), Cursor, Copilot, Antigravity.
+  3. Run npx clckernel audit anytime to see every guard's result.
+  4. Project-specific checks go in tools/guards/ (the hook and the audit run them).
+  5. Later, preview kernel updates with npx clckernel update --dry-run.`;
+
+const commands = isEs ? [
+  { cmd: 'npx clckernel', where: 'Terminal', desc: 'Instalación interactiva: muestra el stack detectado y pregunta antes de escribir. Añade --dry-run para ver solo el plan.' },
+  { cmd: 'clckernel start', where: 'Agente', desc: 'Comando del agente (el CLI lo rechaza): analiza el código, propone el plan y escribe .clckernel.yaml solo para lo que quieras cambiar.' },
+  { cmd: 'clckernel feature <name>', where: 'Agente', desc: 'Ciclo completo: investigación, spec en sdds/<name>/, revisión humana, test en rojo, implementación y auditoría.' },
+  { cmd: 'clckernel fix <issue>', where: 'Agente', desc: 'Causa raíz sin editar, test de regresión que falla, cambio mínimo y auditoría.' },
+  { cmd: 'npx clckernel audit', where: 'Terminal', desc: 'Ejecuta todos los guards y muestra el resumen por lentes. Con --change <name> escribe el informe y el recibo en sdds/<name>/.' },
+  { cmd: 'npx clckernel doctor', where: 'Terminal', desc: 'Comprueba AGENTS.md, sdds/, tools/, el hook y que cada guard carga. No ejecuta los tests.' },
+  { cmd: 'npx clckernel update --dry-run', where: 'Terminal', desc: 'Actualización no destructiva: refresca los archivos del kernel que puede demostrar intactos; los que editaste se conservan y la versión nueva queda al lado como .clckernel-new.' },
+] : [
+  { cmd: 'npx clckernel', where: 'Terminal', desc: 'Interactive install: shows the detected stack and asks before writing. Add --dry-run to print the plan only.' },
+  { cmd: 'clckernel start', where: 'Agent', desc: 'Agent command (the CLI rejects it): scans the code, proposes the plan and writes .clckernel.yaml only for what you want to change.' },
+  { cmd: 'clckernel feature <name>', where: 'Agent', desc: 'Full cycle: research, spec in sdds/<name>/, human review, red test, implementation and audit.' },
+  { cmd: 'clckernel fix <issue>', where: 'Agent', desc: 'Root cause without edits, a failing regression test, a minimal change and the audit.' },
+  { cmd: 'npx clckernel audit', where: 'Terminal', desc: 'Runs every guard and prints the per-lens summary. With --change <name> it writes the report and receipt to sdds/<name>/.' },
+  { cmd: 'npx clckernel doctor', where: 'Terminal', desc: 'Checks AGENTS.md, sdds/, tools/, the hook and that every guard loads. It does not run the tests.' },
+  { cmd: 'npx clckernel update --dry-run', where: 'Terminal', desc: 'Non-destructive update: refreshes the kernel files it can prove intact; files you edited are kept and the new version is written next to them as .clckernel-new.' },
+];
+
 const after = isEs ? {
   title: 'Después de instalar: la primera sesión con tu agente',
-  desc: 'Todos los agentes leen el mismo AGENTS.md: Claude Code, Gemini, Cursor, Copilot y Antigravity a través de los mirrors por defecto, Windsurf cuando .windsurfrules está en mirrors.list, y agentes como Codex u OpenCode directamente. Mientras exista tools/.clckernel-managed.json y no exista .clckernel.yaml, aplica su sección "First session after install":',
+  desc: 'Mientras exista tools/.clckernel-managed.json y no exista .clckernel.yaml, se aplica la sección "First session after install" de AGENTS.md:',
   steps: [
     'Tu pedido va primero: el agente realiza la tarea bajo las reglas y menciona el onboarding una sola vez, al final.',
     'Si no hay pedido, explica brevemente qué se instaló y qué ejecuta el hook de pre-commit en cada commit.',
@@ -21,7 +54,7 @@ const after = isEs ? {
   note: 'update nunca reescribe un AGENTS.md existente: los proyectos instalados antes de que existiera esta sección no la reciben.',
 } : {
   title: 'After install: the first session with your agent',
-  desc: 'Every agent reads the same AGENTS.md: Claude Code, Gemini, Cursor, Copilot and Antigravity through the default mirrors, Windsurf when .windsurfrules is in mirrors.list, and agents such as Codex or OpenCode directly. While tools/.clckernel-managed.json exists and .clckernel.yaml does not, its "First session after install" section applies:',
+  desc: 'While tools/.clckernel-managed.json exists and .clckernel.yaml does not, the "First session after install" section of AGENTS.md applies:',
   steps: [
     'Your request comes first: the agent does the task under the rules and mentions onboarding once, at the end.',
     'Otherwise it explains briefly what was installed and what the pre-commit hook runs on every commit.',
@@ -29,349 +62,40 @@ const after = isEs ? {
   ],
   note: 'update never rewrites an existing AGENTS.md: projects installed before this section existed do not get it.',
 };
-
-const steps = isEs ? [
-  {
-    id: "step1",
-    num: "01",
-    name: "Inicialización",
-    cmd: "npx clckernel . --yes",
-    title: "Inicialización Interactiva y Detección de Stack",
-    desc: "Detecta automáticamente el framework (Next.js, FastAPI, Django, etc.), instala los guards y el hook de pre-commit, y vincula las leyes del repositorio (AGENTS.md) para Claude Code, Gemini, Cursor, Copilot y Antigravity. Termina con un bloque Next steps: commitear el arnés, abrir tu agente y ejecutar clckernel start o simplemente empezar a trabajar. .clckernel.yaml es opcional.",
-    output: `$ npx clckernel . --yes
-  🔍 Detected: Next.js (App Router) · Vitest / Jest · Git hooks: githooks
-  🛡️  9 guard(s): scan_secrets, check_a11y, check_responsive, check_seo,
-     check_ui_reuse, check_architecture, check_performance, verify_tdd, check_custom
-  📝 AGENTS.md, sdds/, docs/Journal/
-  🔒 Git hook: active hook .githooks/pre-commit (node tools/audit.js --hook)
-  🔗 Mirrors: CLAUDE.md, GEMINI.md, .cursorrules, .cursor/rules/clckernel_context.mdc,
-     .github/copilot-instructions.md, .antigravity/rules.md -> AGENTS.md
-
-Next steps
-  1. Review and commit the harness: git add -A && git commit -m "chore: install clckernel"
-     The pre-commit hook (.githooks/pre-commit) runs on this commit.
-  2. Open your AI agent and ask it to run clckernel start to tailor the rules (.clckernel.yaml),
-     or just start working: it follows AGENTS.md.
-     AGENTS.md mirrors written for: Claude Code (CLAUDE.md), Gemini (GEMINI.md), Cursor, Copilot, Antigravity.
-  3. Run npx clckernel audit anytime to see every guard's result.
-  4. Project-specific checks go in tools/guards/ (the hook and the audit run them).
-  5. Later, preview kernel updates with npx clckernel update --dry-run.`,
-  },
-  {
-    id: "step2",
-    num: "02",
-    name: "Comando Feature",
-    cmd: "clckernel feature auth-jwt",
-    title: "Desarrollo Agéntico con Ciclo AIUP Completo",
-    desc: "Comando del agente, definido en AGENTS.md, para Claude Code, Gemini, Cursor, Copilot y Antigravity. Inicia investigación de capas, redacta el SDD local, exige revisión humana (HITL), ejecuta TDD rojo y verifica la arquitectura.",
-    output: `$ clckernel feature auth-jwt
-[clckernel] 🤖 Universal Command recognized by Agent
-[clckernel] 🔍 Phase 1: Researching affected layers (Domain -> Infra)
-[clckernel] 📝 Phase 2: Authoring local spec in sdds/auth-jwt/spec.md
-[clckernel] 👤 Phase 3: Waiting for Architect HITL review... Approved!
-[clckernel] 🔴 Phase 4: Writing failing test in test/auth.test.ts (Exit 1)
-[clckernel] 🟢 Phase 5: Implementing clean code in src/domain/auth.ts
-[clckernel] 🛡️  Phase 6: Running guard audit gate... 0 violations!`,
-  },
-  {
-    id: "step3",
-    num: "03",
-    name: "Comando Fix (TDD)",
-    cmd: 'clckernel fix "token expiration returns 500"',
-    title: "Corrección Quirúrgica y Regresión Obligatoria",
-    desc: "Prohíbe ediciones a ciegas ('quick fixes'). Obliga al LLM a inspeccionar el traceback, reproducir el defecto con un test en rojo y aplicar un fix mínimo respetando Clean Architecture.",
-    output: `$ clckernel fix "token expiration returns 500"
-[clckernel] 🤖 Universal Command recognized by Agent
-[clckernel] 🔍 Phase 1: Investigating traceback (Zero blind edits)
-[clckernel] 🔴 Phase 2: Reproducing with failing test (Exit Code 1)
-[clckernel] 🟢 Phase 3: Surgical fix in src/infra/jwt.ts (Clean Arch)
-[clckernel] 🛡️  Phase 4: Running audit gate: node tools/audit.js
-[clckernel] ✨ Defect fixed cleanly with regression proof!`,
-  },
-  {
-    id: "step4",
-    num: "04",
-    name: "Auditoría & Update",
-    cmd: "clckernel update",
-    title: "Auditoría de Calidad y Actualización No Destructiva",
-    desc: "Ejecuta la auditoría de guards ('clckernel audit') y actualiza herramientas y playbooks a la última versión ('clckernel update') preservando 100% tus specs (sdds/), guards propios y .clckernel.yaml.",
-    output: `$ clckernel update
-[clckernel] 🔄 Actualizando CLC Kernel en el repositorio...
-✔ Salvaguardas estándar actualizadas en tools/
-✔ Playbooks y Skills agénticos actualizados en .agents/skills/
-✔ Enlaces simbióticos de IDEs actualizados (Cursor, Claude, Copilot, Antigravity)
-✔ Hook de pre-commit regenerado (node tools/audit.js --hook)
-🔒 ACTIVOS PRESERVADOS AL 100%:
-   • sdds/ (Especificaciones locales intactas)
-   • tools/guards/ (Reglas y salvaguardas personalizadas intactas)
-   • .clckernel.yaml (Configuraciones de equipo intactas)
-✨ ¡Proyecto actualizado con éxito a la última versión!`,
-  },
-] : [
-  {
-    id: "step1",
-    num: "01",
-    name: "Initialization",
-    cmd: "npx clckernel . --yes",
-    title: "Interactive Initialization & Stack Detection",
-    desc: "Auto-detects your ecosystem (Next.js, FastAPI, Django, etc.), installs the guards and the pre-commit hook, and links the repository law (AGENTS.md) for Claude Code, Gemini, Cursor, Copilot, and Antigravity. It ends with a Next steps block: commit the harness, open your agent and run clckernel start or just start working. .clckernel.yaml is optional.",
-    output: `$ npx clckernel . --yes
-  🔍 Detected: Next.js (App Router) · Vitest / Jest · Git hooks: githooks
-  🛡️  9 guard(s): scan_secrets, check_a11y, check_responsive, check_seo,
-     check_ui_reuse, check_architecture, check_performance, verify_tdd, check_custom
-  📝 AGENTS.md, sdds/, docs/Journal/
-  🔒 Git hook: active hook .githooks/pre-commit (node tools/audit.js --hook)
-  🔗 Mirrors: CLAUDE.md, GEMINI.md, .cursorrules, .cursor/rules/clckernel_context.mdc,
-     .github/copilot-instructions.md, .antigravity/rules.md -> AGENTS.md
-
-Next steps
-  1. Review and commit the harness: git add -A && git commit -m "chore: install clckernel"
-     The pre-commit hook (.githooks/pre-commit) runs on this commit.
-  2. Open your AI agent and ask it to run clckernel start to tailor the rules (.clckernel.yaml),
-     or just start working: it follows AGENTS.md.
-     AGENTS.md mirrors written for: Claude Code (CLAUDE.md), Gemini (GEMINI.md), Cursor, Copilot, Antigravity.
-  3. Run npx clckernel audit anytime to see every guard's result.
-  4. Project-specific checks go in tools/guards/ (the hook and the audit run them).
-  5. Later, preview kernel updates with npx clckernel update --dry-run.`,
-  },
-  {
-    id: "step2",
-    num: "02",
-    name: "Feature Command",
-    cmd: "clckernel feature auth-jwt",
-    title: "Agentic Development via Full AIUP Cycle",
-    desc: "Agent command defined in AGENTS.md, for Claude Code, Gemini, Cursor, Copilot, and Antigravity. Drives layer research, authors local SDD specs, enforces Human-in-the-Loop approval, executes Red TDD, and verifies Clean Architecture.",
-    output: `$ clckernel feature auth-jwt
-[clckernel] 🤖 Universal Command recognized by Agent
-[clckernel] 🔍 Phase 1: Researching affected layers (Domain -> Infra)
-[clckernel] 📝 Phase 2: Authoring local spec in sdds/auth-jwt/spec.md
-[clckernel] 👤 Phase 3: Waiting for Architect HITL review... Approved!
-[clckernel] 🔴 Phase 4: Writing failing test in test/auth.test.ts (Exit 1)
-[clckernel] 🟢 Phase 5: Implementing clean code in src/domain/auth.ts
-[clckernel] 🛡️  Phase 6: Running guard audit gate... 0 violations!`,
-  },
-  {
-    id: "step3",
-    num: "03",
-    name: "Fix Command (TDD)",
-    cmd: 'clckernel fix "token expiration returns 500"',
-    title: "Surgical Bug Fix with Mandatory Regression Test",
-    desc: "Strictly forbids blind 'quick fixes'. Forces the LLM to inspect tracebacks, reproduce the defect with a failing red test, and apply minimal fixes respecting Clean Architecture.",
-    output: `$ clckernel fix "token expiration returns 500"
-[clckernel] 🤖 Universal Command recognized by Agent
-[clckernel] 🔍 Phase 1: Investigating traceback (Zero blind edits)
-[clckernel] 🔴 Phase 2: Reproducing with failing test (Exit Code 1)
-[clckernel] 🟢 Phase 3: Surgical fix in src/infra/jwt.ts (Clean Arch)
-[clckernel] 🛡️  Phase 4: Running audit gate: node tools/audit.js
-[clckernel] ✨ Defect fixed cleanly with regression proof!`,
-  },
-  {
-    id: "step4",
-    num: "04",
-    name: "Audit & Update",
-    cmd: "clckernel update",
-    title: "Quality Gate & Non-Destructive Update",
-    desc: "Runs the guard audit ('clckernel audit') and safely upgrades tools and playbooks ('clckernel update') while 100% preserving your specs (sdds/), custom guards, and .clckernel.yaml.",
-    output: `$ clckernel update
-[clckernel] 🔄 Upgrading CLC Kernel in repository...
-✔ Core guard scripts refreshed in tools/
-✔ Agent skills & playbooks updated in .agents/skills/
-✔ Cross-IDE symlinks verified (Cursor, Claude, Copilot, Antigravity)
-✔ Pre-commit hook regenerated (node tools/audit.js --hook)
-🔒 100% PRESERVED INTACT:
-   • sdds/ (All local specifications preserved)
-   • tools/guards/ (All custom team guards preserved)
-   • .clckernel.yaml (All configuration & thresholds preserved)
-✨ Repository updated successfully to latest CLC Kernel!`,
-  },
-];
 ---
 
-<section id="quickstart" class="relative py-24 md:py-32 border-t border-slate-200/80 bg-transparent overflow-hidden">
-  
-  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-    
-    <!-- Section Header -->
-    <div class="text-center max-w-2xl mx-auto mb-12 space-y-3">
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-800 text-xs font-mono font-medium shadow-2xs">
-        <span class="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse"></span>
-        <span>{t['quickstart.kicker']}</span>
+<section class="band-ink" aria-labelledby="quickstart-title" id="quickstart">
+  <div class="wrap py-24 md:py-32">
+    <SectionHead id="quickstart-title" surface="ink"
+      title={isEs ? 'Inicio rápido' : 'Quickstart'}
+      lede={isEs ? 'Ejecuta el CLI en la raíz de tu proyecto. Termina con un bloque Next steps construido a partir de lo que instaló.' : 'Run the CLI in your project root. It ends with a Next steps block built from what it installed.'} />
+
+    <CommandCopy lang={lang} />
+    <figure class="mt-8">
+      <pre class="code-block band-ink-2 border rule-ink rounded-[10px] p-5 text-paper"><code>{install}</code></pre>
+      <figcaption class="mono-label text-fog mt-3">{isEs ? 'Salida para un proyecto Next.js en un repositorio git' : 'Output for a Next.js project in a git repository'}</figcaption>
+    </figure>
+
+    <h3 class="mt-20 text-2xl font-semibold tracking-[-0.02em] mb-6">{isEs ? 'Comandos' : 'Commands'}</h3>
+    <ul class="border-t rule-ink">
+      {commands.map((c) => (
+        <li class="grid gap-2 md:gap-6 md:grid-cols-12 py-5 border-b rule-ink items-baseline">
+          <code class="md:col-span-4 font-mono text-[0.875rem] text-signal break-words">{c.cmd}</code>
+          <span class="md:col-span-1 mono-label text-fog">{c.where}</span>
+          <p class="md:col-span-7 text-fog leading-relaxed">{c.desc}</p>
+        </li>
+      ))}
+    </ul>
+
+    <div class="mt-20 grid gap-6 md:grid-cols-12">
+      <h3 class="md:col-span-4 text-2xl font-semibold tracking-[-0.02em]">{after.title}</h3>
+      <div class="md:col-span-8 space-y-5">
+        <p class="text-fog leading-relaxed">{after.desc}</p>
+        <ol class="list-decimal pl-5 space-y-3 leading-relaxed marker:text-fog">
+          {after.steps.map((s) => <li>{s}</li>)}
+        </ol>
+        <p class="text-fog text-sm">{after.note}</p>
       </div>
-      
-      <h2 class="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 leading-[1.12]">
-        {t['quickstart.title']}
-      </h2>
-      
-      <p class="text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
-        {t['quickstart.desc']}
-      </p>
     </div>
-
-    <!-- 4-Step Interactive Terminal & LLM Walkthrough (White Theme) -->
-    <div class="bg-[#f8fafc] text-slate-900 rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 p-6 sm:p-8 relative overflow-hidden" id="quickstart-box">
-      
-      <!-- Top Step Tabs -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 border-b border-slate-200 pb-6 mb-6">
-        {steps.map((step, idx) => (
-          <button
-            type="button"
-            data-step-id={step.id}
-            class={`qs-tab p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer focus:outline-none flex flex-col justify-between ${
-              idx === 0
-                ? 'active bg-white border-cyan-400 shadow-sm ring-1 ring-cyan-500/20'
-                : 'bg-slate-100/70 border-slate-200 hover:bg-white hover:border-slate-300'
-            }`}
-          >
-            <div class="flex items-center justify-between mb-1.5">
-              <span class="font-mono text-xs font-bold text-cyan-700">{step.num}</span>
-              <span class="w-2 h-2 rounded-full bg-cyan-500 opacity-60"></span>
-            </div>
-            <div class="text-xs sm:text-sm font-bold text-slate-900 truncate">
-              {step.name}
-            </div>
-            <div class="text-[11px] font-mono text-slate-500 truncate mt-1 hidden sm:block">
-              {step.cmd}
-            </div>
-          </button>
-        ))}
-      </div>
-
-      <!-- Step Content & Command Runner Box -->
-      <div class="space-y-6">
-        
-        <!-- Step Info Row -->
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div class="space-y-1 max-w-xl">
-            <h3 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2" id="qs-step-title">
-              {steps[0].title}
-            </h3>
-            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed" id="qs-step-desc">
-              {steps[0].desc}
-            </p>
-          </div>
-
-          <!-- Command Copy Button Box -->
-          <div class="shrink-0 flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 font-mono text-xs text-slate-800 shadow-2xs">
-            <span class="text-cyan-700 font-bold">$</span>
-            <span id="qs-step-cmd" class="text-slate-900 font-bold">{steps[0].cmd}</span>
-            <button
-              type="button"
-              id="qs-copy-btn"
-              class="ml-3 px-3 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-sans font-medium transition-all duration-150 cursor-pointer shadow-xs active:scale-95"
-            >
-              Copy
-            </button>
-          </div>
-        </div>
-
-        <!-- Terminal Output Window (Light Editor Style) -->
-        <div class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-inner">
-          <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-3 text-xs font-mono text-slate-500">
-            <div class="flex items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
-              <span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
-              <span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
-              <span class="ml-2 text-slate-700 font-semibold">Terminal Output</span>
-            </div>
-            <span class="text-emerald-700 flex items-center gap-1.5 text-[11px] font-bold">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-              READY
-            </span>
-          </div>
-
-          <pre class="font-mono text-xs text-slate-700 overflow-x-auto whitespace-pre leading-relaxed" id="qs-step-output">{steps[0].output}</pre>
-        </div>
-
-      </div>
-
-    </div>
-
-    <!-- After install: the agent's first session (AGENTS.md "First session after install") -->
-    <div class="mt-8 bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-4" id="quickstart-after-install">
-      <h3 class="text-base sm:text-lg font-bold text-slate-900">{after.title}</h3>
-      <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">{after.desc}</p>
-      <ol class="list-decimal pl-5 space-y-2 text-xs sm:text-sm text-slate-700 leading-relaxed">
-        {after.steps.map((step) => <li>{step}</li>)}
-      </ol>
-      <p class="text-[11px] sm:text-xs text-slate-500 leading-relaxed">{after.note}</p>
-    </div>
-
   </div>
 </section>
-
-<script is:inline define:vars={{ steps }}>
-  document.addEventListener('DOMContentLoaded', () => {
-    const tabs = document.querySelectorAll('.qs-tab');
-    const titleEl = document.getElementById('qs-step-title');
-    const descEl = document.getElementById('qs-step-desc');
-    const cmdEl = document.getElementById('qs-step-cmd');
-    const outputEl = document.getElementById('qs-step-output');
-    const copyBtn = document.getElementById('qs-copy-btn');
-    const qsBox = document.querySelector('#quickstart .bg-\\[\\#0b1320\\]');
-
-    let currentCmd = steps[0].cmd;
-
-    if (typeof gsap !== 'undefined') {
-      if (typeof ScrollTrigger !== 'undefined' && qsBox) {
-        gsap.fromTo(qsBox,
-          { y: 25, scale: 0.98 },
-          {
-            y: 0,
-            scale: 1,
-            duration: 0.6,
-            ease: 'power2.out',
-            clearProps: 'transform',
-            scrollTrigger: {
-              trigger: '#quickstart',
-              start: 'top 80%',
-              toggleActions: 'play none none none'
-            }
-          }
-        );
-      }
-
-      tabs.forEach((tab) => {
-        tab.addEventListener('click', () => {
-          const stepId = tab.getAttribute('data-step-id');
-          const step = steps.find((s) => s.id === stepId);
-          if (!step) return;
-
-          currentCmd = step.cmd;
-
-          // Active tab styling
-          tabs.forEach((t) => {
-            t.className = 'qs-tab p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer focus:outline-none flex flex-col justify-between bg-slate-100/70 border-slate-200 hover:bg-white hover:border-slate-300';
-          });
-          tab.className = 'qs-tab p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer focus:outline-none flex flex-col justify-between active bg-white border-cyan-400 shadow-sm ring-1 ring-cyan-500/20';
-
-          // Update step info with subtle GSAP fade
-          if (titleEl) titleEl.textContent = step.title;
-          if (descEl) descEl.textContent = step.desc;
-          if (cmdEl) cmdEl.textContent = step.cmd;
-          if (outputEl) {
-            outputEl.textContent = step.output;
-            if (typeof gsap !== 'undefined') {
-              gsap.fromTo(outputEl, { opacity: 0.5, y: 3 }, { opacity: 1, y: 0, duration: 0.2, ease: 'power2.out' });
-            }
-          }
-        });
-      });
-
-      if (copyBtn) {
-        copyBtn.addEventListener('click', () => {
-          navigator.clipboard.writeText(currentCmd);
-          const prevText = copyBtn.textContent;
-          copyBtn.textContent = 'Copied! ✔';
-          copyBtn.classList.replace('bg-slate-900', 'bg-emerald-600');
-          if (typeof gsap !== 'undefined') {
-            gsap.fromTo(copyBtn, { scale: 0.9 }, { scale: 1.05, duration: 0.15, yoyo: true, repeat: 1, ease: 'back.out(2)' });
-          }
-          setTimeout(() => {
-            copyBtn.textContent = prevText;
-            copyBtn.classList.replace('bg-emerald-600', 'bg-slate-900');
-          }, 2000);
-        });
-      }
-    }
-  });
-</script>

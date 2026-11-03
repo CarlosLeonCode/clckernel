@@ -1,0 +1,42 @@
+---
+import SectionHead from './SectionHead.astro';
+interface Props { lang?: 'en' | 'es' }
+const { lang = 'en' } = Astro.props;
+const isEs = lang === 'es';
+
+const rows = isEs ? [
+  { title: 'Prompts frente a guards', problem: 'Las reglas en markdown (.cursorrules) se ignoran en contextos largos y consumen tokens en cada turno.', answer: 'Guards locales (basados en patrones; Python AST en stacks Python) que bloquean violaciones en el hook de pre-commit.' },
+  { title: 'Inmediatez frente a SDD', problem: 'Los agentes modifican código sin entender las invariantes del dominio ni la arquitectura.', answer: 'Una especificación técnica local (SDD) que se revisa antes de tocar cualquier archivo de código.' },
+  { title: 'Tautología frente a TDD', problem: 'Los LLMs escriben tests complacientes que pasan sin comprobar el defecto real.', answer: 'TDD estricto: la prueba de regresión debe fallar en rojo antes de aplicar el cambio, y pasar después.' },
+] : [
+  { title: 'Prompts vs. guards', problem: 'Markdown rules (.cursorrules) get ignored in large contexts and burn tokens on every turn.', answer: 'Local guards (pattern-based; Python AST on Python stacks) that block violations in the pre-commit hook.' },
+  { title: 'Immediacy vs. SDD', problem: 'Agents write code without understanding domain invariants or the system architecture.', answer: 'A local technical specification (SDD), reviewed before any source file is touched.' },
+  { title: 'Tautology vs. TDD', problem: 'LLMs write tests that pass without asserting the actual defect.', answer: 'Strict TDD: the regression test must fail in red before the change, and pass after it.' },
+];
+---
+
+<section class="band-paper on-paper" aria-labelledby="why-title" id="why">
+  <div class="wrap py-24 md:py-32">
+    <SectionHead id="why-title"
+      title={isEs ? 'Por qué las reglas por sí solas no bastan' : 'Why rules alone are not enough'}
+      lede={isEs ? 'Un archivo de reglas es una petición. Un guard en el hook de pre-commit es un control. CLC Kernel instala las dos cosas.' : 'A rules file is a request. A guard in the pre-commit hook is a check. CLC Kernel installs both.'} />
+    <div class="border-t rule-paper">
+      <div class="hidden md:grid grid-cols-12 gap-6 py-4 mono-label text-stone border-b rule-paper">
+        <span class="col-span-3">{isEs ? 'Tensión' : 'Tension'}</span>
+        <span class="col-span-4">{isEs ? 'El fallo habitual' : 'The common flaw'}</span>
+        <span class="col-span-5">CLC Kernel</span>
+      </div>
+      {rows.map((r) => (
+        <div class="grid gap-3 md:gap-6 md:grid-cols-12 py-8 border-b rule-paper">
+          <h3 class="md:col-span-3 text-xl font-semibold tracking-[-0.02em]">{r.title}</h3>
+          <p class="md:col-span-4 text-stone leading-relaxed">{r.problem}</p>
+          <p class="md:col-span-5 leading-relaxed"><span class="check" aria-hidden="true"></span>{r.answer}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .check { display: inline-block; width: 0.55em; height: 0.55em; background: var(--color-signal); outline: 1px solid var(--color-ink); margin-right: 0.6em; vertical-align: 0.05em; }
+</style>

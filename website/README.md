@@ -47,26 +47,26 @@ npm run preview
 ```text
 website/
 ├── astro.config.mjs         # Astro configuration with i18n routing (en/es)
-├── package.json             # Isolated website dependencies (Astro, Tailwind v4)
-├── public/                  # Static assets & CNAME
-│   └── CNAME                # Custom domain definition (clckernel.carlosleoncode.com)
+├── package.json             # Website dependencies (Astro, Tailwind v4, three, gsap)
+├── public/                  # Static assets, CNAME, sitemap.xml, robots.txt, favicon.svg
 └── src/
-    ├── components/          # Reusable Astro UI components
-    │   ├── Hero.astro       # 2-column hero with dual CLI/agent interactive terminal
-    │   ├── LoopSection.astro # 6-phase agent governance lifecycle
-    │   ├── SafeguardsSection.astro # Deterministic AST linters catalog
-    │   ├── PolyglotSection.astro   # Polyglot ecosystem support matrix
-    │   └── QuickstartSection.astro # CLI initialization & audit steps
-    ├── i18n/
-    │   └── ui.js            # Internationalization dictionaries (EN & ES)
-    ├── layouts/
-    │   └── Layout.astro     # Global layout, meta tags, fonts, & language switcher
+    ├── components/
+    │   ├── CommandCopy.astro        # Install command with copy-to-clipboard button
+    │   ├── HarnessFileTree.astro    # Interactive anatomy of a governed repository
+    │   ├── LoopSection.astro        # The six-step loop (technical page)
+    │   ├── QuickstartSection.astro  # Real install output, Next steps and commands
+    │   ├── home/                    # Home: hero + 3D figure, statement, steps, audience, CTA
+    │   └── tech/                    # How it works: why, guards, stacks, files, limits, glossary
+    ├── i18n/ui.js           # Shared strings and links (EN & ES)
+    ├── layouts/Layout.astro # Meta tags, hreflang, fonts, nav, footer
     ├── pages/
-    │   ├── index.astro      # Root route (English /)
-    │   └── es/
-    │       └── index.astro  # Spanish route (/es)
-    └── styles/
-        └── global.css       # Tailwind CSS v4 & custom light surface tokens
+    │   ├── index.astro, how-it-works.astro, docs.astro      # English
+    │   └── es/index.astro, es/how-it-works.astro, es/docs.astro
+    ├── scripts/
+    │   ├── home.js          # GSAP hero entrance, word reveal, lazy 3D loader
+    │   ├── gate-scene.js    # three.js "Fig. 01" scene (dynamic import)
+    │   └── copy.js          # Clipboard helper for [data-copy] buttons
+    └── styles/global.css    # Tailwind v4 theme tokens (ink, paper, signal accent)
 ```
 
 ---
@@ -77,6 +77,7 @@ The website natively supports English (`en`) and Spanish (`es`).
 
 - **English (Default)**: Served at `/`
 - **Spanish**: Served at `/es`
+- **Technical page**: `/how-it-works` and `/es/how-it-works`
 
 ### Adding or Updating Translations
 All UI strings are centralized in [`src/i18n/ui.js`](src/i18n/ui.js). When adding new UI copy:

@@ -1,0 +1,31 @@
+---
+import { ui } from '../../i18n/ui.js';
+interface Props { lang?: 'en' | 'es' }
+const { lang = 'en' } = Astro.props;
+const isEs = lang === 'es';
+
+const toc = isEs
+  ? [['why', 'Por qué'], ['loop', 'El ciclo'], ['safeguards', 'Guards'], ['stacks', 'Stacks'], ['files', 'Archivos'], ['quickstart', 'Inicio rápido'], ['limits', 'Límites'], ['glossary', 'Glosario']]
+  : [['why', 'Why'], ['loop', 'The loop'], ['safeguards', 'Guards'], ['stacks', 'Stacks'], ['files', 'Files'], ['quickstart', 'Quickstart'], ['limits', 'Limits'], ['glossary', 'Glossary']];
+---
+
+<section class="band-ink" aria-labelledby="how-title">
+  <div class="wrap pt-20 pb-16 md:pt-28 md:pb-20">
+    <h1 id="how-title" class="display text-[clamp(2.75rem,6.4vw,5.75rem)]">
+      <span class="block">{isEs ? 'Cómo funciona.' : 'How it works.'}</span>
+      <span class="block text-signal">{isEs ? 'Reglas, controles y tú.' : 'Rules, checks, and you.'}</span>
+    </h1>
+    <p class="lede text-fog mt-8">
+      {isEs
+        ? 'CLC Kernel escribe tres cosas en tu repositorio: un reglamento (AGENTS.md) que leen todos tus asistentes, unos guards en tools/ y un hook de pre-commit que los ejecuta en cada commit. Esta página explica cada pieza.'
+        : 'CLC Kernel writes three things into your repository: a rulebook (AGENTS.md) every assistant reads, a set of guards in tools/, and a pre-commit hook that runs them on every commit. This page explains each part.'}
+    </p>
+    <nav class="mt-14 border-t rule-ink pt-5" aria-label={isEs ? 'En esta página' : 'On this page'}>
+      <ul class="mono-label flex flex-wrap gap-x-7 gap-y-1">
+        {toc.map(([id, label]) => (
+          <li><a href={`#${id}`} class="inline-flex items-center min-h-[40px] text-fog hover:text-paper">{label}</a></li>
+        ))}
+      </ul>
+    </nav>
+  </div>
+</section>

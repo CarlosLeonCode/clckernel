@@ -1,0 +1,188 @@
+---
+import SectionHead from './SectionHead.astro';
+interface Props { lang?: 'en' | 'es' }
+const { lang = 'en' } = Astro.props;
+const isEs = lang === 'es';
+
+const terms = isEs ? [
+  {
+    id: "term-ast",
+    acronym: "AST",
+    fullName: "Abstract Syntax Tree (Árbol de Sintaxis Abstracta)",
+    category: "Parsing & Linters",
+    definition: "Representación en árbol de la estructura sintáctica del código fuente. Los guards de Python de CLC Kernel (capas, heurística N+1, Celery/Redis/Postgres) analizan el código con el módulo `ast` de Python; el resto de los guards se basa en patrones (regex).",
+    badge: "Python guards"
+  },
+  {
+    id: "term-dod",
+    acronym: "DoD",
+    fullName: "Definition of Done (Definición de Terminado)",
+    category: "Calidad & Rigor",
+    definition: "Criterio de aceptación estricto que debe cumplirse antes de autorizar un commit o PR: tests unitarios en verde, todos los guards aprobados, capas aisladas y cero cambios fuera del alcance del SDD.",
+    badge: "Quality Gate"
+  },
+  {
+    id: "term-sdd",
+    acronym: "SDD",
+    fullName: "Spec-Driven Development (Diseño Previo)",
+    category: "Metodología",
+    definition: "Documento técnico local y gitignorado (sdds/) donde el agente redacta contratos de API, análisis de dependencias y planes de prueba antes de modificar cualquier archivo de código fuente.",
+    badge: "Local"
+  },
+  {
+    id: "term-tdd",
+    acronym: "TDD",
+    fullName: "Test-Driven Development (Red-to-Green)",
+    category: "Verificación",
+    definition: "Metodología donde se escribe primero una prueba de regresión que debe fallar demostrablemente en el log (Fase Roja) para comprobar el defecto antes de implementar la solución en código de producción (Fase Verde).",
+    badge: "Red → Green"
+  },
+  {
+    id: "term-ssot",
+    acronym: "SSOT",
+    fullName: "Single Source of Truth (Única Fuente de Verdad)",
+    category: "Sincronización",
+    definition: "Principio arquitectónico donde un único archivo central (AGENTS.md) define las leyes del repositorio y se sincroniza automáticamente con Cursor, Claude Code, Antigravity y Copilot sin duplicación manual.",
+    badge: "One source"
+  },
+  {
+    id: "term-aiup",
+    acronym: "AIUP",
+    fullName: "AI Unified Process (Proceso Unificado de IA)",
+    category: "Gobernanza",
+    definition: "Marco de trabajo disciplinado que estructura la interacción con agentes en 5 pilares deterministas: Investigación previa, SDD local, TDD Rojo a Verde, guards deterministas y bloqueo en el hook pre-commit (`--no-verify` lo omite; CI actúa como respaldo).",
+    badge: "Methodology"
+  },
+  {
+    id: "term-hit",
+    acronym: "HIT Gate",
+    fullName: "Human-In-The-Loop Gate (Compuerta Humana)",
+    category: "Supervisión",
+    definition: "Punto de control obligatorio donde el ingeniero revisa y aprueba explícitamente los escenarios de prueba y contratos definidos en el SDD antes de que el agente comience la fase de implementación.",
+    badge: "Human Control"
+  },
+  {
+    id: "term-n1",
+    acronym: "N+1 Query",
+    fullName: "Database Loop Anti-Pattern (Consulta N+1)",
+    category: "Rendimiento",
+    definition: "Antipatrón crítico donde se ejecutan consultas a la base de datos dentro de un bucle iterativo (for/while). En stacks Python, la heurística N+1 de CLC Kernel (Python AST) marca llamadas tipo ORM dentro de bucles antes del commit.",
+    badge: "Heuristic"
+  },
+  {
+    id: "term-agentos",
+    acronym: "Agent-OS",
+    fullName: "Agent Operating System & Domain Workflows",
+    category: "Arquetipo",
+    definition: "Arquetipo de gobernanza para repositorios basados en agentes autónomos, skills y playbooks de negocio. Aplica gobernanza Dual-Layer (desarrollo técnico + ejecución de dominio) y aplica guards de marcadores HITL, frontmatter de skills, links relativos, placeholders olvidados y mirrors de AGENTS.md.",
+    badge: "Dual-Layer"
+  }
+] : [
+  {
+    id: "term-ast",
+    acronym: "AST",
+    fullName: "Abstract Syntax Tree",
+    category: "Parsing & Linters",
+    definition: "Structural tree representation of source code. CLC Kernel's Python guards (layers, N+1 heuristic, Celery/Redis/Postgres) parse code with Python's `ast` module; the other guards are pattern-based (regex).",
+    badge: "Python guards"
+  },
+  {
+    id: "term-dod",
+    acronym: "DoD",
+    fullName: "Definition of Done",
+    category: "Quality & Rigor",
+    definition: "The strict completion checklist required before marking work as finished: tests passing in green, every guard passing, clean layer boundaries, and zero unverified assumptions.",
+    badge: "Quality Gate"
+  },
+  {
+    id: "term-sdd",
+    acronym: "SDD",
+    fullName: "Spec-Driven Development",
+    category: "Methodology",
+    definition: "A local, gitignored specification (sdds/) where the AI agent outlines research findings, API contracts, and testing plans before touching any production source file.",
+    badge: "Local"
+  },
+  {
+    id: "term-tdd",
+    acronym: "TDD",
+    fullName: "Test-Driven Development (Red-to-Green)",
+    category: "Verification",
+    definition: "Development methodology where a failing regression test (Red Phase) must demonstrably fail first to prove the bug/feature requirement before implementing the solution (Green Phase).",
+    badge: "Red → Green"
+  },
+  {
+    id: "term-ssot",
+    acronym: "SSOT",
+    fullName: "Single Source of Truth",
+    category: "Sync & Harness",
+    definition: "Architecture where one single file (AGENTS.md) defines the repository laws, automatically mirrored to Cursor, Claude Code, Antigravity, and Copilot without manual drift.",
+    badge: "One source"
+  },
+  {
+    id: "term-aiup",
+    acronym: "AIUP",
+    fullName: "AI Unified Process",
+    category: "Governance",
+    definition: "The 5-stage deterministic engineering discipline implemented by CLC Kernel: Research → SDD Spec → TDD Red-to-Green → Deterministic Guards → Pre-commit hook block (`--no-verify` skips it; CI is the backstop).",
+    badge: "Methodology"
+  },
+  {
+    id: "term-hit",
+    acronym: "HIT Gate",
+    fullName: "Human-In-The-Loop Gate",
+    category: "Supervision",
+    definition: "A mandatory check where the engineer reviews and approves the agent's SDD specification and test scenarios before code execution begins.",
+    badge: "Human Control"
+  },
+  {
+    id: "term-n1",
+    acronym: "N+1 Query",
+    fullName: "Database Loop Anti-Pattern",
+    category: "Performance",
+    definition: "Performance anti-pattern where a database query is executed inside a loop (for/while). On Python stacks, CLC Kernel's N+1 heuristic (Python AST) flags ORM-like calls inside loops before commit.",
+    badge: "Heuristic"
+  },
+  {
+    id: "term-agentos",
+    acronym: "Agent-OS",
+    fullName: "Agent Operating System & Domain Workflows",
+    category: "Archetype",
+    definition: "Governance archetype for repositories orchestrating autonomous agents, business playbooks, and specialized skills. Provides Dual-Layer governance (development runtime + domain execution) with guards for HITL markers, skill frontmatter, relative links, forgotten placeholders and AGENTS.md mirrors.",
+    badge: "Dual-Layer"
+  }
+];
+---
+
+<section class="band-paper on-paper border-t rule-paper" aria-labelledby="glossary-title" id="glossary">
+  <div class="wrap py-24 md:py-32">
+    <SectionHead id="glossary-title"
+      title={isEs ? 'Glosario' : 'Glossary'}
+      lede={isEs ? 'Los términos que aparecen en AGENTS.md, en los playbooks y en la salida de la auditoría.' : 'The terms you will meet in AGENTS.md, the playbooks and the audit output.'} />
+    <div class="grid gap-x-10 md:grid-cols-2 border-t rule-paper">
+      {terms.map((item) => (
+        <details class="term border-b rule-paper" id={item.id}>
+          <summary class="term__summary">
+            <span class="font-mono font-medium min-w-[5.5rem]">{item.acronym}</span>
+            <span class="flex-1 min-w-0">
+              <span class="block font-medium">{item.fullName}</span>
+              <span class="mono-label text-stone">{item.category} · {item.badge}</span>
+            </span>
+            <svg class="term__chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </summary>
+          <p class="pb-6 pl-0 sm:pl-[6.5rem] text-stone leading-relaxed max-w-[62ch]">{item.definition}</p>
+        </details>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .term__summary {
+    display: flex; align-items: center; gap: 1rem; min-height: 64px; padding: 1rem 0;
+    cursor: pointer; list-style: none;
+  }
+  .term__summary::-webkit-details-marker { display: none; }
+  .term__summary:hover .term__chev { transform: translateY(2px); }
+  .term__chev { flex: none; transition: transform 200ms var(--ease-out); }
+  .term[open] .term__chev { transform: rotate(180deg); }
+</style>

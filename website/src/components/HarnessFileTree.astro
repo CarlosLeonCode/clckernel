@@ -11,7 +11,6 @@ const fileData = {
   'agents_md': {
     path: 'AGENTS.md',
     badge: 'SSOT',
-    badgeColor: 'bg-cyan-50 border-cyan-200 text-cyan-900',
     type: 'Markdown • AI Law',
     desc: isEs 
       ? 'Gobierna el comportamiento del agente mediante la Regla #0 y la Interfaz Universal de Comandos (clckernel feature, fix, test, audit, doctor, commit). Se sincroniza automáticamente con Cursor, Claude Code, Copilot y Antigravity.'
@@ -33,7 +32,6 @@ const fileData = {
   'clckernel_yaml': {
     path: '.clckernel.yaml',
     badge: 'CONFIG',
-    badgeColor: 'bg-indigo-50 border-indigo-200 text-indigo-900',
     type: 'YAML • Config',
     desc: isEs
       ? 'Configuración opcional: reglas regex propias (rules), rutas excluidas de los guards (exclude_paths), espejos de IDE, marcadores HITL, exclusiones de update, globs de TDD y severidad por guard. Los guards propios van en tools/guards/.'
@@ -51,8 +49,7 @@ severities:
   },
   'sdds_dir': {
     path: 'sdds/',
-    badge: '100% LOCAL',
-    badgeColor: 'bg-emerald-50 border-emerald-200 text-emerald-900',
+    badge: 'LOCAL',
     type: 'Directory • Local Specs',
     desc: isEs
       ? 'Directorio gitignorado donde el agente redacta especificaciones técnicas antes de codificar, evitando que actúe por inmediatez y manteniendo limpio el historial de git.'
@@ -66,11 +63,10 @@ sdds/*
   'sdd_spec': {
     path: 'sdds/auth-jwt/spec.md',
     badge: 'SDD SPEC',
-    badgeColor: 'bg-emerald-50 border-emerald-200 text-emerald-900',
     type: 'Markdown • Contract',
     desc: isEs
-      ? 'Fija el alcance exacto, contratos e invariantes antes de la implementación. Si el agente intenta modificar archivos fuera de alcance, las compuertas lo bloquean en pre-commit.'
-      : 'Locks exact scope, API contracts, and domain invariants before implementation. Prevents agent drift outside approved boundaries.',
+      ? 'Fija el alcance exacto, contratos e invariantes antes de la implementación. El alcance es un protocolo que sigue el agente; ningún guard lo comprueba.'
+      : 'Locks exact scope, API contracts, and domain invariants before implementation. Scope is a protocol the agent follows; no guard checks it.',
     codeTitle: 'sdds/auth-jwt/spec.md',
     codeLang: 'markdown',
     code: `# SDD: JWT Token Rotation
@@ -85,7 +81,6 @@ sdds/*
   'tools_dir': {
     path: 'tools/',
     badge: 'GUARDS',
-    badgeColor: 'bg-amber-50 border-amber-200 text-amber-900',
     type: 'Directory • Guard Scripts',
     desc: isEs
       ? 'Suite de guards locales en Node.js y Python: verificaciones basadas en patrones (regex) y, en stacks Python, análisis con Python AST. Validan arquitectura, dependencias y seguridad sin dependencias npm pesadas.'
@@ -102,7 +97,6 @@ sdds/*
   'tool_check_arch': {
     path: 'tools/check_architecture.js',
     badge: 'CLEAN ARCH',
-    badgeColor: 'bg-amber-50 border-amber-200 text-amber-900',
     type: 'JavaScript • Pattern-based Guard',
     desc: isEs
       ? 'Guard basado en patrones (regex) que valida el aislamiento de capas en el diff: bloquea commits si la capa de Dominio importa frameworks externos o Infraestructura.'
@@ -112,7 +106,7 @@ sdds/*
     code: `// Pattern-based check (regex over staged files)
 const importsInfra = /from\\s+['"].*infrastructure/.test(sourceCode);
 if (isDomainFile(filePath) && importsInfra) {
-  console.error("❌ Clean Architecture Violation:");
+  console.error("Clean Architecture violation:");
   console.error("   Domain layer cannot import Infrastructure!");
   process.exit(1);
 }`
@@ -120,7 +114,6 @@ if (isDomainFile(filePath) && importsInfra) {
   'tool_scan_secrets': {
     path: 'tools/scan_secrets.js',
     badge: 'SECURITY',
-    badgeColor: 'bg-rose-50 border-rose-200 text-rose-900',
     type: 'JavaScript • Security Guard',
     desc: isEs
       ? 'Escanea credenciales hardcodeadas (API keys, tokens JWT, private keys) en el diff antes del commit mediante patrones regex (pueden darse falsos positivos).'
@@ -130,14 +123,13 @@ if (isDomainFile(filePath) && importsInfra) {
     code: `const diff = execSync('git diff --cached', { encoding: 'utf8' });
 const leaks = detectCredentials(diff);
 if (leaks.length > 0) {
-  console.error("🚨 Secret Leak Blocked: Hardcoded token detected!");
+  console.error("Secret leak blocked: hardcoded token detected");
   process.exit(1);
 }`
   },
   'tool_db_efficiency': {
     path: 'tools/check_db_efficiency.py',
     badge: 'PERFORMANCE',
-    badgeColor: 'bg-amber-50 border-amber-200 text-amber-900',
     type: 'Python • Performance Guard',
     desc: isEs
       ? 'Heurística N+1: analiza el AST de Python y marca llamadas tipo ORM dentro de bucles for/while.'
@@ -147,14 +139,13 @@ if (leaks.length > 0) {
     code: `class QueryInLoopVisitor(ast.NodeVisitor):
     def visit_For(self, node):
         if has_orm_query_call(node):
-            print("❌ N+1 heuristic: ORM-like call inside loop")
+            print("N+1 heuristic: ORM-like call inside loop")
             sys.exit(1)
         self.generic_visit(node)`
   },
   'tool_audit': {
     path: 'tools/audit.js',
     badge: 'ORCHESTRATOR',
-    badgeColor: 'bg-cyan-50 border-cyan-200 text-cyan-900',
     type: 'JavaScript • Master Gate',
     desc: isEs
       ? 'Orquestador maestro que ejecuta cada guard check_*/scan_* de tools/ y emite el resumen educativo al agente y al desarrollador.'
@@ -162,15 +153,18 @@ if (leaks.length > 0) {
     codeTitle: 'tools/audit.js',
     codeLang: 'bash',
     code: `$ node tools/audit.js
-✔ scan_secrets: PASS
-✔ check_architecture: PASS
-✔ check_db_efficiency: PASS
-🚀 Audit Gate: 0 Violations • Ready for commit`
+  🛡️ SECURITY LENS:
+     ✅ scan secrets: Passed
+  🏛️ ARCHITECTURE LENS:
+     ✅ check architecture: Passed
+  ⚡ PERFORMANCE LENS:
+     ✅ check db efficiency: Passed
+
+Verdict: PASSED`
   },
   'precommit_hook': {
     path: '.githooks/pre-commit',
-    badge: 'HARD GATE',
-    badgeColor: 'bg-slate-900 border-slate-700 text-white',
+    badge: 'HOOK',
     type: 'Shell • Git Hook',
     desc: isEs
       ? 'Hook de git generado por el kernel. Llama a los orquestadores de auditoría con --hook (que ejecutan cada guard de tools/) y después a las herramientas externas del stack. Si algo falla, cancela el commit con Exit Code 1 (`--no-verify` lo omite; CI actúa como respaldo). Se instala en .githooks/ con core.hooksPath; solo va a .husky/pre-commit cuando Husky ya está activo.'
@@ -191,7 +185,6 @@ if [ -x node_modules/.bin/lint-staged ] >/dev/null 2>&1; then npx lint-staged; e
   'domain_model': {
     path: 'src/domain/auth.ts',
     badge: 'PURE DOMAIN',
-    badgeColor: 'bg-purple-50 border-purple-200 text-purple-900',
     type: 'TypeScript • Business Domain',
     desc: isEs
       ? 'Entidades y lógica de negocio puras, vigiladas por los guards de capas para detectar si el agente acopla lógica de dominio con librerías externas.'
@@ -209,415 +202,99 @@ export function isSessionExpired(session: UserSession, now: number): boolean {
 }`
   }
 };
+
+// Tree shown on the left: depth, label, the fileData entry it opens.
+const tree = [
+  { depth: 0, label: 'AGENTS.md', key: 'agents_md' },
+  { depth: 0, label: '.clckernel.yaml', key: 'clckernel_yaml' },
+  { depth: 0, label: 'sdds/', key: 'sdds_dir', folder: true },
+  { depth: 1, label: 'auth-jwt/spec.md', key: 'sdd_spec' },
+  { depth: 0, label: 'tools/', key: 'tools_dir', folder: true },
+  { depth: 1, label: 'audit.js', key: 'tool_audit' },
+  { depth: 1, label: 'check_architecture.js', key: 'tool_check_arch' },
+  { depth: 1, label: 'scan_secrets.js', key: 'tool_scan_secrets' },
+  { depth: 1, label: 'check_db_efficiency.py', key: 'tool_db_efficiency' },
+  { depth: 0, label: '.githooks/', key: 'precommit_hook', folder: true },
+  { depth: 1, label: 'pre-commit', key: 'precommit_hook' },
+  { depth: 0, label: 'src/domain/', key: 'domain_model', folder: true },
+  { depth: 1, label: 'auth.ts', key: 'domain_model' },
+];
+const keys = Object.keys(fileData) as (keyof typeof fileData)[];
 ---
 
-<div class="harness-files-widget pt-4" id="harness-files-explorer">
-  
-  <!-- Header of the Files Widget (Clean & Open) -->
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 mb-8 border-b border-slate-200/80">
-    <div class="space-y-1.5">
-      <div class="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase text-cyan-800 font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-cyan-50 border border-cyan-200">
-        <span class="w-1.5 h-1.5 rounded-full bg-cyan-600 animate-pulse"></span>
-        <span>{isEs ? "ÁRBOL DE ARCHIVOS Y ARQUITECTURA" : "FILE TREE & ARCHITECTURE"}</span>
-      </div>
-      <h3 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-        {isEs ? "Constitución y anatomía de un repositorio gobernado" : "Anatomy and constitution of a governed codebase"}
-      </h3>
-    </div>
-
-    <div class="flex items-center gap-2 text-xs font-mono shrink-0">
-      <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-semibold border border-slate-200/80 flex items-center gap-1.5 shadow-2xs">
-        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-        <span>{isEs ? "Interactivo (Haz clic en los archivos)" : "Interactive (Click any file)"}</span>
-      </span>
-    </div>
+<div class="hft" id="harness-file-tree" data-hft>
+  <div class="hft__tree" role="group" aria-label={isEs ? 'Archivos del repositorio' : 'Repository files'}>
+    <p class="mono-label text-stone mb-3">{isEs ? 'Raíz del repositorio' : 'Repository root'}</p>
+    <ul class="space-y-0.5 font-mono text-[0.8125rem]">
+      {tree.map((node, i) => (
+        <li>
+          <button
+            type="button"
+            class:list={['hft__node', { 'is-folder': node.folder }]}
+            style={`--depth:${node.depth}`}
+            data-file-key={node.key}
+            aria-controls={`hft-panel-${node.key}`}
+            aria-pressed={i === 0 ? 'true' : 'false'}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              {node.folder
+                ? <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                : <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5" />}
+            </svg>
+            <span class="truncate">{node.label}</span>
+          </button>
+        </li>
+      ))}
+    </ul>
   </div>
 
-  <!-- Grid: Left = File Tree, Right = Unified Clean Inspector Panel -->
-  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-    
-    <!-- LEFT: Sleek File Tree Navigation -->
-    <div class="lg:col-span-5 bg-white/70 border border-slate-200/90 rounded-2xl p-3 sm:p-4 font-mono text-xs shadow-xs backdrop-blur-xs">
-      <div class="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-100 text-[11px] text-slate-500">
-        <span class="font-bold text-slate-700 flex items-center gap-1.5">
-          <svg class="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-          </svg>
-          <span>WORKSPACE ROOT</span>
-        </span>
-        <span class="text-[10px] text-cyan-800 bg-cyan-100/60 px-1.5 py-0.5 rounded font-semibold">clckernel v1.2</span>
-      </div>
-
-      <!-- Root Files Container -->
-      <div class="files-root space-y-1 select-none" id="files-root-tree">
-        
-        <!-- File: AGENTS.md (SSOT) -->
-        <button 
-          type="button" 
-          class="file-item w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left transition-all duration-150 cursor-pointer group bg-cyan-50 text-cyan-950 font-bold border border-cyan-300 ring-1 ring-cyan-500/20 shadow-2xs" 
-          data-file-key="agents_md"
-        >
-          <div class="flex items-center gap-2 truncate">
-            <span class="text-cyan-700 text-sm">📜</span>
-            <span class="truncate font-semibold">AGENTS.md</span>
+  <div class="hft__inspector" aria-live="polite">
+    {keys.map((key, i) => {
+      const f = fileData[key];
+      return (
+        <article class="hft__panel" id={`hft-panel-${key}`} data-panel={key} hidden={i !== 0}>
+          <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <h4 class="font-mono text-base font-medium break-all">{f.path}</h4>
+            <span class="mono-label hft__badge">{f.badge}</span>
           </div>
-          <span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-100/80 text-cyan-900 font-bold border border-cyan-200 shrink-0">SSOT</span>
-        </button>
-
-        <!-- File: .clckernel.yaml (Config) -->
-        <button 
-          type="button" 
-          class="file-item w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left text-slate-700 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group" 
-          data-file-key="clckernel_yaml"
-        >
-          <div class="flex items-center gap-2 truncate">
-            <span class="text-indigo-600 text-sm">⚙️</span>
-            <span class="truncate font-medium">.clckernel.yaml</span>
+          <p class="mono-label text-stone mt-2">{f.type}</p>
+          <p class="mt-5 leading-relaxed text-ink/85 max-w-[62ch]">{f.desc}</p>
+          <div class="mt-6 band-ink rounded-[10px] overflow-hidden">
+            <p class="mono-label text-fog px-4 pt-3">{f.codeTitle}</p>
+            <pre class="code-block px-4 pt-2 pb-4 text-paper"><code>{f.code}</code></pre>
           </div>
-          <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-200/70 text-slate-700 font-semibold shrink-0">CONFIG</span>
-        </button>
-
-        <!-- Folder: sdds/ -->
-        <div class="folder-item space-y-0.5" data-folder="sdds">
-          <button 
-            type="button" 
-            class="folder-trigger w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left text-slate-700 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group"
-            aria-expanded="true"
-            data-file-key="sdds_dir"
-          >
-            <div class="flex items-center gap-2 truncate">
-              <span class="folder-caret transition-transform duration-200 text-slate-400 group-hover:text-slate-700 rotate-90">▶</span>
-              <span class="text-amber-600 text-sm">📁</span>
-              <span class="font-bold text-slate-800">sdds/</span>
-            </div>
-            <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-200 shrink-0">LOCAL</span>
-          </button>
-          
-          <div class="folder-content pl-4 space-y-1">
-            <div class="folder-inner border-l-2 border-slate-200 pl-2 space-y-1 py-0.5">
-              <!-- File: spec.md -->
-              <button 
-                type="button" 
-                class="file-item w-full flex items-center justify-between px-2 py-1 rounded-lg text-left text-slate-600 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group text-[11px]" 
-                data-file-key="sdd_spec"
-              >
-                <div class="flex items-center gap-1.5 truncate">
-                  <span class="text-slate-400">📄</span>
-                  <span class="truncate">auth-jwt/spec.md</span>
-                </div>
-                <span class="text-[9px] text-slate-500 font-mono">SPEC</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Folder: tools/ (Guard Scripts) -->
-        <div class="folder-item space-y-0.5" data-folder="tools">
-          <button 
-            type="button" 
-            class="folder-trigger w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left text-slate-700 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group"
-            aria-expanded="true"
-            data-file-key="tools_dir"
-          >
-            <div class="flex items-center gap-2 truncate">
-              <span class="folder-caret transition-transform duration-200 text-slate-400 group-hover:text-slate-700 rotate-90">▶</span>
-              <span class="text-amber-600 text-sm">📁</span>
-              <span class="font-bold text-slate-800">tools/</span>
-            </div>
-            <span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-bold border border-amber-200 shrink-0">GUARDS</span>
-          </button>
-          
-          <div class="folder-content pl-4 space-y-1">
-            <div class="folder-inner border-l-2 border-slate-200 pl-2 space-y-1 py-0.5">
-              <!-- File: audit.js -->
-              <button 
-                type="button" 
-                class="file-item w-full flex items-center justify-between px-2 py-1 rounded-lg text-left text-slate-600 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group text-[11px]" 
-                data-file-key="tool_audit"
-              >
-                <div class="flex items-center gap-1.5 truncate">
-                  <span class="text-cyan-600">⚡</span>
-                  <span class="truncate font-semibold text-slate-800">audit.js</span>
-                </div>
-                <span class="text-[9px] text-cyan-700 font-bold bg-cyan-50 px-1 rounded">MASTER</span>
-              </button>
-
-              <!-- File: check_architecture.js -->
-              <button 
-                type="button" 
-                class="file-item w-full flex items-center justify-between px-2 py-1 rounded-lg text-left text-slate-600 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group text-[11px]" 
-                data-file-key="tool_check_arch"
-              >
-                <div class="flex items-center gap-1.5 truncate">
-                  <span class="text-amber-600">🛡️</span>
-                  <span class="truncate">check_architecture.js</span>
-                </div>
-                <span class="text-[9px] text-slate-500 font-mono">REGEX</span>
-              </button>
-
-              <!-- File: scan_secrets.js -->
-              <button 
-                type="button" 
-                class="file-item w-full flex items-center justify-between px-2 py-1 rounded-lg text-left text-slate-600 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group text-[11px]" 
-                data-file-key="tool_scan_secrets"
-              >
-                <div class="flex items-center gap-1.5 truncate">
-                  <span class="text-rose-600">🔒</span>
-                  <span class="truncate">scan_secrets.js</span>
-                </div>
-                <span class="text-[9px] text-slate-500 font-mono">REGEX</span>
-              </button>
-
-              <!-- File: check_db_efficiency.py -->
-              <button 
-                type="button" 
-                class="file-item w-full flex items-center justify-between px-2 py-1 rounded-lg text-left text-slate-600 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group text-[11px]" 
-                data-file-key="tool_db_efficiency"
-              >
-                <div class="flex items-center gap-1.5 truncate">
-                  <span class="text-indigo-600">🐍</span>
-                  <span class="truncate">check_db_efficiency.py</span>
-                </div>
-                <span class="text-[9px] text-slate-500 font-mono">PY AST</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Folder: .githooks/ -->
-        <div class="folder-item space-y-0.5" data-folder="githooks">
-          <button 
-            type="button" 
-            class="folder-trigger w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left text-slate-700 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group"
-            aria-expanded="true"
-            data-file-key="precommit_hook"
-          >
-            <div class="flex items-center gap-2 truncate">
-              <span class="folder-caret transition-transform duration-200 text-slate-400 group-hover:text-slate-700 rotate-90">▶</span>
-              <span class="text-amber-600 text-sm">📁</span>
-              <span class="font-bold text-slate-800">.githooks/</span>
-            </div>
-            <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-800 font-bold shrink-0">HOOK</span>
-          </button>
-          
-          <div class="folder-content pl-4 space-y-1">
-            <div class="folder-inner border-l-2 border-slate-200 pl-2 space-y-1 py-0.5">
-              <!-- File: pre-commit -->
-              <button 
-                type="button" 
-                class="file-item w-full flex items-center justify-between px-2 py-1 rounded-lg text-left text-slate-600 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group text-[11px]" 
-                data-file-key="precommit_hook"
-              >
-                <div class="flex items-center gap-1.5 truncate">
-                  <span class="text-slate-700">🪝</span>
-                  <span class="truncate font-semibold text-slate-800">pre-commit</span>
-                </div>
-                <span class="text-[9px] text-slate-500 font-mono">GATE</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Folder: src/domain/ -->
-        <div class="folder-item space-y-0.5" data-folder="src">
-          <button 
-            type="button" 
-            class="folder-trigger w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left text-slate-700 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group"
-            aria-expanded="true"
-            data-file-key="domain_model"
-          >
-            <div class="flex items-center gap-2 truncate">
-              <span class="folder-caret transition-transform duration-200 text-slate-400 group-hover:text-slate-700 rotate-90">▶</span>
-              <span class="text-amber-600 text-sm">📁</span>
-              <span class="font-bold text-slate-800">src/domain/</span>
-            </div>
-            <span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-900 font-bold border border-purple-200 shrink-0">CLEAN ARCH</span>
-          </button>
-          
-          <div class="folder-content pl-4 space-y-1">
-            <div class="folder-inner border-l-2 border-slate-200 pl-2 space-y-1 py-0.5">
-              <!-- File: auth.ts -->
-              <button 
-                type="button" 
-                class="file-item w-full flex items-center justify-between px-2 py-1 rounded-lg text-left text-slate-600 hover:text-slate-900 hover:bg-white transition-all duration-150 cursor-pointer group text-[11px]" 
-                data-file-key="domain_model"
-              >
-                <div class="flex items-center gap-1.5 truncate">
-                  <span class="text-blue-600">🔷</span>
-                  <span class="truncate">auth.ts</span>
-                </div>
-                <span class="text-[9px] text-slate-500 font-mono">DOMAIN</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- RIGHT: Clean & Punchy File Inspector Panel -->
-    <div class="lg:col-span-7 space-y-3" id="inspector-container">
-      
-      <!-- Unified Inspector Panel -->
-      <div id="inspector-card" class="bg-white/80 border border-slate-200/90 rounded-2xl p-5 sm:p-6 space-y-4 shadow-xs backdrop-blur-xs">
-        
-        <!-- Header: Path + Badges -->
-        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-          <div class="space-y-0.5">
-            <div class="text-xs font-mono text-slate-400 font-medium" id="inspector-type">{fileData.agents_md.type}</div>
-            <h4 class="text-base sm:text-lg font-mono font-bold text-slate-900 flex items-center gap-2" id="inspector-path">
-              <span>{fileData.agents_md.path}</span>
-            </h4>
-          </div>
-
-          <span class={`text-[10px] font-mono px-2.5 py-1 rounded-full font-bold border shadow-2xs ${fileData.agents_md.badgeColor}`} id="inspector-badge">
-            {fileData.agents_md.badge}
-          </span>
-        </div>
-
-        <!-- Role & Purpose: Clean Editorial Quote -->
-        <div class="space-y-1 border-l-2 border-cyan-500 pl-3.5 py-0.5">
-          <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-            <span>🛡️</span>
-            <span>{isEs ? "¿Qué hace y por qué?" : "Role & Purpose in the Harness"}</span>
-          </div>
-          <p class="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal pt-0.5" id="inspector-desc">
-            {fileData.agents_md.desc}
-          </p>
-        </div>
-
-        <!-- Live Code / Config Preview -->
-        <div class="space-y-1.5 pt-1">
-          <div class="flex items-center justify-between text-[11px] font-mono text-slate-500">
-            <span class="font-semibold text-slate-700 flex items-center gap-1.5">
-              <span>📝</span>
-              <span id="inspector-code-filename">{fileData.agents_md.codeTitle}</span>
-            </span>
-            <span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-bold border border-slate-200/60" id="inspector-code-lang">{fileData.agents_md.codeLang}</span>
-          </div>
-
-          <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 font-mono text-[11px] leading-relaxed text-slate-800 overflow-x-auto shadow-inner">
-            <pre class="m-0 whitespace-pre font-mono" id="inspector-code-block">{fileData.agents_md.code}</pre>
-          </div>
-        </div>
-
-      </div>
-
-    </div>
-
+        </article>
+      );
+    })}
   </div>
-
 </div>
 
 <style>
-  /* Soft animation for folder collapse */
-  .folder-content {
-    display: grid;
-    grid-template-rows: 1fr;
-    opacity: 1;
-    transition: 
-      grid-template-rows 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-      opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  .hft { display: grid; gap: 2.5rem; }
+  .hft > * { min-width: 0; }
+  @media (min-width: 1024px) { .hft { grid-template-columns: minmax(16rem, 5fr) 7fr; gap: 4rem; } }
+  .hft__node {
+    display: flex; align-items: center; gap: 0.6rem; width: 100%;
+    min-height: 40px; padding: 0.35rem 0.6rem 0.35rem calc(0.6rem + var(--depth) * 1.25rem);
+    border-radius: 6px; text-align: left; color: var(--color-stone); cursor: pointer;
+    transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out);
   }
-
-  .folder-content[data-state="closed"] {
-    grid-template-rows: 0fr;
-    opacity: 0;
-  }
-
-  .folder-inner {
-    overflow: hidden;
-  }
+  .hft__node.is-folder { color: var(--color-ink); font-weight: 500; }
+  .hft__node:hover { background: rgb(14 14 12 / 0.06); color: var(--color-ink); }
+  .hft__node[aria-pressed='true'] { background: var(--color-ink); color: var(--color-paper); }
+  .hft__badge { padding: 0.2rem 0.5rem; border-radius: 4px; background: var(--color-signal); color: var(--color-ink); }
+  .hft__panel[hidden] { display: none; }
 </style>
 
-<div id="harness-file-data-json" data-payload={JSON.stringify(fileData)} class="hidden"></div>
-
-<script is:inline>
-  document.addEventListener('DOMContentLoaded', () => {
-    const fileDataRaw = document.getElementById('harness-file-data-json')?.getAttribute('data-payload') || '{}';
-    const fileData = JSON.parse(fileDataRaw);
-    const inspectorCard = document.getElementById('inspector-card');
-    
-    // UI Elements
-    const inspectorType = document.getElementById('inspector-type');
-    const inspectorPath = document.getElementById('inspector-path');
-    const inspectorBadge = document.getElementById('inspector-badge');
-    const inspectorDesc = document.getElementById('inspector-desc');
-    const inspectorCodeFilename = document.getElementById('inspector-code-filename');
-    const inspectorCodeLang = document.getElementById('inspector-code-lang');
-    const inspectorCodeBlock = document.getElementById('inspector-code-block');
-
-    function updateInspector(key) {
-      const data = fileData[key];
-      if (!data) return;
-
-      // Update active styling in file tree
-      const allButtons = document.querySelectorAll('.file-item, .folder-trigger');
-      allButtons.forEach((btn) => {
-        if (btn.getAttribute('data-file-key') === key) {
-          btn.classList.add('bg-cyan-50', 'text-cyan-950', 'font-bold', 'border-cyan-300', 'ring-1', 'ring-cyan-500/20', 'shadow-2xs');
-          btn.classList.remove('text-slate-700', 'text-slate-600', 'hover:bg-white');
-        } else {
-          btn.classList.remove('bg-cyan-50', 'text-cyan-950', 'font-bold', 'border-cyan-300', 'ring-1', 'ring-cyan-500/20', 'shadow-2xs');
-          btn.classList.add('text-slate-700');
-        }
-      });
-
-      // Update Inspector Panel with GSAP
-      if (typeof gsap !== 'undefined' && inspectorCard) {
-        gsap.killTweensOf(inspectorCard);
-        gsap.fromTo(inspectorCard,
-          { opacity: 0.5, y: 6 },
-          { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out', clearProps: 'transform' }
-        );
-      }
-
-      if (inspectorType) inspectorType.textContent = data.type;
-      if (inspectorPath) inspectorPath.innerHTML = `<span>${data.path}</span>`;
-      if (inspectorBadge) {
-        inspectorBadge.textContent = data.badge;
-        inspectorBadge.className = `text-[10px] font-mono px-2.5 py-1 rounded-full font-bold border shadow-2xs ${data.badgeColor}`;
-      }
-      if (inspectorDesc) inspectorDesc.textContent = data.desc;
-      if (inspectorCodeFilename) inspectorCodeFilename.textContent = data.codeTitle;
-      if (inspectorCodeLang) inspectorCodeLang.textContent = data.codeLang;
-      if (inspectorCodeBlock) inspectorCodeBlock.textContent = data.code;
-    }
-
-    // Attach click handlers to files
-    const fileButtons = document.querySelectorAll('.file-item');
-    fileButtons.forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const key = btn.getAttribute('data-file-key');
-        if (key) updateInspector(key);
-      });
-    });
-
-    // Attach click handlers to folder triggers (Toggle + Inspector update)
-    const folderTriggers = document.querySelectorAll('.folder-trigger');
-    folderTriggers.forEach((trigger) => {
-      trigger.addEventListener('click', (e) => {
-        const key = trigger.getAttribute('data-file-key');
-        if (key) updateInspector(key);
-
-        const folderItem = trigger.closest('.folder-item');
-        if (!folderItem) return;
-        const content = folderItem.querySelector('.folder-content');
-        const caret = trigger.querySelector('.folder-caret');
-
-        if (content) {
-          const isClosed = content.getAttribute('data-state') === 'closed';
-          if (isClosed) {
-            content.setAttribute('data-state', 'open');
-            trigger.setAttribute('aria-expanded', 'true');
-            caret?.classList.add('rotate-90');
-          } else {
-            content.setAttribute('data-state', 'closed');
-            trigger.setAttribute('aria-expanded', 'false');
-            caret?.classList.remove('rotate-90');
-          }
-        }
+<script>
+  document.querySelectorAll<HTMLElement>('[data-hft]').forEach((root) => {
+    const nodes = root.querySelectorAll<HTMLButtonElement>('.hft__node');
+    const panels = root.querySelectorAll<HTMLElement>('[data-panel]');
+    nodes.forEach((node) => {
+      node.addEventListener('click', () => {
+        const key = node.dataset.fileKey;
+        nodes.forEach((n) => n.setAttribute('aria-pressed', String(n === node)));
+        panels.forEach((p) => { p.hidden = p.dataset.panel !== key; });
       });
     });
   });

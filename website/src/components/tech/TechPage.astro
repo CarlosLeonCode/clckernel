@@ -1,0 +1,31 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Intro from './Intro.astro';
+import Why from './Why.astro';
+import Loop from '../LoopSection.astro';
+import Safeguards from './Safeguards.astro';
+import Stacks from './Stacks.astro';
+import Files from './Files.astro';
+import Quickstart from '../QuickstartSection.astro';
+import Limits from './Limits.astro';
+import Glossary from './Glossary.astro';
+import OpenSource from './OpenSource.astro';
+import { ui } from '../../i18n/ui.js';
+
+interface Props { lang?: 'en' | 'es' }
+const { lang = 'en' } = Astro.props;
+const t = ui[lang];
+---
+
+<Layout lang={lang} route="/how-it-works" title={t['meta.how.title']} description={t['meta.how.desc']}>
+  <Intro lang={lang} />
+  <Why lang={lang} />
+  <Loop lang={lang} />
+  <Safeguards lang={lang} />
+  <Stacks lang={lang} />
+  <Files lang={lang} />
+  <Quickstart lang={lang} />
+  <Limits lang={lang} />
+  <Glossary lang={lang} />
+  <OpenSource lang={lang} />
+</Layout>

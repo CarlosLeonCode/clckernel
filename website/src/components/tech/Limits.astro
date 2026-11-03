@@ -1,0 +1,38 @@
+---
+import SectionHead from './SectionHead.astro';
+interface Props { lang?: 'en' | 'es' }
+const { lang = 'en' } = Astro.props;
+const isEs = lang === 'es';
+
+const items = isEs ? [
+  { k: 'El hook se puede saltar', v: 'git commit --no-verify omite el hook de pre-commit. Ejecuta npx clckernel audit en CI como respaldo.' },
+  { k: 'El alcance lo sigue el agente', v: 'Que el agente no toque archivos fuera de la spec es un protocolo de AGENTS.md; ningún guard lo comprueba.' },
+  { k: 'Los patrones pueden equivocarse', v: 'La mayoría de los guards usa regex: puede haber falsos positivos. Ajusta severities o exclude_paths en .clckernel.yaml.' },
+  { k: 'Herramientas externas, si existen', v: 'tsc, ruff, pytest, golangci-lint o cargo se ejecutan solo cuando el proyecto los tiene; si no, el hook lo indica y sigue. Los guards de tools/ se ejecutan siempre.' },
+  { k: 'Windows no está probado', v: 'El hook es un script de shell: en Windows necesita bash o sh, por ejemplo Git Bash.' },
+  { k: 'Tests unitarios de Rust', v: 'Los tests #[cfg(test)] viven dentro del archivo de código y no se pueden separar para la ejecución en rojo; usa tests de integración en tests/.' },
+] : [
+  { k: 'The hook can be skipped', v: 'git commit --no-verify skips the pre-commit hook. Run npx clckernel audit in CI as the backstop.' },
+  { k: 'Scope is followed by the agent', v: 'Keeping the agent inside the spec is an AGENTS.md protocol; no guard checks it.' },
+  { k: 'Patterns can be wrong', v: 'Most guards use regex, so false positives are possible. Tune severities or exclude_paths in .clckernel.yaml.' },
+  { k: 'External tools, when present', v: 'tsc, ruff, pytest, golangci-lint or cargo run only when the project has them; otherwise the hook says so and moves on. The guards in tools/ always run.' },
+  { k: 'Windows is not tested', v: 'The hook is a shell script: on Windows it needs a bash or sh such as Git Bash.' },
+  { k: 'Rust unit tests', v: '#[cfg(test)] tests live inside the code file and cannot be separated for the red run; use integration tests under tests/.' },
+];
+---
+
+<section class="band-paper on-paper" aria-labelledby="limits-title" id="limits">
+  <div class="wrap py-24 md:py-32">
+    <SectionHead id="limits-title"
+      title={isEs ? 'Lo que no hace' : 'What it does not do'}
+      lede={isEs ? 'Un control útil dice dónde termina. Estos son los límites conocidos.' : 'A useful check says where it stops. These are the known limits.'} />
+    <dl class="grid gap-x-10 md:grid-cols-2 border-t rule-paper">
+      {items.map((i) => (
+        <div class="py-6 border-b rule-paper">
+          <dt class="font-semibold text-lg tracking-[-0.015em]">{i.k}</dt>
+          <dd class="mt-2 text-stone leading-relaxed">{i.v}</dd>
+        </div>
+      ))}
+    </dl>
+  </div>
+</section>

@@ -1,0 +1,27 @@
+---
+import { ui } from '../../i18n/ui.js';
+
+interface Props { lang?: 'en' | 'es' }
+const { lang = 'en' } = Astro.props;
+const t = ui[lang];
+const steps = t['steps'] as { title: string; body: string }[];
+---
+
+<section class="band-paper on-paper border-t rule-paper" aria-labelledby="steps-title">
+  <div class="wrap py-24 md:py-32">
+    <div class="grid gap-6 md:grid-cols-12 mb-16 md:mb-24">
+      <h2 id="steps-title" class="h-section md:col-span-6">{t['steps.title']}</h2>
+      <p class="lede text-stone md:col-span-5 md:col-start-8 self-end">{t['steps.lede']}</p>
+    </div>
+
+    <ol class="grid gap-14 md:gap-10 md:grid-cols-3">
+      {steps.map((step, i) => (
+        <li class="border-t rule-paper pt-6">
+          <span class="mono-label text-stone" aria-hidden="true">{String(i + 1).padStart(2, '0')} / 03</span>
+          <h3 class="mt-10 text-[clamp(1.5rem,2.3vw,2rem)] font-semibold leading-[1.1] tracking-[-0.025em] text-balance">{step.title}</h3>
+          <p class="mt-4 text-stone leading-relaxed max-w-[34ch]">{step.body}</p>
+        </li>
+      ))}
+    </ol>
+  </div>
+</section>

@@ -1,449 +1,193 @@
 ---
 import '../styles/global.css';
-import { ui } from '../i18n/ui.js';
-import FaultyTerminal from '../components/FaultyTerminal.astro';
+import { ui, links, localePath } from '../i18n/ui.js';
 
 interface Props {
+  lang?: 'en' | 'es';
   title?: string;
   description?: string;
-  lang?: 'en' | 'es';
+  /** Path of this page without the language prefix, e.g. '/', '/how-it-works', '/docs'. */
+  route?: string;
 }
 
-const {
-  lang = 'en',
-  title = lang === 'es' 
-    ? "CLC Kernel — Motor de Gobernanza Determinista para Agentes IA" 
-    : "CLC Kernel — Deterministic AI Agent Governance Engine",
-  description = lang === 'es'
-    ? "Gobernanza exigible para agentes IA, salvaguardas automatizadas en pre-commit y ciclo estricto SDD/TDD para proyectos políglotas."
-    : "Enforceable AI agent governance, automated pre-commit quality guards, and strict SDD/TDD lifecycle management for polyglot codebases."
-} = Astro.props;
-
+const { lang = 'en', route = '/' } = Astro.props;
 const t = ui[lang];
 const isEs = lang === 'es';
+const title = Astro.props.title ?? t['meta.home.title'];
+const description = Astro.props.description ?? t['meta.home.desc'];
 
-const pathname = Astro.url.pathname;
 const siteUrl = Astro.site ? Astro.site.toString().replace(/\/$/, '') : 'https://clckernel.carlosleoncode.com';
-const canonicalURL = new URL(pathname, siteUrl).toString();
-
-// Calculate hreflang URLs
-const enPath = pathname.replace(/^\/es(\/|$)/, '$1') || '/';
-const esPath = pathname.startsWith('/es') ? pathname : ('/es' + (pathname === '/' ? '' : pathname));
+const enPath = route;
+const esPath = route === '/' ? '/es' : `/es${route}`;
 const enURL = new URL(enPath, siteUrl).toString();
 const esURL = new URL(esPath, siteUrl).toString();
+const canonicalURL = isEs ? esURL : enURL;
+const ogImage = `${siteUrl}/images/clc-kernel-logo.jpg`;
+
+const home = localePath(lang, '/');
+const how = localePath(lang, '/how-it-works');
+const docs = localePath(lang, '/docs');
 
 const jsonLd = {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "name": "CLC Kernel",
-  "operatingSystem": "Cross-platform (Node.js, Python, Go, Rust)",
-  "applicationCategory": "DeveloperApplication",
-  "url": siteUrl,
-  "description": description,
-  "offers": {
-    "@type": "Offer",
-    "price": "0",
-    "priceCurrency": "USD"
-  },
-  "author": {
-    "@type": "Person",
-    "name": "Carlos León",
-    "url": "https://www.carlosleoncode.com"
-  }
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'CLC Kernel',
+  operatingSystem: 'macOS, Linux (Node.js 18+)',
+  applicationCategory: 'DeveloperApplication',
+  url: siteUrl,
+  description,
+  license: 'https://opensource.org/licenses/MIT',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  author: { '@type': 'Person', name: 'Carlos León', url: 'https://www.carlosleoncode.com' },
 };
 ---
 
 <!doctype html>
-<html lang={lang} class="scroll-smooth">
+<html lang={lang}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/jpeg" href="/images/clc-forge-logo.jpg" />
+    <meta name="theme-color" content="#0e0e0c" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
     <meta name="description" content={description} />
     <meta name="robots" content="index, follow" />
 
-    <!-- Canonical & Alternate Links -->
     <link rel="canonical" href={canonicalURL} />
     <link rel="alternate" hreflang="en" href={enURL} />
     <link rel="alternate" hreflang="es" href={esURL} />
     <link rel="alternate" hreflang="x-default" href={enURL} />
 
-    <!-- OpenGraph -->
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
     <meta property="og:url" content={canonicalURL} />
     <meta property="og:site_name" content="CLC Kernel" />
-    <meta property="og:image" content={`${siteUrl}/images/clc-forge-logo.jpg`} />
-    <meta property="og:image:alt" content="CLC Kernel Deterministic AI Governance Engine" />
-
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:locale" content={isEs ? 'es_ES' : 'en_US'} />
+    <meta property="og:locale:alternate" content={isEs ? 'en_US' : 'es_ES'} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:alt" content="CLC Kernel" />
+    <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
-    <meta name="twitter:image" content={`${siteUrl}/images/clc-forge-logo.jpg`} />
+    <meta name="twitter:image" content={ogImage} />
 
-    <!-- Structured Data (JSON-LD) -->
     <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script is:inline defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-    <script is:inline defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
-    <style>
-      body {
-        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      }
-      code, pre, .font-mono {
-        font-family: 'JetBrains Mono', monospace;
-      }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" />
+
+    <!-- Motion gate: content is visible by default; .js only arms the entrance, with a timed fallback. -->
+    <script is:inline>
+      (function () {
+        var d = document.documentElement;
+        d.classList.add('js');
+        setTimeout(function () { if (!d.classList.contains('motion-ok')) d.classList.remove('js'); }, 2500);
+      })();
+    </script>
   </head>
-  <body class="min-h-screen bg-transparent text-slate-900 flex flex-col antialiased selection:bg-cyan-500/20 selection:text-cyan-900">
-    <!-- Subtle ambient background base layer with GSAP mouse parallax -->
-    <div class="fixed inset-0 pointer-events-none -z-20 overflow-hidden bg-[#fafbfc]" id="global-bg-container">
-      <div id="ambient-orb-1" class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-[1100px] h-[500px] bg-cyan-500/[0.05] blur-[140px] rounded-full"></div>
-      <div id="ambient-orb-2" class="absolute top-[900px] right-0 w-full max-w-[700px] h-[600px] bg-emerald-500/[0.04] blur-[150px] rounded-full"></div>
-      <div id="ambient-orb-3" class="absolute top-[1800px] left-[-100px] w-full max-w-[600px] h-[500px] bg-indigo-500/[0.04] blur-[140px] rounded-full"></div>
-    </div>
+  <body>
+    <a href="#main" class="sr-only-focusable mono-label fixed top-2 left-2 z-[60] bg-signal text-ink px-3 py-2">{t['skip']}</a>
 
-    <!-- FaultyTerminal Ambient WebGL Background Layer (CRT Curvature & Interactive Ripple) -->
-    <div class="fixed inset-0 pointer-events-none -z-10 overflow-hidden opacity-[0.15]" id="terminal-bg-container">
-      <FaultyTerminal
-        scale={1.3}
-        gridMul={[2, 1]}
-        digitSize={1.2}
-        timeScale={0.28}
-        scanlineIntensity={0.15}
-        glitchAmount={0.0}
-        flickerAmount={0.0}
-        noiseAmp={0.5}
-        chromaticAberration={0}
-        dither={0}
-        curvature={0.22}
-        tint="#0284c7"
-        mouseReact={true}
-        mouseStrength={0.6}
-        pageLoadAnimation={false}
-        brightness={0.7}
-        lightMode={false}
-      />
-    </div>
-
-    <!-- Floating Modern Glassmorphic Navigation -->
-    <header id="main-header" class="sticky top-0 z-50 transition-all duration-300 py-2.5 px-4 sm:px-6">
-      <div class="max-w-7xl mx-auto h-14 px-4 sm:px-6 rounded-2xl bg-white/85 backdrop-blur-md border border-slate-200/80 shadow-xs flex items-center justify-between transition-all duration-300 hover:border-slate-300" id="header-inner">
-        
-        <!-- Brand Logo -->
-        <a href={isEs ? "/es" : "/"} class="flex items-center gap-2.5 group" id="header-brand">
-          <div class="relative w-8 h-8 rounded-lg overflow-hidden border border-cyan-500/30 shadow-2xs group-hover:scale-105 group-hover:border-cyan-500 transition-all duration-300">
-            <img src="/images/clc-kernel-logo.jpg" alt="clckernel Lion Mascot" width="32" height="32" decoding="async" class="w-full h-full object-cover object-center" />
-          </div>
-          <div class="flex items-center gap-1.5">
-            <span class="font-bold text-base tracking-tight text-slate-900 group-hover:text-cyan-600 transition-colors">clc<span class="text-cyan-600">kernel</span></span>
-            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-50 border border-cyan-200/60 text-cyan-800 font-bold">v1.2</span>
-          </div>
+    <header class="band-ink sticky top-0 z-50 border-b rule-ink" id="site-header">
+      <div class="wrap flex items-center justify-between gap-3 h-16">
+        <a href={home} class="flex items-center gap-2.5 shrink-0 min-h-[44px]" aria-label={t['nav.home']}>
+          <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+            <rect x="0" y="0" width="10" height="10" rx="2" fill="#5a5954" />
+            <rect x="12" y="0" width="10" height="10" rx="2" fill="#8b8981" />
+            <rect x="0" y="12" width="10" height="10" rx="2" fill="#8b8981" />
+            <rect x="12" y="12" width="10" height="10" rx="2" fill="#b8f03f" />
+          </svg>
+          <span class="font-semibold tracking-[-0.02em] text-[1.0625rem]">CLC Kernel</span>
         </a>
 
-        <!-- Streamlined Navigation Links -->
-        <nav class="hidden lg:flex items-center gap-1 text-xs text-slate-600 font-medium font-sans" id="header-nav">
-          <a href={isEs ? "/es/docs" : "/docs"} class="px-3 py-1.5 rounded-lg text-cyan-800 bg-cyan-50/80 border border-cyan-200/60 font-bold hover:bg-cyan-100/80 transition-all">{t['nav.docs']}</a>
-          <a href={isEs ? "/es#why" : "/#why"} class="px-3 py-1.5 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">{t['nav.why']}</a>
-          <a href={isEs ? "/es#lifecycle" : "/#lifecycle"} class="px-3 py-1.5 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">{t['nav.loop']}</a>
-          <a href={isEs ? "/es#safeguards" : "/#safeguards"} class="px-3 py-1.5 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">{t['nav.safeguards']}</a>
-          <a href={isEs ? "/es#ecosystems" : "/#ecosystems"} class="px-3 py-1.5 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">{t['nav.ecosystems']}</a>
-          <a href={isEs ? "/es#glossary" : "/#glossary"} class="px-3 py-1.5 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">{t['nav.glossary']}</a>
-        </nav>
-
-        <div class="flex items-center gap-2.5">
-          <!-- Language Switcher -->
-          <div class="flex items-center p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-mono">
-            <a 
-              href="/" 
-              class={`px-2 py-0.5 rounded-md transition-colors ${!isEs ? 'bg-white text-slate-900 font-bold shadow-xs' : 'text-slate-500 hover:text-slate-900'}`}
-              aria-label="English language"
-            >
-              EN
-            </a>
-            <a 
-              href="/es" 
-              class={`px-2 py-0.5 rounded-md transition-colors ${isEs ? 'bg-white text-cyan-700 font-bold shadow-xs' : 'text-slate-500 hover:text-slate-900'}`}
-              aria-label="Idioma Español"
-            >
-              ES
-            </a>
-          </div>
-
-          <!-- GitHub Link -->
-          <a
-            href="https://github.com/carlosleoncode/clc_forge"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-2xs transition-all active:scale-95 group/gh"
-            aria-label="GitHub Repository"
-          >
-            <svg class="group-hover/gh:rotate-12 transition-transform duration-200" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
-            </svg>
-            <span class="hidden sm:inline">Star</span>
+        <nav aria-label={isEs ? 'Principal' : 'Main'} class="flex items-center gap-3 sm:gap-6 min-w-0">
+          <a href={how} class="mono-label nav-link inline-flex" aria-current={route === '/how-it-works' ? 'page' : undefined}>{t['nav.how']}</a>
+          <a href={docs} class="mono-label nav-link hidden sm:inline-flex" aria-current={route === '/docs' ? 'page' : undefined}>{t['nav.docs']}</a>
+          <a href={links.github} class="mono-label nav-link hidden min-[400px]:inline-flex" rel="noopener noreferrer" aria-label={`${t['nav.github']} (${isEs ? 'abre otro sitio' : 'opens another site'})`}>
+            <svg class="sm:hidden" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.48 2 2 6.48 2 12.02c0 4.42 2.87 8.17 6.84 9.5.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.64-1.34-2.22-.25-4.56-1.11-4.56-4.95 0-1.09.39-1.99 1.03-2.69-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.03A9.56 9.56 0 0 1 12 6.84c.85 0 1.7.11 2.5.34 1.91-1.3 2.75-1.03 2.75-1.03.55 1.38.2 2.4.1 2.65.64.7 1.03 1.6 1.03 2.69 0 3.85-2.34 4.7-4.57 4.94.36.31.68.92.68 1.86v2.75c0 .27.18.58.69.48A10.02 10.02 0 0 0 22 12.02C22 6.48 17.52 2 12 2Z"/></svg>
+            <span class="hidden sm:inline">GitHub</span>
           </a>
-        </div>
+          <div class="mono-label flex items-center border rule-ink rounded-md overflow-hidden" role="group" aria-label={t['nav.lang']}>
+            <a href={enPath} hreflang="en" lang="en" class:list={['lang-link', { 'is-active': !isEs }]} aria-current={!isEs ? 'true' : undefined}>EN</a>
+            <a href={esPath} hreflang="es" lang="es" class:list={['lang-link', { 'is-active': isEs }]} aria-current={isEs ? 'true' : undefined}>ES</a>
+          </div>
+        </nav>
       </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="flex-1">
+    <main id="main" tabindex="-1">
       <slot />
     </main>
 
-    <!-- Footer -->
-    <footer class="border-t border-slate-200/80 bg-[#f8fafc] py-12 mt-20">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6 text-xs text-slate-500">
-        <div class="flex items-center gap-3">
-          <img src="/images/clc-kernel-logo.jpg" alt="clckernel" width="36" height="36" loading="lazy" decoding="async" class="w-9 h-9 rounded-xl object-cover border border-slate-200 shadow-xs" />
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="font-bold text-slate-900 text-sm">clc<span class="text-cyan-600">kernel</span></span>
-              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-50 border border-cyan-200 text-cyan-800">Governance Engine</span>
-            </div>
-            <p class="text-[11px] text-slate-500 mt-0.5">{t['footer.crafted']} • Deterministic AI Safeguards</p>
-          </div>
+    <footer class="band-ink border-t rule-ink">
+      <div class="wrap py-16 md:py-20 grid gap-12 md:grid-cols-12">
+        <div class="md:col-span-6 space-y-4">
+          <p class="font-semibold text-xl tracking-[-0.02em]">CLC Kernel</p>
+          <p class="text-fog max-w-sm">{t['footer.tagline']}</p>
         </div>
-        <div class="flex items-center gap-4 text-[11px] text-slate-500 font-mono">
-          <span>Plan → Build → Validate → Ship</span>
-          <span>•</span>
-          <span>MIT Licensed © {new Date().getFullYear()}</span>
+        <div class="md:col-span-3">
+          <p class="mono-label text-fog mb-4">{t['footer.product']}</p>
+          <ul class="space-y-1">
+            <li><a class="footer-link" href={how}>{t['nav.how']}</a></li>
+            <li><a class="footer-link" href={docs}>{t['nav.docs']}</a></li>
+            <li><a class="footer-link" href={links.npm} rel="noopener noreferrer">npm</a></li>
+          </ul>
+        </div>
+        <div class="md:col-span-3">
+          <p class="mono-label text-fog mb-4">{t['footer.project']}</p>
+          <ul class="space-y-1">
+            <li><a class="footer-link" href={links.github} rel="noopener noreferrer">GitHub</a></li>
+            <li><a class="footer-link" href={links.license} rel="noopener noreferrer">{t['footer.license']}</a></li>
+            <li><a class="footer-link" href={links.issues} rel="noopener noreferrer">Issues</a></li>
+          </ul>
+        </div>
+        <div class="md:col-span-12 pt-8 border-t rule-ink flex flex-col sm:flex-row justify-between gap-3 mono-label text-fog">
+          <span>MIT · © {new Date().getFullYear()} · {t['footer.by']} <a class="underline hover:text-paper" href="https://www.carlosleoncode.com" rel="noopener noreferrer">CarlosLeonCode</a></span>
+          <span>npx clckernel . --yes</span>
         </div>
       </div>
     </footer>
 
-    <!-- Global GSAP & ScrollTrigger Runtime (Differentiated & Rich Scroll Choreography) -->
-    <script is:inline>
-      document.addEventListener('DOMContentLoaded', () => {
-        if (typeof gsap === 'undefined') return;
+    <style>
+      .nav-link {
+        align-items: center;
+        min-height: 44px;
+        white-space: nowrap;
+        color: var(--color-fog);
+        transition: color 150ms var(--ease-out);
+      }
+      .nav-link:hover, .nav-link[aria-current='page'] { color: var(--color-paper); }
+      .nav-link[aria-current='page'] { text-decoration: underline; text-decoration-color: var(--color-signal); text-decoration-thickness: 2px; }
+      .lang-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        min-height: 36px;
+        color: var(--color-fog);
+        transition: color 150ms var(--ease-out), background-color 150ms var(--ease-out);
+      }
+      .lang-link:hover { color: var(--color-paper); }
+      .lang-link.is-active { background: var(--color-paper); color: var(--color-ink); }
+      .footer-link {
+        display: inline-flex;
+        align-items: center;
+        min-height: 40px;
+        color: var(--color-paper);
+        text-decoration: underline;
+        text-decoration-color: transparent;
+        transition: text-decoration-color 150ms var(--ease-out);
+      }
+      .footer-link:hover { text-decoration-color: var(--color-signal); }
+      #main:focus { outline: none; }
+    </style>
 
-        if (typeof ScrollTrigger !== 'undefined') {
-          gsap.registerPlugin(ScrollTrigger);
-        }
-
-        // Floating Header Elevation on Scroll
-        const headerInner = document.getElementById('header-inner');
-        if (headerInner && typeof ScrollTrigger !== 'undefined') {
-          ScrollTrigger.create({
-            start: 'top -20',
-            onUpdate: (self) => {
-              if (self.progress > 0) {
-                headerInner.classList.add('shadow-lg', 'shadow-slate-200/60', 'bg-white/95');
-                headerInner.classList.remove('shadow-xs', 'bg-white/85');
-              } else {
-                headerInner.classList.remove('shadow-lg', 'shadow-slate-200/60', 'bg-white/95');
-                headerInner.classList.add('shadow-xs', 'bg-white/85');
-              }
-            }
-          });
-        }
-
-        // Fade terminal background from pronounced in Hero to whisper-soft in content
-        const terminalBg = document.getElementById('terminal-bg-container');
-        const heroEl = document.getElementById('hero-section');
-        if (terminalBg && typeof ScrollTrigger !== 'undefined') {
-          if (heroEl) {
-            gsap.to(terminalBg, {
-              opacity: 0.04,
-              ease: 'power1.out',
-              scrollTrigger: {
-                trigger: heroEl,
-                start: 'bottom 85%',
-                end: 'bottom 20%',
-                scrub: 0.5,
-              }
-            });
-          } else {
-            terminalBg.style.opacity = '0.04';
-          }
-        }
-
-        // Ambient Background Orbs Parallax
-        const orb1 = document.getElementById('ambient-orb-1');
-        const orb2 = document.getElementById('ambient-orb-2');
-        const orb3 = document.getElementById('ambient-orb-3');
-
-        window.addEventListener('mousemove', (e) => {
-          const xFactor = (e.clientX - window.innerWidth / 2) / window.innerWidth;
-          const yFactor = (e.clientY - window.innerHeight / 2) / window.innerHeight;
-
-          if (orb1) gsap.to(orb1, { x: xFactor * 30, y: yFactor * 20, duration: 1.2, ease: 'power1.out' });
-          if (orb2) gsap.to(orb2, { x: -xFactor * 25, y: -yFactor * 18, duration: 1.4, ease: 'power1.out' });
-          if (orb3) gsap.to(orb3, { x: xFactor * 20, y: yFactor * 25, duration: 1.6, ease: 'power1.out' });
-        });
-
-        // DISTINCTIVE SCROLL ANIMATIONS PER SECTION:
-        if (typeof ScrollTrigger !== 'undefined') {
-          
-          // 1. Why Section: Staggered upward cascade on the 3 pillars
-          const whyPillars = document.querySelectorAll('#why-pillars-container > div');
-          if (whyPillars.length) {
-            gsap.fromTo(whyPillars,
-              { y: 35, opacity: 0 },
-              {
-                y: 0,
-                opacity: 1,
-                duration: 0.6,
-                stagger: 0.12,
-                ease: 'power2.out',
-                scrollTrigger: {
-                  trigger: '#why-pillars-container',
-                  start: 'top 85%',
-                  toggleActions: 'play none none none'
-                }
-              }
-            );
-          }
-
-          // 2. File Tree: Split slide-in (Tree from left, Inspector from right)
-          const fileTreeEl = document.getElementById('harness-file-tree');
-          if (fileTreeEl) {
-            const leftTree = fileTreeEl.querySelector('.lg\\:col-span-5');
-            const rightPanel = fileTreeEl.querySelector('.lg\\:col-span-7');
-            if (leftTree) {
-              gsap.fromTo(leftTree,
-                { x: -25, opacity: 0 },
-                {
-                  x: 0,
-                  opacity: 1,
-                  duration: 0.7,
-                  ease: 'power2.out',
-                  scrollTrigger: {
-                    trigger: fileTreeEl,
-                    start: 'top 82%',
-                    toggleActions: 'play none none none'
-                  }
-                }
-              );
-            }
-            if (rightPanel) {
-              gsap.fromTo(rightPanel,
-                { x: 25, opacity: 0 },
-                {
-                  x: 0,
-                  opacity: 1,
-                  duration: 0.7,
-                  ease: 'power2.out',
-                  scrollTrigger: {
-                    trigger: fileTreeEl,
-                    start: 'top 82%',
-                    toggleActions: 'play none none none'
-                  }
-                }
-              );
-            }
-          }
-
-          // 3. Loop Pipeline: Scale-in flow on the rail + terminal rise
-          const pipelineContainer = document.getElementById('pipeline-main-container');
-          if (pipelineContainer) {
-            const rail = document.getElementById('pipeline-rail');
-            const terminalBox = document.getElementById('stage-terminal-box');
-            if (rail) {
-              gsap.fromTo(rail,
-                { y: 20, opacity: 0, scale: 0.98 },
-                {
-                  y: 0,
-                  opacity: 1,
-                  scale: 1,
-                  duration: 0.6,
-                  ease: 'power2.out',
-                  scrollTrigger: {
-                    trigger: pipelineContainer,
-                    start: 'top 85%',
-                    toggleActions: 'play none none none'
-                  }
-                }
-              );
-            }
-            if (terminalBox) {
-              gsap.fromTo(terminalBox,
-                { y: 30, opacity: 0 },
-                {
-                  y: 0,
-                  opacity: 1,
-                  duration: 0.7,
-                  delay: 0.1,
-                  ease: 'power2.out',
-                  scrollTrigger: {
-                    trigger: pipelineContainer,
-                    start: 'top 80%',
-                    toggleActions: 'play none none none'
-                  }
-                }
-              );
-            }
-          }
-
-          // 4. Safeguards Section: Micro-diffs pop-in
-          const safeguardsGrid = document.querySelector('#safeguards .grid');
-          if (safeguardsGrid) {
-            gsap.fromTo(safeguardsGrid,
-              { y: 30, opacity: 0 },
-              {
-                y: 0,
-                opacity: 1,
-                duration: 0.7,
-                ease: 'power2.out',
-                scrollTrigger: {
-                  trigger: '#safeguards',
-                  start: 'top 82%',
-                  toggleActions: 'play none none none'
-                }
-              }
-            );
-          }
-
-          // 5. Ecosystems Polyglot: Rapid cascade on tech badges
-          const ecosystemPills = document.querySelectorAll('#ecosystems button');
-          if (ecosystemPills.length) {
-            gsap.fromTo(ecosystemPills,
-              { y: 15, opacity: 0 },
-              {
-                y: 0,
-                opacity: 1,
-                duration: 0.4,
-                stagger: 0.05,
-                ease: 'power1.out',
-                scrollTrigger: {
-                  trigger: '#ecosystems',
-                  start: 'top 85%',
-                  toggleActions: 'play none none none'
-                }
-              }
-            );
-          }
-
-          // 6. Section Headers: Smooth subtle entrance
-          const sectionHeaders = document.querySelectorAll('section > div > div.max-w-3xl, section > div > div.max-w-2xl');
-          sectionHeaders.forEach((hdr) => {
-            gsap.fromTo(hdr,
-              { y: 20, opacity: 0 },
-              {
-                y: 0,
-                opacity: 1,
-                duration: 0.6,
-                ease: 'power2.out',
-                scrollTrigger: {
-                  trigger: hdr,
-                  start: 'top 88%',
-                  toggleActions: 'play none none none'
-                }
-              }
-            );
-          });
-
-        }
-      });
+    <script>
+      import '../scripts/copy.js';
     </script>
   </body>
 </html>

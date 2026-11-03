@@ -29,3 +29,6 @@ GEMINI.md
 .clckernel.resolved.json
 .clc-forge.resolved.json
 .husky/_/
+
+# Local AI agent tooling (preview configs, settings)
+.claude/
