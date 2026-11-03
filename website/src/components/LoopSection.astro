@@ -38,7 +38,7 @@ const steps = isEs ? [
           <h3 class="md:col-span-3 text-xl font-semibold tracking-[-0.02em]">{s.name}</h3>
           <p class="md:col-span-5 text-fog leading-relaxed">{s.summary}</p>
           <p class="md:col-span-3 mono-label flex flex-wrap gap-x-4 gap-y-1">
-            <span class:list={[s.who === 'You' || s.who === 'Tú' ? 'text-signal' : 'text-paper']}>{s.who}</span>
+            <span class:list={[s.who === 'You' || s.who === 'Tú' ? 'text-accent' : 'text-paper']}>{s.who}</span>
             {s.pills.map((p) => <span class="text-fog">{p}</span>)}
           </p>
         </li>

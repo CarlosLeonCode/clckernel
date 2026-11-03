@@ -23,7 +23,7 @@ const facts = t['strip'] as string[];
     <div class="py-28 md:py-40">
       <h2 id="cta-title" class="display text-[clamp(2.5rem,6vw,5.5rem)]">
         <span class="block">{t['cta.line1']}</span>
-        <span class="block text-signal">{t['cta.line2']}</span>
+        <span class="block text-accent">{t['cta.line2']}</span>
       </h2>
       <div class="mt-12 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
         <CommandCopy lang={lang} />
@@ -38,5 +38,5 @@ const facts = t['strip'] as string[];
 </section>
 
 <style>
-  .fact-dot { width: 6px; height: 6px; background: var(--color-signal); border-radius: 1px; display: inline-block; }
+  .fact-dot { width: 6px; height: 6px; background: var(--color-amber); border-radius: 1px; display: inline-block; }
 </style>

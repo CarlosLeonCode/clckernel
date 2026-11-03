@@ -65,14 +65,57 @@ function whenIdle(fn) {
   else setTimeout(fn, 300);
 }
 
+// ---- Story: the chapter in view picks the camera shot ----
+// The figure sticks (CSS) only once the scene is live; until then, and
+// without WebGL, every chapter shows its own static panel.
+function startStory(api) {
+  const story = document.querySelector('[data-story]');
+  const chapters = [...document.querySelectorAll('[data-chapter]')];
+  if (!story || !chapters.length) return;
+  story.classList.add('is-live');
+  const triggers = [];
+  const activate = (n) => {
+    chapters.forEach((el, i) => el.classList.toggle('is-active', i + 1 === n));
+    api.setChapter(n);
+  };
+  // On phones the figure covers the top of the screen, so a chapter counts as
+  // "in view" lower down.
+  const line = window.matchMedia('(min-width: 1024px)').matches ? 62 : 85;
+  chapters.forEach((el, i) => {
+    triggers.push(ScrollTrigger.create({
+      trigger: el,
+      start: `top ${line}%`,
+      end: `bottom ${line}%`,
+      onEnter: () => activate(i + 1),
+      onEnterBack: () => activate(i + 1),
+      onLeaveBack: i === 0 ? () => activate(0) : undefined,
+    }));
+  });
+  api.onLost = () => {
+    triggers.forEach((t) => t.kill());
+    story.classList.remove('is-live');
+    chapters.forEach((el) => el.classList.remove('is-active'));
+    ScrollTrigger.refresh();
+  };
+  ScrollTrigger.refresh();
+  const current = chapters.findIndex((el) => {
+    const r = el.getBoundingClientRect();
+    return r.top < window.innerHeight * (line / 100) && r.bottom > window.innerHeight * (line / 100);
+  });
+  activate(current + 1);
+}
+
 if (shouldLoad3D()) {
   const start = () => {
     const io = new IntersectionObserver((entries) => {
       if (!entries.some((e) => e.isIntersecting)) return;
       io.disconnect();
       import('./gate-scene.js')
-        .then((mod) => mod.mountGate(figure))
-        .catch(() => { /* keep the static figure */ });
+        .then((mod) => {
+          const api = mod.mountGate(figure);
+          if (api) startStory(api);
+        })
+        .catch(() => { /* keep the static figure and panels */ });
     }, { rootMargin: '200px' });
     io.observe(figure);
   };

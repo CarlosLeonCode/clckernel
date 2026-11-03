@@ -19,6 +19,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Website: a new plain-language home page (EN `/`, ES `/es/`) with a lazy-loaded three.js figure and GSAP
   motion, and a separate technical page (`/how-it-works`, `/es/how-it-works`) holding the loop, guards, stacks,
   file anatomy, quickstart, known limits and glossary. The unused `ogl` background was removed.
+- Website: the brand logo's palette (sky blue accent, amber used sparingly) replaces the lime accent; the lion
+  head is the nav mark and favicon; social cards use `images/brand/og.jpg`. The hero figure is now one
+  interactive three.js scene that follows a four-chapter story as the page scrolls (one rulebook, your AI
+  works, every change is checked, you approve what matters): visitors send good, risky or needs-approval
+  changes and approve waiting ones. Without WebGL, with reduced motion or with Save-Data each chapter shows a
+  static illustration instead.
 
 ### Fixed
 

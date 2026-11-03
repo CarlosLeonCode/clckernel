@@ -1,13 +1,14 @@
 @import "tailwindcss";
 
 /*
- * CLC Kernel visual language
+ * CLC Kernel visual language (taken from the brand logo)
  * - ink: warm near-black for the dark bands (hero, technical bands, footer)
  * - paper: warm off-white for the editorial bands
- * - signal: the single accent. A green-yellow "pass" light: it reads as
- *   "checked / allowed through" to anyone, it is not the reference's red,
- *   and it holds 14:1 on ink. On paper it is only used as a fill behind
- *   ink text; text that must look "accent" on paper uses signal-ink.
+ * - accent: the logo's sky blue, the single primary accent. 8.5:1 on ink.
+ *   On paper it is only a fill behind ink text or a non-text mark; text that
+ *   must look "accent" on paper uses accent-ink.
+ * - amber: the lion's mane. Used sparingly (one highlight, one detail),
+ *   always as a fill behind ink text, never as text.
  */
 @theme {
   --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -20,21 +21,24 @@
   --color-paper-2: #e7e3d9;
   --color-fog: #a5a198;      /* secondary text on ink: 7.5:1 */
   --color-stone: #59554d;    /* secondary text on paper: 6.4:1 */
-  --color-signal: #b8f03f;
-  --color-signal-ink: #3a6000; /* accent-coloured text on paper: 6.4:1 */
+  --color-accent: #04b8f7;   /* sky blue: 8.5:1 on ink; ink on it: 8.5:1 */
+  --color-accent-hi: #5ccdfa; /* hover fill: ink on it 10.6:1 */
+  --color-accent-ink: #005b85; /* accent-coloured text on paper: 6.5:1 (5.8:1 on paper-2) */
+  --color-amber: #f0c048;    /* fill only: ink on it 11.4:1 */
 
-  /* Legacy cyan utilities (docs pages) are remapped onto the signal scale. */
-  --color-cyan-50: #f3fbdf;
-  --color-cyan-100: #e4f6b9;
-  --color-cyan-200: #d0ee8c;
-  --color-cyan-300: #b9e35c;
-  --color-cyan-400: #9ccf38;
-  --color-cyan-500: #7fb321;
-  --color-cyan-600: #557d0f;
-  --color-cyan-700: #46680b;
-  --color-cyan-800: #385308;
-  --color-cyan-900: #2d4307;
-  --color-cyan-950: #1d2c04;
+  /* Legacy cyan utilities (docs pages) are remapped onto the logo's sky blue.
+     Text shades on white/slate-50: 700 5.3:1, 800 7.4:1, 900 on 100 8.1:1. */
+  --color-cyan-50: #ecf9ff;
+  --color-cyan-100: #d4f1fe;
+  --color-cyan-200: #a8e3fd;
+  --color-cyan-300: #6fd1fb;
+  --color-cyan-400: #2fc1f9;
+  --color-cyan-500: #04b8f7;
+  --color-cyan-600: #0092c7;
+  --color-cyan-700: #00739e;
+  --color-cyan-800: #005b85;
+  --color-cyan-900: #004a6b;
+  --color-cyan-950: #002f45;
 }
 
 @layer base {
@@ -66,12 +70,12 @@
   code, pre, kbd, samp { font-family: var(--font-mono); }
 
   ::selection {
-    background-color: var(--color-signal);
+    background-color: var(--color-accent);
     color: var(--color-ink);
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-signal);
+    outline: 2px solid var(--color-accent);
     outline-offset: 3px;
     border-radius: 2px;
   }
@@ -161,7 +165,7 @@
     gap: 0.45rem;
     padding: 0 1.1rem;
     min-height: 48px;
-    background: var(--color-signal);
+    background: var(--color-accent);
     color: var(--color-ink);
     font-family: var(--font-sans);
     font-weight: 600;
@@ -169,7 +173,7 @@
     cursor: pointer;
     transition: background-color 150ms var(--ease-out), transform 150ms var(--ease-out);
   }
-  .cmd__btn:hover { background: #cdf76f; }
+  .cmd__btn:hover { background: var(--color-accent-hi); }
   .cmd__btn:active { transform: scale(0.97); }
   .cmd__btn:focus-visible { outline-offset: -4px; outline-color: var(--color-ink); }
   @media (max-width: 400px) {

@@ -48,7 +48,7 @@ npm run preview
 website/
 ├── astro.config.mjs         # Astro configuration with i18n routing (en/es)
 ├── package.json             # Website dependencies (Astro, Tailwind v4, three, gsap)
-├── public/                  # Static assets, CNAME, sitemap.xml, robots.txt, favicon.svg
+├── public/                  # Static assets, CNAME, sitemap.xml, robots.txt, apple-touch-icon.png, images/brand/ (logo, favicons, og.jpg)
 └── src/
     ├── components/
     │   ├── CommandCopy.astro        # Install command with copy-to-clipboard button
