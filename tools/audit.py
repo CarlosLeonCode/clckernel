@@ -650,7 +650,7 @@ def _print_hook_summary(results: list[dict]) -> None:
         print(f"clckernel: {status} {result.get('name', 'unknown')}: {data.get('message', '')}")
         if not _is_failed(result):
             continue
-        details = _violation_lines(data) or [l for l in (result.get("output") or "").rstrip().split("\n") if l]
+        details = _violation_lines(data) or [ln for ln in (result.get("output") or "").rstrip().split("\n") if ln]
         for line in details:
             print(f"    {line}")
 

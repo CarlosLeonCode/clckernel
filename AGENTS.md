@@ -42,6 +42,9 @@ AI-governance harness (Node >= 18, CommonJS, one runtime dependency: `@clack/pro
 ## 3. Repository rules
 - **Known hashes:** after changing anything under `tools/` or `.agents/skills/clckernel_cli/`, run
   `node scripts/build-known-hashes.js` (a test fails until `src/known-hashes.json` is rebuilt).
+- **Lint pragmas:** `writeManaged` (src/io.js) prefixes every kernel-owned JS/Python file it writes with the
+  file-level pragmas in `src/managed-header.js`; never add them to the sources in `tools/`. Keep those sources
+  clean under the common default rule sets (`test/managed_lint_pragmas.test.js`).
 - **Golden snapshot:** `test/fixtures/single_stack_snapshot.json` pins what single-stack installs write
   (config, hook, AGENTS.md, tools/). Regenerate it only deliberately, check the diff is exactly the intended
   change, and note why in `test/parts_single_stack.test.js`.

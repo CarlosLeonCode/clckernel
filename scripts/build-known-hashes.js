@@ -10,6 +10,10 @@
  * edited one is protected. Run it after changing anything under tools/ or the
  * skill: `node scripts/build-known-hashes.js` (a test fails until you do).
  *
+ * Each version is recorded raw and, for JS/Python files, with the kernel-owned
+ * lint pragmas install writes into them (src/managed-header.js): releases up to
+ * 2.0.3 installed the raw bytes, later ones the bytes with the header.
+ *
  * Keys are the paths the file has in a consumer project. Files of the skill's
  * old name (clc_forge_cli) are also recorded under clckernel_cli, since older
  * releases installed the same bytes in both directories.
@@ -18,6 +22,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
+const { withManagedHeader } = require('../src/managed-header');
 
 const ROOT = path.join(__dirname, '..');
 const OUT = path.join(ROOT, 'src', 'known-hashes.json');
@@ -57,6 +62,7 @@ function build() {
     if (!key) return;
     if (!table.has(key)) table.set(key, new Set());
     table.get(key).add(sha256(bytes));
+    table.get(key).add(sha256(withManagedHeader(key, bytes)));
   };
 
   // Every path that ever existed under the sources, deleted ones included.

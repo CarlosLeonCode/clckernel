@@ -43,6 +43,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { stripVTControlCharacters } = require('util');
 const { changedFiles, listFiles, managedFiles, pureRenames, projectConfig, globMatcher } = require('./_changes');
 
 const NAME = 'verify_tdd';
@@ -595,11 +596,11 @@ function nodeTestCount(output, tree, files) {
  * that count, the number of tests executed.
  */
 function runTests(tree, runner) {
-  const env = { ...process.env, NODE_ENV: 'test' };
-  for (const key of CALLER_GIT_ENV) delete env[key];
-  // Set when the verifier itself runs under node --test; a child that inherits
-  // it skips running its files ("run() is being called recursively").
-  delete env.NODE_TEST_CONTEXT;
+  // NODE_TEST_CONTEXT is set when the verifier itself runs under node --test; a
+  // child that inherits it skips running its files ("run() is being called recursively").
+  const dropped = new Set([...CALLER_GIT_ENV, 'NODE_TEST_CONTEXT']);
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !dropped.has(key)));
+  env.NODE_ENV = 'test';
   // An interactive terminal propagates FORCE_COLOR to child processes; colour
   // codes would break the summary parsing below, so ask runners for plain text.
   env.FORCE_COLOR = '0';
@@ -616,7 +617,7 @@ function runTests(tree, runner) {
       shell: process.platform === 'win32' && /\.(cmd|bat)$/i.test(command),
     });
     // Strip ANSI escape codes from runners that colour output regardless.
-    output += `${res.stdout || ''}${res.stderr || ''}`.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '');
+    output += stripVTControlCharacters(`${res.stdout || ''}${res.stderr || ''}`);
     timedOut = Boolean(res.error && res.error.code === 'ETIMEDOUT');
     if (res.error && !timedOut) output += res.error.message;
     if (res.error || res.status !== 0) break;

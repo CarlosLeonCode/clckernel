@@ -16,7 +16,6 @@ from __future__ import annotations
 import ast
 import json
 import os
-import re
 import sys
 
 # Sibling helper shipped next to the guards; works both as a script and when

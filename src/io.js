@@ -15,6 +15,9 @@
  *   version the kernel published (known-hashes) -> overwrite
  *   anything else                              -> keep it, write <file>.clckernel-new
  *
+ * JS and Python files get the kernel-owned lint pragmas (src/managed-header.js)
+ * before the rule is applied, so install and update write the same bytes.
+ *
  * The registry (tools/.clckernel-managed.json) records, per owned file, the
  * sha256 of what the kernel last wrote: { kernelVersion, files: [{ path, sha256 }] }.
  * The older format (a sorted array of paths) is still read; it carries no hashes.
@@ -27,6 +30,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
+const { withManagedHeader } = require('./managed-header');
 
 const MANAGED_REGISTRY = 'tools/.clckernel-managed.json';
 const NEW_SUFFIX = '.clckernel-new';
@@ -192,7 +196,8 @@ function createIO({ root, dryRun = false, knownHashes = loadKnownHashes(), mode:
   }
 
   /**
-   * Writes a kernel-owned file under the ownership rule.
+   * Writes a kernel-owned file under the ownership rule, with the kernel-owned
+   * lint pragmas when it is a JS or Python file (src/managed-header.js).
    * @param {string} relPath - Path relative to the project root
    * @param {string|Buffer} content
    * @param {{ mode?: string }} [options]
@@ -202,7 +207,7 @@ function createIO({ root, dryRun = false, knownHashes = loadKnownHashes(), mode:
     const relKey = toPosix(relPath);
     const dest = abs(relKey);
     if (excluded(dest)) return 'excluded';
-    const bytes = Buffer.isBuffer(content) ? content : Buffer.from(String(content), 'utf-8');
+    const bytes = withManagedHeader(relKey, Buffer.isBuffer(content) ? content : Buffer.from(String(content), 'utf-8'));
     const sha = sha256(bytes);
     const prior = decisions.get(relKey);
     if (prior && prior.sha === sha) return prior.status;

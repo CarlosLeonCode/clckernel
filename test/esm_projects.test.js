@@ -182,14 +182,16 @@ describe('verify_tdd.js and the kernel tools/package.json', () => {
   });
 });
 
-describe('Next steps after install name the linter exclusion', () => {
+describe('Next steps after install: CommonJS marker and no linter exclusion', () => {
   const { nextStepsLines } = require('../src/ui');
   const hook = { file: '.githooks/pre-commit', active: true };
 
   it('when tools/package.json was installed', () => {
-    const text = nextStepsLines(hook, { written: ['tools/package.json'], unchanged: [] }).join('\n');
+    const text = nextStepsLines(hook, { written: ['tools/package.json', 'tools/audit.js'], unchanged: [] }).join('\n');
     assert.match(text, /tools\/ is CommonJS \(tools\/package\.json\)/);
-    assert.match(text, /add tools\/\*\* to its ignores/);
+    // sdds/managed-lint-pragmas: ignoring tools/** would also hide tools/guards/.
+    assert.match(text, /lint pragmas/);
+    assert.doesNotMatch(text, /add tools\/\*\* to its ignores/);
   });
 
   it('not when no JS tools were installed', () => {

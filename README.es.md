@@ -400,11 +400,17 @@ Go/Cargo/Composer (sus partes solo se detectan por los directorios convencionale
 
 - **Windows no está probado.** El hook de pre-commit es un script de shell (`#!/usr/bin/env bash`, o `sh`
   con Husky): en Windows necesita un bash/sh como Git Bash.
-- **La configuración propia de lint-staged / ESLint puede analizar los archivos del arnés en `tools/`.** Los
-  archivos del kernel están listados en `tools/.clckernel-managed.json`; conviene excluir `tools/` (o esas rutas)
-  en la configuración del linter. Los guards son CommonJS, así que las reglas contra `require` (p. ej.
-  `@typescript-eslint/no-require-imports` de `eslint-config-next`) los reportan: agregá `tools/**` a los ignores
-  del linter.
+- **Los archivos del kernel se declaran ante tus linters; los formatters no están cubiertos.** Cada archivo JS y
+  Python que el kernel escribe en `tools/` empieza con pragmas de archivo: `/* eslint-disable */` (ESLint,
+  oxlint), `// biome-ignore-all lint:` (Biome 2) y `// @ts-nocheck` (TypeScript `checkJs`); `# ruff: noqa`,
+  `# flake8: noqa`, `# pylint: skip-file`, `# mypy: ignore-errors`, `# isort: skip_file` y `# fmt: off`
+  (black, ruff format). La configuración del linter no necesita ignorar `tools/`, y `tools/guards/` (tu código)
+  se sigue analizando. Huecos: Prettier y el formatter de Biome no tienen exclusión por archivo, así que si formatean
+  `tools/` agregá las rutas de `tools/.clckernel-managed.json` a `.prettierignore` / `files.includes` de Biome;
+  ESLint 9 reporta como warning un `eslint-disable` general que no suprime nada y `eslint --fix` (p. ej. desde lint-staged) lo
+  borra (solo
+  cuando tu configuración no reporta nada en ese archivo); `PGH004` de ruff (incluida en `ALL`) reporta el
+  `noqa` general.
 - **Proyectos con `"type": "module"`.** Los guards corren como CommonJS sea cual sea el tipo de módulo del
   proyecto: cuando install o update ponen un archivo JS en `tools/`, también escriben `tools/package.json`
   (`{ "type": "commonjs" }`), un archivo del kernel listado en el registro. Un `tools/package.json` propio se

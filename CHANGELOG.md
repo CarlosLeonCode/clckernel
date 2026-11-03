@@ -28,6 +28,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Kernel files no longer break the project's linters. Every JS and Python file install and update write into
+  `tools/` starts with file-level pragmas that declare it kernel-owned (`/* eslint-disable */`,
+  `// biome-ignore-all lint:`, `// @ts-nocheck`; `# ruff: noqa`, `# flake8: noqa`, `# pylint: skip-file`,
+  `# mypy: ignore-errors`, `# isort: skip_file`, `# fmt: off`), added by the single write point for kernel files
+  (`src/managed-header.js`, `writeManaged`), so the registry hash is what is on disk and the project's linter
+  config is never edited. Project files (`tools/guards/`, `.clckernel.yaml`, `AGENTS.md`) get none, and the
+  install's Next steps no longer tell to ignore `tools/**`. `update` from 2.0.3 rewrites intact kernel files with
+  the header (registry or known hashes) and protects only locally edited ones. Real findings fixed in the shipped
+  tools: `audit.js` declared a local named `module` (Next.js `no-assign-module-variable`), an unused `REPO_ROOT`
+  and empty `catch` blocks; `check_skills.js` had a literal BOM in a regex; `verify_tdd.js` used a dynamic
+  `delete` and a control character in a regex (now `util.stripVTControlCharacters`); `audit.py` an ambiguous
+  name `l`; `celery_guard.py` f-strings without placeholders; `check_architecture.py` an unused `re` import.
 - Projects with `"type": "module"` in `package.json`: install and update write `tools/package.json`
   (`{ "type": "commonjs" }`, kernel-owned, listed in `tools/.clckernel-managed.json`; a project file is kept)
   whenever a JS file goes into `tools/`, so the CommonJS guards and the pre-commit hook no longer crash with

@@ -46,7 +46,7 @@ function unquote(value) {
  * @returns {Record<string, string>|null} null when there is no frontmatter block
  */
 function parseFrontmatter(text) {
-  const lines = text.replace(/^﻿/, '').split(/\r?\n/);
+  const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
   if (lines[0].trim() !== '---') return null;
   const end = lines.findIndex((line, i) => i > 0 && /^(---|\.\.\.)\s*$/.test(line));
   if (end < 0) return null;

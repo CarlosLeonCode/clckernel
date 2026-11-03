@@ -397,10 +397,16 @@ workspaces (their parts are found only through the conventional directories).
 
 - **Windows is not tested.** The pre-commit hook is a shell script (`#!/usr/bin/env bash`, or `sh` under
   Husky): on Windows it needs a bash/sh such as Git Bash.
-- **Your own lint-staged / ESLint config may lint the harness files under `tools/`.** The kernel's files are
-  listed in `tools/.clckernel-managed.json`; exclude `tools/` (or those paths) in your linter config. The guards
-  are CommonJS, so rules against `require` (e.g. `@typescript-eslint/no-require-imports` in `eslint-config-next`)
-  report them: add `tools/**` to the linter's ignores.
+- **Kernel files declare themselves to your linters; formatters are not covered.** Every JS and Python file the
+  kernel writes into `tools/` starts with file-level pragmas: `/* eslint-disable */` (ESLint, oxlint),
+  `// biome-ignore-all lint:` (Biome 2) and `// @ts-nocheck` (TypeScript `checkJs`); `# ruff: noqa`,
+  `# flake8: noqa`, `# pylint: skip-file`, `# mypy: ignore-errors`, `# isort: skip_file` and `# fmt: off`
+  (black, ruff format). Your linter config needs no `tools/` ignore, and `tools/guards/` (your code) stays
+  linted. Gaps: Prettier and Biome's formatter have no file-level opt-out, so list the paths in
+  `tools/.clckernel-managed.json` in `.prettierignore` / Biome's `files.includes` if they format `tools/`;
+  ESLint 9 reports a blanket `eslint-disable` that suppresses nothing as a warning and `eslint --fix` (e.g. from
+  lint-staged) deletes it (only when your config reports nothing in that file); ruff's `PGH004` (selected by `ALL`) reports the
+  blanket `noqa`.
 - **Projects with `"type": "module"`.** The guards run as CommonJS whatever the project's module type: when
   install or update puts a JS file in `tools/`, it also writes `tools/package.json` (`{ "type": "commonjs" }`),
   a kernel-owned file listed in the registry. A `tools/package.json` of your own is kept (the kernel's version

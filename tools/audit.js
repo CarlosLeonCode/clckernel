@@ -32,7 +32,6 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
-const REPO_ROOT = path.resolve(__dirname, '..');
 const LENSES = ['correctness', 'security', 'architecture', 'performance'];
 const PROJECT_GUARD_RUNNERS = { '.js': process.execPath, '.py': 'python3' };
 const MAX_BUFFER = 64 * 1024 * 1024;
@@ -107,7 +106,9 @@ function getLensForGuard(guardName) {
     const { lensFor } = require('../src/catalog');
     const lens = lensFor(guardName);
     if (lens) return lens;
-  } catch {}
+  } catch {
+    // src/catalog.js exists only inside the kernel package: use LENS_MAP.
+  }
   return LENS_MAP[guardName] || 'architecture';
 }
 
@@ -212,8 +213,8 @@ function planGuards(toolsDir) {
   const top = regularFiles(toolsDir).filter(f => isGuardFile(f) && exts.has(path.extname(f)));
   for (const name of top) {
     const file = path.join(toolsDir, name);
-    const module = path.extname(name) === OWN_EXT && exportsModule(file);
-    plan.push({ file, label: name, mode: module ? 'module' : 'process' });
+    const inProcess = path.extname(name) === OWN_EXT && exportsModule(file);
+    plan.push({ file, label: name, mode: inProcess ? 'module' : 'process' });
   }
   for (const file of discoverProjectGuards(toolsDir).filter(f => exts.has(path.extname(f)))) {
     plan.push({ file, label: `guards/${path.basename(file)}`, mode: 'process' });
@@ -244,7 +245,9 @@ function parseGuardJson(stdout) {
     try {
       const value = JSON.parse(candidate);
       if (value && typeof value === 'object' && !Array.isArray(value)) return value;
-    } catch {}
+    } catch {
+      // Not JSON: try the next candidate.
+    }
   }
   return null;
 }
@@ -544,13 +547,17 @@ function generateReceipt(results, targetDir) {
   try {
     const { execSync } = require('child_process');
     commitHash = execSync('git rev-parse HEAD', { cwd: targetDir, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf-8' }).trim();
-  } catch {}
+  } catch {
+    // Not a git repository or no commit yet: keep 'UNKNOWN'.
+  }
 
   try {
     const { execSync } = require('child_process');
     execSync('which gentle-ai', { stdio: 'ignore' });
     gentleAiDetected = true;
-  } catch {}
+  } catch {
+    // gentle-ai is not installed.
+  }
 
   return {
     $schema: 'https://clckernel.dev/schemas/audit-receipt.v1.json',

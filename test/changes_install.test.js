@@ -13,6 +13,7 @@ const { createTmpProject, teardown, withRegistry } = require('./helpers');
 const { generateHarness } = require('../src/generator');
 const { updateHarness } = require('../src/updater');
 const { autoDetectStack } = require('../src/detector');
+const { withManagedHeader } = require('../src/managed-header');
 
 const TOOLS = path.resolve(__dirname, '..', 'tools');
 function assertHelpersInstalled(dir, helpers = ['_changes.js', '_changes.py']) {
@@ -21,7 +22,8 @@ function assertHelpersInstalled(dir, helpers = ['_changes.js', '_changes.py']) {
     assert.ok(fs.existsSync(installed), `tools/${file} must be installed`);
     assert.strictEqual(
       fs.readFileSync(installed, 'utf-8'),
-      fs.readFileSync(path.join(TOOLS, file), 'utf-8'),
+      // Installed with the kernel-owned lint pragmas (sdds/managed-lint-pragmas).
+      withManagedHeader(`tools/${file}`, fs.readFileSync(path.join(TOOLS, file))).toString('utf-8'),
       `tools/${file} must match the bundled copy`
     );
   }

@@ -14,6 +14,7 @@ const { createTmpProject, teardown, git } = require('./helpers');
 const { autoDetectStack } = require('../src/detector');
 const { generateHarness } = require('../src/generator');
 const { updateHarness } = require('../src/updater');
+const { withManagedHeader } = require('../src/managed-header');
 
 const ROOT = path.resolve(__dirname, '..');
 const CLI = path.join(ROOT, 'bin', 'cli.js');
@@ -28,7 +29,9 @@ const write = (dir, rel, content) => {
   fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
   fs.writeFileSync(path.join(dir, rel), content);
 };
-const bundled = (rel) => fs.readFileSync(path.join(ROOT, rel));
+// What install writes for a bundled file: JS/Python files gain the kernel-owned
+// lint pragmas (sdds/managed-lint-pragmas).
+const bundled = (rel) => withManagedHeader(rel, fs.readFileSync(path.join(ROOT, rel)));
 const quietly = (fn) => {
   const { log, warn } = console;
   console.log = () => {};

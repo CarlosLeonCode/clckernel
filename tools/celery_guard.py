@@ -54,7 +54,7 @@ class CeleryVisitor(ast.NodeVisitor):
                         self._add_violation(
                             node.lineno or 0,
                             "hardcoded_broker_url",
-                            f"Celery broker_url directly in code"
+                            "Celery broker_url directly in code"
                         )
                 if keyword.arg == 'result_backend':
                     if not isinstance(keyword.value, ast.Constant) or keyword.value.value is None:
@@ -65,7 +65,7 @@ class CeleryVisitor(ast.NodeVisitor):
                             self._add_violation(
                                 node.lineno or 0,
                                 "hardcoded_result_backend",
-                                f"Celery result_backend directly in code"
+                                "Celery result_backend directly in code"
                             )
 
         # Check for @shared_task or @celery.task decorators
