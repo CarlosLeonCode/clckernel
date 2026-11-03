@@ -19,20 +19,29 @@ export const NODES = [
 export const TRACK = { start: -4.6, end: 5.9, half: 0.42 };
 export const CHAMBER = { x: -2.6, w: 1.0, d: 1.0, h: 0.92 };
 export const ARCH = { outer: 0.9, top: 2.05, inner: 0.66, innerTop: 1.7, depth: 0.26, bevel: 0.035 };
+// Reject bay: three slots 0.96 apart (a tile is 0.78 wide), so even a tile
+// turned slightly keeps a clear gap to its neighbour.
 export const BAY = [
   { x: -1.3, z: -1.1 },
-  { x: -2.18, z: -1.1 },
-  { x: -3.06, z: -1.1 },
+  { x: -2.26, z: -1.1 },
+  { x: -3.22, z: -1.1 },
 ];
+// The post stands at the near end of the approval bay, clear of the first
+// waiting slot; slots keep a gap of at least 15% of a tile.
 export const APPROVAL = {
-  post: { x: 1.25, z: 2.0 },
+  post: { x: 1.05, z: 1.3 },
   slots: [
-    { x: 2.0, z: 1.3 },
-    { x: 2.9, z: 1.3 },
-    { x: 3.8, z: 1.3 },
+    { x: 2.15, z: 1.3 },
+    { x: 3.07, z: 1.3 },
+    { x: 3.99, z: 1.3 },
   ],
 };
-export const QUEUE = { x0: 3.6, step: 0.9, cols: 3, slots: 6 };
+// Saved queue: a flat 3 x 2 grid (no stacking), gaps >= 15% of a tile.
+export const QUEUE = { x0: 3.55, step: 0.92, cols: 3, rows: [-0.37, 0.37], slots: 6 };
+export const queueSlot = (i) => ({
+  x: QUEUE.x0 + (QUEUE.cols - 1 - (i % QUEUE.cols)) * QUEUE.step,
+  z: QUEUE.rows[Math.floor(i / QUEUE.cols) % QUEUE.rows.length],
+});
 
 // Camera per chapter: 0 = overview (hero), 1..4 = the story.
 // keys are the points that must stay in frame.
@@ -55,7 +64,7 @@ export const SHOTS = [
   },
   {
     yaw: -0.45, elev: 0.42,
-    keys: [[0, 2.1, -0.9], [0, 0, 0.9], [1.25, 1.9, 2.3], [0.2, 2.0, 2.5], [-0.6, 0, 0.9], [4.3, 0.9, 1.7], [5.9, 1.0, 0.3], [5.9, 0, -0.3], [0.5, 0, -0.6]],
+    keys: [[0, 2.1, -0.9], [0, 0, 0.9], [1.05, 1.95, 1.6], [0.6, 0, 1.6], [-0.6, 0, 0.9], [4.4, 0.9, 1.7], [5.9, 0.7, 0.7], [5.9, 0, -0.7], [0.5, 0, -0.6]],
   },
 ];
 

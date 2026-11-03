@@ -46,12 +46,13 @@ import {
   ACESFilmicToneMapping,
   SRGBColorSpace,
   MathUtils,
+  Plane,
 } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { gsap } from 'gsap';
 import {
-  TOKEN, PLATE, TOKEN_Y, RULEBOOK, NODES, NODE_Y, NODE_R, TRACK, CHAMBER, ARCH, BAY, APPROVAL, QUEUE, SHOTS,
+  TOKEN, PLATE, TOKEN_Y, RULEBOOK, NODES, NODE_Y, NODE_R, TRACK, CHAMBER, ARCH, BAY, APPROVAL, QUEUE, SHOTS, queueSlot,
   SKY as SKY_HEX, AMBER as AMBER_HEX, RUST as RUST_HEX, RED as RED_HEX, GREEN as GREEN_HEX,
 } from './story-layout.js';
 
@@ -83,7 +84,7 @@ const SCAN_IN = -0.42;
 const SCAN_OUT = 0.42;
 const OUT_X = 1.1;
 const STOP_X = -0.4; // front face meets the scan sheet
-const MIN_GAP = 1.3; // seconds between two changes entering the track
+const MIN_GAP = 1.5; // seconds between two changes entering the track
 const AUTO_GAP = 1.6; // idle cadence
 const QUEUE_MAX = 3;
 const POOL_SIZE = 22;
@@ -139,7 +140,8 @@ export function mountGate(figure) {
   const options = [...figure.querySelectorAll('.gate__opt')];
 
   const renderer = new WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  // Full-bleed canvas: cap the pixel ratio harder on large screens.
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, window.innerWidth >= 768 ? 1.5 : 2));
   renderer.setClearColor(0x000000, 0);
   renderer.toneMapping = ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
@@ -157,7 +159,7 @@ export function mountGate(figure) {
   room.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.(); });
   pmrem.dispose();
 
-  const camera = new PerspectiveCamera(FOV, 1, 0.1, 200);
+  const camera = new PerspectiveCamera(FOV, 1, 0.5, 120);
 
   // Light: warm low key from the front left, cool rim from behind.
   scene.add(new HemisphereLight(0xcfd8e6, 0x08080a, 0.22));
@@ -198,7 +200,7 @@ export function mountGate(figure) {
       uEdge: { value: new Color('#59616c') },
       uPad: { value: new Color('#241c10') },
       uWait: { value: new Color('#121a20') },
-      uGloss: { value: low ? 1.0 : 0.8 },
+      uGloss: { value: low ? 1.0 : 0.86 },
     },
     vertexShader: /* glsl */ `
       varying vec2 vP;
@@ -221,25 +223,26 @@ export function mountGate(figure) {
       void main() {
         vec2 p = vP;
         float dist = length((p - vec2(-1.5, 0.0)) * vec2(0.5, 0.9));
-        float near = 1.0 - smoothstep(3.0, 7.5, dist);
-        float g = (grid(p, 0.5) * 0.6 + grid(p, 0.1) * 0.1) * near;
+        float near = 1.0 - smoothstep(5.0, 16.0, dist);
+        float g = grid(p, 0.5) * 0.6 * near + grid(p, 0.1) * 0.1 * (1.0 - smoothstep(2.0, 6.0, dist));
         float lane = box(p, vec2(${((TRACK.start + TRACK.end) / 2).toFixed(2)}, 0.0), vec2(${((TRACK.end - TRACK.start) / 2).toFixed(2)}, ${TRACK.half.toFixed(2)}), 0.05);
-        float pad = box(p, vec2(-2.18, -1.1), vec2(1.45, 0.38), 0.08);
-        float wait = box(p, vec2(2.9, 1.3), vec2(1.4, 0.38), 0.08);
+        float pad = box(p, vec2(${((BAY[0].x + BAY[2].x) / 2).toFixed(2)}, ${BAY[0].z.toFixed(2)}), vec2(${((BAY[0].x - BAY[2].x) / 2 + 0.55).toFixed(2)}, 0.38), 0.08);
+        float wait = box(p, vec2(${((APPROVAL.slots[0].x + APPROVAL.slots[2].x) / 2).toFixed(2)}, ${APPROVAL.slots[0].z.toFixed(2)}), vec2(${((APPROVAL.slots[2].x - APPROVAL.slots[0].x) / 2 + 0.55).toFixed(2)}, 0.38), 0.08);
+        float saved = box(p, vec2(4.47, 0.0), vec2(1.4, 0.72), 0.08);
         float edgeW = fwidth(p.y) * 1.5;
         float edge = (1.0 - smoothstep(0.0, edgeW, abs(abs(p.y) - ${TRACK.half.toFixed(2)}))) * box(p, vec2(${((TRACK.start + TRACK.end) / 2).toFixed(2)}, 0.0), vec2(${((TRACK.end - TRACK.start) / 2).toFixed(2)}, 1.0), 0.05);
         vec3 col = uInk;
-        col = mix(col, uLane, lane);
+        col = mix(col, uLane, max(lane, saved));
         col = mix(col, uPad, pad);
         col = mix(col, uWait, wait);
         col = mix(col, uLine, g * 0.8);
         col = mix(col, uEdge, edge * 0.85);
-        float a = mix(uGloss, 1.0, smoothstep(2.0, 9.0, dist));
+        float a = mix(uGloss, 1.0, smoothstep(2.0, 8.0, dist));
         gl_FragColor = vec4(col, a);
         #include <colorspace_fragment>
       }`,
   });
-  const floor = new Mesh(new PlaneGeometry(90, 90), floorMat);
+  const floor = new Mesh(new PlaneGeometry(240, 240), floorMat);
   floor.rotation.x = -Math.PI / 2;
   floor.renderOrder = -3;
   world.add(floor);
@@ -248,22 +251,25 @@ export function mountGate(figure) {
   const blob = (w, d, x, z, opacity) => {
     const m = new Mesh(
       new PlaneGeometry(1, 1),
-      new MeshBasicMaterial({ map: radial, color: BLACK, transparent: true, opacity, depthWrite: false }),
+      new MeshBasicMaterial({
+        map: radial, color: BLACK, transparent: true, opacity, depthWrite: false,
+        polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+      }),
     );
     m.rotation.x = -Math.PI / 2;
     m.scale.set(w, d, 1);
-    m.position.set(x, 0.003, z);
+    m.position.set(x, 0.004, z);
     m.renderOrder = -2;
     world.add(m);
     noReflect.push(m);
     return m;
   };
   const floorGlow = (color, x, z, w, d, opacity) => {
-    const mat = additive({ map: radial, color: color.clone(), opacity });
+    const mat = additive({ map: radial, color: color.clone(), opacity, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
     const m = new Mesh(new PlaneGeometry(1, 1), mat);
     m.rotation.x = -Math.PI / 2;
     m.scale.set(w, d, 1);
-    m.position.set(x, 0.004, z);
+    m.position.set(x, 0.008, z);
     m.renderOrder = -1;
     world.add(m);
     noReflect.push(m);
@@ -530,6 +536,7 @@ export function mountGate(figure) {
   const scan = new Mesh(new PlaneGeometry(rimInset * 2 - 0.02, scanH), scanMat);
   scan.position.y = 0.03 + scanH / 2;
   gate.add(scan);
+  noReflect.push(scan);
 
   const markTex = canvasTexture(512, 48, (g, w, h) => {
     g.fillStyle = '#ffffff';
@@ -574,7 +581,7 @@ export function mountGate(figure) {
     post.add(face);
   });
   blob(0.5, 0.5, APPROVAL.post.x, APPROVAL.post.z, 0.6);
-  const waitGlow = floorGlow(WAIT, 2.9, 1.3, 3.6, 1.4, 0.06);
+  const waitGlow = floorGlow(WAIT, (APPROVAL.slots[0].x + APPROVAL.slots[2].x) / 2, APPROVAL.slots[0].z, 3.6, 1.4, 0.06);
 
   // ---- Change tiles: an object pool, created once and reused ----
   const glyphTex = canvasTexture(256, 128, (g, w, h) => {
@@ -605,12 +612,15 @@ export function mountGate(figure) {
     });
     const mesh = new Mesh(tokenGeo, mat);
     mesh.visible = false;
-    const glyphMat = new MeshBasicMaterial({ map: glyphTex, color: 0x34363b, transparent: true, depthWrite: false });
+    const glyphMat = new MeshBasicMaterial({
+      map: glyphTex, color: 0x34363b, transparent: true, depthWrite: false,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+    });
     const glyph = new Mesh(glyphGeo, glyphMat);
     glyph.rotation.x = -Math.PI / 2;
     glyph.position.y = TOKEN.h / 2 + 0.002;
     mesh.add(glyph);
-    const edgeMat = additive({ map: edgeTex, color: AMBER.clone(), opacity: 0 });
+    const edgeMat = additive({ map: edgeTex, color: AMBER.clone(), opacity: 0, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
     const edge = new Mesh(edgeGeo, edgeMat);
     edge.rotation.x = -Math.PI / 2;
     edge.position.y = TOKEN.h / 2 + 0.004;
@@ -624,6 +634,7 @@ export function mountGate(figure) {
       mesh.add(glow);
     }
     world.add(mesh);
+    noReflect.push(mesh);
     const shadow = blob(1.15, 0.85, 0, 0, 0);
     shadow.visible = false;
     pool.push({ mesh, mat, glyphMat, edgeMat, glow, shadow, busy: false, tl: null, held: -1, wait: -1, reason: '' });
@@ -636,6 +647,8 @@ export function mountGate(figure) {
     t.mesh.visible = false;
     t.shadow.visible = false;
     if (t.held >= 0 && heldBy[t.held] === t) { heldBy[t.held] = null; hideTag(t.held); }
+    heldBy.forEach((h, i) => { if (h === t) heldBy[i] = null; });
+    queueBy.forEach((q, i) => { if (q === t) queueBy[i] = null; });
     t.held = -1;
     t.wait = -1;
     t.waiting = false;
@@ -731,52 +744,88 @@ export function mountGate(figure) {
     track(tl);
   };
 
-  // Saved queue: far column first, two layers, then the batch is flushed.
-  let queueNext = 0;
-  let queued = [];
-  const slotPos = (i) => {
-    const col = QUEUE.cols - 1 - (i % QUEUE.cols);
-    return { x: QUEUE.x0 + col * QUEUE.step, y: TOKEN_Y + Math.floor(i / QUEUE.cols) * (TOKEN.h + 0.02) };
+  // Hop to a floor slot: the tile rises above its neighbours (bottom higher
+  // than a resting tile's top), travels, and drops only over its own slot,
+  // so it never cuts through a tile already sitting nearby.
+  const HOP_Y = TOKEN_Y + TOKEN.h + 0.14;
+  const hop = (t, tl, to, at, duration = 0.85, rotY = 0) => {
+    tl.to(t.mesh.position, { x: to.x, z: to.z, duration, ease: 'power2.inOut' }, at)
+      .to(t.mesh.rotation, { y: rotY, duration, ease: 'power2.inOut' }, at)
+      .to(t.mesh.position, {
+        keyframes: [
+          { y: HOP_Y, duration: duration * 0.35, ease: 'power2.out' },
+          { y: HOP_Y, duration: duration * 0.47 },
+          { y: TOKEN_Y, duration: duration * 0.18, ease: 'power2.in' },
+          { y: TOKEN_Y + 0.03, duration: 0.08, ease: 'power1.out' },
+          { y: TOKEN_Y, duration: 0.1, ease: 'power1.in' },
+        ],
+      }, at);
+    return at + duration;
   };
+
+  // Saved queue: a flat grid with reserved slots, so two tiles never share a
+  // place. When every slot is taken, the landed batch lifts away first.
+  const queueBy = new Array(QUEUE.slots).fill(null);
   const flushQueue = () => {
-    const batch = queued;
-    queued = [];
-    batch.forEach((t, i) => {
+    let i = 0;
+    queueBy.forEach((t, slot) => {
+      if (!t || !t.landed) return;
+      queueBy[slot] = null;
       if (t.tl) live.delete(t.tl);
-      const tl = gsap.timeline({ delay: 0.6 + i * 0.06, onComplete: () => release(t) })
+      const tl = gsap.timeline({ delay: 0.2 + i++ * 0.06, onComplete: () => release(t) })
         .to(t.mesh.position, { y: '+=0.35', duration: 0.6, ease: 'power2.in' }, 0)
         .to([t.mat, t.glyphMat, t.edgeMat], { opacity: 0, duration: 0.6, ease: 'power2.in' }, 0);
       if (t.glow) tl.to(t.glow.material, { opacity: 0.6, duration: 0.2 }, 0).to(t.glow.material, { opacity: 0, duration: 0.4 }, 0.2);
       t.tl = track(tl);
     });
   };
-  // Drop a tile into the next queue slot (from wherever it is).
+  const reserveQueue = (t) => {
+    let slot = queueBy.findIndex((q) => !q);
+    if (slot < 0) {
+      flushQueue();
+      slot = queueBy.findIndex((q) => !q);
+    }
+    if (slot < 0) return -1;
+    queueBy[slot] = t;
+    t.landed = false;
+    return slot;
+  };
+  // Drop a tile into a reserved queue slot (from wherever it is).
   const toQueue = (t, tl, at) => {
-    const slot = queueNext;
-    queueNext = (queueNext + 1) % QUEUE.slots;
-    const to = slotPos(slot);
-    const peak = Math.max(to.y, t.mesh.position.y) + 0.5;
-    tl.to(t.mesh.position, { x: to.x, z: 0, duration: 0.85, ease: 'power2.inOut' }, at)
-      .to(t.mesh.rotation, { y: 0, duration: 0.85, ease: 'power2.inOut' }, at)
-      .to(t.mesh.position, {
-        keyframes: [
-          { y: peak, duration: 0.34, ease: 'power2.out' },
-          { y: to.y, duration: 0.42, ease: 'power2.in' },
-          { y: to.y + 0.035, duration: 0.09, ease: 'power1.out' },
-          { y: to.y, duration: 0.13, ease: 'power1.in' },
-        ],
-      }, at)
-      .to(t.mat, { emissiveIntensity: 0.14, duration: 1.4, ease: 'power2.out' }, at + 0.76);
+    const slot = reserveQueue(t);
+    if (slot < 0) {
+      tl.to([t.mat, t.glyphMat, t.edgeMat], { opacity: 0, duration: 0.5 }, at).call(() => release(t), null, at + 0.5);
+      return;
+    }
+    hop(t, tl, queueSlot(slot), at);
+    tl.to(t.mat, { emissiveIntensity: 0.14, duration: 1.4, ease: 'power2.out' }, at + 0.76);
     if (t.glow) tl.to(t.glow.material, { opacity: 0, duration: 1.4, ease: 'power2.out' }, at + 0.76);
     tl.call(() => {
-      queued.push(t);
-      if (slot === QUEUE.slots - 1) flushQueue();
-    }, null, at + 0.76);
+      t.landed = true;
+      if (queueBy.every((q) => q && q.landed)) flushQueue();
+    }, null, at + 0.98);
   };
 
   // Reject bay and approval bay.
   const heldBy = [null, null, null];
-  let heldNext = 0;
+  // A free bay slot, or the oldest occupant fades out early to make room
+  // before the new change arrives (never two tiles in one place).
+  const reserveBay = (t) => {
+    let slot = heldBy.findIndex((h) => !h);
+    if (slot < 0) {
+      let oldest = Infinity;
+      heldBy.forEach((h, i) => { if (h.heldAt < oldest) { oldest = h.heldAt; slot = i; } });
+      const old = heldBy[slot];
+      hideTag(slot);
+      if (old.tl) live.delete(old.tl);
+      old.held = -1;
+      old.tl = track(gsap.timeline({ onComplete: () => release(old) })
+        .to([old.mat, old.glyphMat, old.edgeMat], { opacity: 0, duration: 0.4, ease: 'power2.in' }));
+    }
+    heldBy[slot] = t;
+    t.heldAt = performance.now();
+    return slot;
+  };
   const waitBy = [null, null, null];
   let waitReserved = 0;
   let hovered = -1;
@@ -878,9 +927,8 @@ export function mountGate(figure) {
         t.wait = slot;
         setColor(tl, t.mat.emissive, WAIT, at);
         setColor(tl, t.edgeMat.color, WAIT, at);
+        hop(t, tl, spot, after, 0.9);
         tl.to(t.mat, { emissiveIntensity: 0.25, duration: crawl, ease: 'sine.inOut' }, at)
-          .to(t.mesh.position, { x: spot.x, z: spot.z, duration: 0.9, ease: 'power2.inOut' }, after)
-          .to(t.mesh.position, { keyframes: [{ y: TOKEN_Y + 0.3, duration: 0.4, ease: 'power2.out' }, { y: TOKEN_Y, duration: 0.45, ease: 'power2.in' }] }, after)
           .to(t.edgeMat, { opacity: 0.7, duration: 0.4 }, after + 0.6)
           .call(() => {
             t.waiting = true;
@@ -891,8 +939,7 @@ export function mountGate(figure) {
     } else {
       const inn = ramp(CRUISE, SCAN_SPEED, STOP_X - SLOW_AT);
       const at = cruiseEnd + inn.duration;
-      const slot = heldNext;
-      heldNext = (heldNext + 1) % BAY.length;
+      const slot = reserveBay(t);
       const spot = BAY[slot];
       tl.to(t.mesh.position, { x: STOP_X, duration: inn.duration, ease: inn.ease }, cruiseEnd)
         .call(() => check(AMBER, 0.5), null, at - 0.05)
@@ -900,8 +947,6 @@ export function mountGate(figure) {
           bump('checked');
           bump('stopped', dotStop);
           if (byUser) announce(`${msg.stopped}: ${t.reason}`);
-          if (heldBy[slot]) release(heldBy[slot]);
-          heldBy[slot] = t;
           t.held = slot;
           if (tagEls[slot]) tagEls[slot].textContent = t.reason;
         }, null, at);
@@ -917,14 +962,12 @@ export function mountGate(figure) {
         tl.to(t.glow.material, { opacity: 0.9, duration: 0.08 }, at)
           .to(t.glow.material, { opacity: 0, duration: 1.0, ease: 'power2.out' }, at + 0.2);
       }
-      tl.to(t.mesh.position, { x: STOP_X - 0.32, duration: 0.6, ease: 'elastic.out(1, 0.4)' }, at)
-        .to(t.mesh.rotation, { z: 0.07, duration: 0.1, yoyo: true, repeat: 1, ease: 'power1.inOut' }, at)
-        .to(t.mesh.position, { z: spot.z, duration: 0.5, ease: 'power3.inOut' }, at + 0.2)
-        .to(t.mesh.position, { keyframes: [{ y: TOKEN_Y + 0.24, duration: 0.22, ease: 'power2.out' }, { y: TOKEN_Y, duration: 0.26, ease: 'power2.in' }] }, at + 0.2)
-        .to(t.mesh.position, { x: spot.x, duration: 0.75, ease: 'power3.out' }, at + 0.5)
-        .to(t.mesh.rotation, { y: -0.08, duration: 0.75, ease: 'power3.out' }, at + 0.5)
-        .call(() => showTag(slot, true), null, at + 0.7)
-        .call(() => showTag(slot, false), null, at + 3.4);
+      tl.to(t.mesh.position, { x: STOP_X - 0.18, duration: 0.3, ease: 'elastic.out(1, 0.4)' }, at)
+        .to(t.mesh.rotation, { z: 0.07, duration: 0.1, yoyo: true, repeat: 1, ease: 'power1.inOut' }, at);
+      hop(t, tl, spot, at + 0.3, 0.9, -0.05);
+      tl
+        .call(() => showTag(slot, true), null, at + 1.25)
+        .call(() => showTag(slot, false), null, at + 3.9);
       tint(tl, t.mat.color, RUST, 1.6, at + 1.0);
       tint(tl, t.edgeMat.color, RUST, 1.6, at + 1.0);
       tl.to(t.edgeMat, { opacity: 0.25, duration: 1.6 }, at + 1.0)
@@ -1103,7 +1146,11 @@ export function mountGate(figure) {
     const cr = controls && !controls.hidden ? controls.getBoundingClientRect() : null;
     const sr = stage.getBoundingClientRect();
     const reserved = cr && cr.height ? Math.max(0, sr.bottom - cr.top + 10) : 16;
-    frameBox = { x0: -0.86, x1: 0.86, y0: -1 + (2 * reserved) / height, y1: 0.78 };
+    // Full-bleed on wide screens: the action sits in the right ~55% and the
+    // left stays calm behind the copy. Phones use the whole band.
+    const wide = width >= 1024;
+    const top = wide ? 0.62 : 0.7;
+    frameBox = { x0: wide ? -0.1 : -0.9, x1: wide ? 0.9 : 0.9, y0: Math.min(-1 + (2 * reserved) / height, top - 0.9), y1: top };
     shots = SHOTS.map(fitShot);
     if (camTween) camTween.kill();
     Object.assign(cam, shots[chapter]);
@@ -1131,24 +1178,31 @@ export function mountGate(figure) {
     tmp.copy(v).project(camera);
     return { x: (tmp.x * 0.5 + 0.5) * stageW, y: (-tmp.y * 0.5 + 0.5) * stageH, in: tmp.z < 1 && Math.abs(tmp.x) < 0.98 && Math.abs(tmp.y) < 0.98 };
   };
-  const place = (el, v, show, beside = false) => {
-    const s = toScreen(v);
-    const on = show && s.in;
-    el.classList.toggle('is-on', on);
-    if (on) {
-      el.style.transform = beside
-        ? `translate(${(s.x + 4).toFixed(1)}px, ${s.y.toFixed(1)}px) translate(0, -50%)`
-        : `translate(${s.x.toFixed(1)}px, ${s.y.toFixed(1)}px) translate(-50%, -100%)`;
-    }
-    return on;
-  };
   const stationPoints = [
     new Vector3(RULEBOOK.x, RULEBOOK.y + RULEBOOK.h + 0.25, RULEBOOK.z),
     new Vector3(CHAMBER.x, CHAMBER.h + 0.32, 0),
     new Vector3(0, ARCH.top + 0.25, 0),
-    new Vector3(APPROVAL.post.x, 1.82, APPROVAL.post.z),
-    new Vector3(QUEUE.x0 + QUEUE.step, TOKEN_Y + TOKEN.h * 2 + 0.35, 0),
+    new Vector3(APPROVAL.slots[0].x + 0.35, 1.3, APPROVAL.slots[0].z),
+    new Vector3(QUEUE.x0 + QUEUE.step, TOKEN_Y + TOKEN.h + 0.45, QUEUE.rows[0]),
   ];
+  // Overlay rectangles (screen px) for a simple collision pass: station
+  // labels stay put, reason tags move up out of their way, and a station label
+  // that still collides with a tag or the Approve button is hidden.
+  const sizes = new WeakMap();
+  const sizeOf = (el) => {
+    let sz = sizes.get(el);
+    if (!sz || sz.text !== el.textContent || !sz.w) {
+      sz = { w: el.offsetWidth, h: el.offsetHeight, text: el.textContent };
+      sizes.set(el, sz);
+    }
+    return sz;
+  };
+  const above = (el, s) => {
+    const { w, h } = sizeOf(el);
+    return { x0: s.x - w / 2, x1: s.x + w / 2, y0: s.y - h, y1: s.y };
+  };
+  const hits = (a, b) => a.x0 < b.x1 + 4 && a.x1 > b.x0 - 4 && a.y0 < b.y1 + 3 && a.y1 > b.y0 - 3;
+  const setAbove = (el, x, y) => { el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`; };
   const worldPoint = new Vector3();
   const placeOverlays = () => {
     world.updateMatrixWorld();
@@ -1161,21 +1215,39 @@ export function mountGate(figure) {
       worldPoint.set(NODES[i].x, NODE_Y + 0.04, NODES[i].z + NODE_R).applyMatrix4(world.matrixWorld);
       const e2 = toScreen(worldPoint);
       const reach = Math.max(Math.abs(e.x - c.x), Math.abs(e2.x - c.x));
-      worldPoint.set(NODES[i].x, NODE_Y + 0.04, NODES[i].z).applyMatrix4(world.matrixWorld);
-      const on = place(el, worldPoint, chapter === 1 || chapter === 2, true);
+      const on = (chapter === 1 || chapter === 2) && c.in;
+      el.classList.toggle('is-on', on);
       if (on) el.style.transform = `translate(${(c.x + reach + 6).toFixed(1)}px, ${c.y.toFixed(1)}px) translate(0, -50%)`;
     });
+    const stations = [];
     stationLabels.forEach((el, i) => {
       worldPoint.copy(stationPoints[i]).applyMatrix4(world.matrixWorld);
-      place(el, worldPoint, true);
+      const s = toScreen(worldPoint);
+      // Wide screens keep the left side calm behind the copy: no labels there.
+      if (!s.in || (stageW >= 1024 && s.x < stageW * 0.42)) { el.classList.remove('is-on'); return; }
+      setAbove(el, s.x, s.y);
+      stations.push({ el, r: above(el, s), keep: true });
     });
+    const blockers = [];
     for (let i = 0; i < tagEls.length; i++) {
       const t = heldBy[i];
       const el = tagEls[i];
-      if (!t || !(tagShown[i] || hovered === i)) { el.classList.remove('is-on'); continue; }
+      if (!t || t.held !== i || !(tagShown[i] || hovered === i)) { el.classList.remove('is-on'); continue; }
       t.mesh.getWorldPosition(worldPoint);
       worldPoint.y += TOKEN.h / 2 + 0.16;
-      place(el, worldPoint, true);
+      const s = toScreen(worldPoint);
+      if (!s.in) { el.classList.remove('is-on'); continue; }
+      let r = above(el, s);
+      for (const st of stations) {
+        if (hits(r, st.r)) {
+          const dy = r.y1 - (st.r.y0 - 6);
+          s.y -= dy;
+          r = above(el, s);
+        }
+      }
+      setAbove(el, s.x, s.y);
+      el.classList.add('is-on');
+      blockers.push(r);
     }
     // One Approve button at a time, over the change that has waited longest.
     let first = -1;
@@ -1191,7 +1263,11 @@ export function mountGate(figure) {
       worldPoint.y += TOKEN.h / 2 + 0.42;
       const s = toScreen(worldPoint);
       el.style.visibility = s.in ? 'visible' : 'hidden';
-      el.style.transform = `translate(${s.x.toFixed(1)}px, ${s.y.toFixed(1)}px) translate(-50%, -100%)`;
+      setAbove(el, s.x, s.y);
+      if (s.in) blockers.push(above(el, s));
+    }
+    for (const st of stations) {
+      st.el.classList.toggle('is-on', !blockers.some((b) => hits(b, st.r)));
     }
   };
 
@@ -1209,13 +1285,18 @@ export function mountGate(figure) {
   };
 
   // Two passes: the mirrored scene under a glossy floor, then the scene.
+  // The mirrored pass is clipped at the floor (nothing pokes above y = 0)
+  // and the glossy floor fades it with distance.
   const reflect = !low;
+  const belowFloor = [new Plane(new Vector3(0, -1, 0), 0)];
   const render = () => {
     renderer.clear();
     if (reflect) {
       world.scale.y = -1;
       noReflect.forEach((o) => { o.userData.v = o.visible; o.visible = false; });
+      renderer.clippingPlanes = belowFloor;
       renderer.render(scene, camera);
+      renderer.clippingPlanes = [];
       noReflect.forEach((o) => { o.visible = o.userData.v; });
       world.scale.y = 1;
       renderer.clearDepth();
@@ -1280,6 +1361,10 @@ export function mountGate(figure) {
       cam.dist,
       Math.sin(elapsed * 0.13) * DRIFT + pointer.x * ORBIT,
     );
+    // Depth range fitted to the shot: better precision, no z-fighting.
+    camera.near = Math.max(0.5, cam.dist * 0.25);
+    camera.far = cam.dist * 3 + 40;
+    camera.updateProjectionMatrix();
     placeShadows();
     if (hoverDirty) updateHover();
     render();

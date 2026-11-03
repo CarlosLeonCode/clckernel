@@ -38,7 +38,8 @@ const jsonLd = {
   description,
   license: 'https://opensource.org/licenses/MIT',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-  author: { '@type': 'Person', name: 'Carlos León', url: 'https://www.carlosleoncode.com' },
+  author: { '@type': 'Person', name: 'CarlosLeonCode', url: 'https://www.carlosleoncode.com' },
+  creator: { '@type': 'Person', name: 'CarlosLeonCode', url: 'https://www.carlosleoncode.com' },
 };
 ---
 
@@ -54,6 +55,7 @@ const jsonLd = {
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
     <meta name="description" content={description} />
+    <meta name="author" content="CarlosLeonCode" />
     <meta name="robots" content="index, follow" />
 
     <link rel="canonical" href={canonicalURL} />
@@ -146,7 +148,7 @@ const jsonLd = {
           </ul>
         </div>
         <div class="md:col-span-12 pt-8 border-t rule-ink flex flex-col sm:flex-row justify-between gap-3 mono-label text-fog">
-          <span>MIT · © {new Date().getFullYear()} · {t['footer.by']} <a class="underline hover:text-paper" href="https://www.carlosleoncode.com" rel="noopener noreferrer">CarlosLeonCode</a></span>
+          <span>MIT · © {new Date().getFullYear()} · {t['footer.by']} <a class="underline hover:text-paper" href="https://www.carlosleoncode.com" rel="author noopener" target="_blank">CarlosLeonCode<span class="sr-only"> {t['hero.credit.new']}</span></a></span>
           <span>npx clckernel . --yes</span>
         </div>
       </div>

@@ -3,7 +3,7 @@
 // as the WebGL scene.
 import { isoSvg, type Item, type Shade, type V3 } from './iso';
 import {
-  TOKEN, TOKEN_Y, RULEBOOK, NODES, NODE_Y, NODE_R, TRACK, CHAMBER, ARCH, BAY, APPROVAL, QUEUE, SHOTS,
+  TOKEN, TOKEN_Y, RULEBOOK, NODES, NODE_Y, NODE_R, TRACK, CHAMBER, ARCH, BAY, APPROVAL, QUEUE, SHOTS, queueSlot,
 } from '../../scripts/story-layout.js';
 
 const GRAPHITE: Shade = ['#4a4e56', '#2b2e34', '#383b42'];
@@ -87,17 +87,17 @@ const approvalItems = (label: string): Item[] => {
   return [
     { t: 'box', c: [p.x, 0.6, p.z], s: [0.12, 1.2, 0.12], fill: GRAPHITE },
     { t: 'box', c: [p.x, 1.32, p.z], s: [0.08, 0.5, 0.56], fill: ['#5a5f68', '#bdf1fe', '#3a3e46'], shadow: false },
-    { t: 'label', at: [p.x, 1.75, p.z], text: label, kind: 'plain' },
+    { t: 'label', at: [(p.x + APPROVAL.slots[0].x) / 2 + 0.2, 1.75, p.z], text: label, kind: 'plain' },
   ];
 };
 
 const queueItems = (count: number, label?: string): Item[] => {
   const items: Item[] = [];
   for (let i = 0; i < count; i++) {
-    const col = QUEUE.cols - 1 - (i % QUEUE.cols);
-    items.push(token(QUEUE.x0 + col * QUEUE.step, 0, 'blue', Math.floor(i / QUEUE.cols)));
+    const q = queueSlot(i);
+    items.push(token(q.x, q.z, 'blue'));
   }
-  if (label) items.push({ t: 'label', at: [QUEUE.x0 + QUEUE.step, TOKEN_Y + TOKEN.h * 2 + 0.3, 0], text: label, kind: 'plain' });
+  if (label) items.push({ t: 'label', at: [QUEUE.x0 + QUEUE.step, TOKEN_Y + TOKEN.h + 0.45, QUEUE.rows[0]], text: label, kind: 'plain' });
   return items;
 };
 

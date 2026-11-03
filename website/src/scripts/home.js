@@ -20,7 +20,8 @@ mm.add(
 
     // One authored entrance: the two headline lines rise out of their masks.
     gsap.timeline({ defaults: { ease: 'expo.out' } })
-      .to('.hero-line > span', { y: 0, duration: 1.1, stagger: 0.12 })
+      .to('.hero-credit', { opacity: 1, y: 0, duration: 0.8 })
+      .to('.hero-line > span', { y: 0, duration: 1.1, stagger: 0.12 }, '-=0.55')
       .to('.hero-fade', { opacity: 1, duration: 0.8, stagger: 0.08 }, '-=0.7');
 
     // The statement is read word by word as it scrolls through the viewport.
@@ -91,8 +92,20 @@ function startStory(api) {
       onLeaveBack: i === 0 ? () => activate(0) : undefined,
     }));
   });
+  // The scene fades out before the light section that follows (no hard cut).
+  const bg = story.querySelector('.story__bg');
+  if (bg) {
+    triggers.push(ScrollTrigger.create({
+      trigger: story,
+      start: 'bottom 118%',
+      end: 'bottom 92%',
+      scrub: true,
+      onUpdate: (self) => { bg.style.opacity = String(1 - self.progress); },
+    }));
+  }
   api.onLost = () => {
     triggers.forEach((t) => t.kill());
+    if (bg) bg.style.opacity = '';
     story.classList.remove('is-live');
     chapters.forEach((el) => el.classList.remove('is-active'));
     ScrollTrigger.refresh();

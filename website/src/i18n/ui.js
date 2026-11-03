@@ -107,7 +107,9 @@ export const ui = {
     'footer.product': 'Product',
     'footer.project': 'Project',
     'footer.license': 'MIT license',
-    'footer.by': 'Made by',
+    'footer.by': 'Created by',
+    'hero.credit.by': 'Created by',
+    'hero.credit.new': '(opens in a new tab)',
   },
   es: {
     'skip': 'Saltar al contenido',
@@ -199,7 +201,9 @@ export const ui = {
     'footer.product': 'Producto',
     'footer.project': 'Proyecto',
     'footer.license': 'Licencia MIT',
-    'footer.by': 'Hecho por',
+    'footer.by': 'Creado por',
+    'hero.credit.by': 'Creado por',
+    'hero.credit.new': '(se abre en una pestaña nueva)',
   },
 };
 
