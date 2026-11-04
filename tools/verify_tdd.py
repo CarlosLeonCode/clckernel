@@ -244,6 +244,9 @@ def _tail(text: str) -> str:
 
 def _run_pytest(tree: str, tests: list[str]) -> dict:
     env = dict(os.environ)
+    # The guard identity (_changes.current_guard) belongs to this guard, not to
+    # the project's tests: a test that launches a guard is named by its script.
+    env.pop(_changes.GUARD_ENV, None)
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     # Put the materialized tree ahead of anything installed (e.g. an editable
     # install pointing at the working copy).

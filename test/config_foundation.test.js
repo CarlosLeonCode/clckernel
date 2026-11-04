@@ -57,6 +57,7 @@ const DEFAULTS = {
   update: { exclude: [] },
   tdd: { code: [], ignore: [] },
   severities: {},
+  guard_exclude: {},
 };
 
 // ── 1. Schema ────────────────────────────────────────────────────────────
@@ -588,7 +589,7 @@ describe('item 8: the config readers are installed with the snapshot helpers', (
 // ── 9. Documentation ─────────────────────────────────────────────────────
 
 describe('item 9: the README config tables list every key', () => {
-  const KEYS = ['rules', 'exclude_paths', 'mirrors.list', 'mirrors.required', 'hitl.markers', 'hitl.paths', 'hitl.optOut', 'update.exclude', 'tdd.code', 'tdd.ignore', 'severities'];
+  const KEYS = ['rules', 'exclude_paths', 'mirrors.list', 'mirrors.required', 'hitl.markers', 'hitl.paths', 'hitl.optOut', 'update.exclude', 'tdd.code', 'tdd.ignore', 'severities', 'guard_exclude'];
   for (const file of ['README.md', 'README.es.md']) {
     it(file, () => {
       const text = fs.readFileSync(path.join(ROOT, file), 'utf-8');

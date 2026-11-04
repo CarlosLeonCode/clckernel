@@ -30,7 +30,7 @@ Present detected stack and proposal clearly:
    repository's hooks), the playbooks and the IDE mirrors. Never write the hook by hand.
 2. `.clckernel.yaml` is optional: without it every default applies. Write keys only when the user
    chose a customization, only with the keys the README "Configuration" table lists (`rules`,
-   `exclude_paths`, `mirrors`, `hitl`, `update`, `tdd`, `severities`) and only what differs from the
+   `exclude_paths`, `mirrors`, `hitl`, `update`, `tdd`, `severities`, `guard_exclude`) and only what differs from the
    defaults.
 3. If the user keeps the defaults, write a `.clckernel.yaml` that holds only a comment (for example
    `# CLC Kernel: defaults accepted. Add keys only for settings that differ.`). It parses to the

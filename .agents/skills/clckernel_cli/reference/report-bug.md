@@ -33,7 +33,8 @@ workaround the kernel supports in `.clckernel.yaml`, and say that it is temporar
 | Workaround | When | Example |
 |---|---|---|
 | `severities` | A guard fails on valid code | `severities: { check_a11y: warning }` (the guard still reports, but does not block the commit) |
-| `exclude_paths` | One path triggers the bug | `exclude_paths: ["path/to/affected/**"]` (no diff-based guard evaluates it) |
+| `guard_exclude` | One guard misfires on some paths | `guard_exclude: { scan_secrets: ["path/to/affected/**"] }` (only that guard stops evaluating them; prefer it to `exclude_paths`) |
+| `exclude_paths` | One path triggers the bug in several guards | `exclude_paths: ["path/to/affected/**"]` (no diff-based guard evaluates it) |
 | `update.exclude` | You must keep a local file the kernel would overwrite | `update: { exclude: ["path/to/file"] }` |
 | `tdd.ignore` | The TDD verifier misclassifies a file as production code | `tdd: { ignore: ["path/to/file"] }` |
 

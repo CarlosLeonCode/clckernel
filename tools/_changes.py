@@ -19,6 +19,11 @@ next to this file; an older install without it fails closed when a config file
 appears (run `clckernel update`). An invalid config raises its
 ConfigError: a guard never runs on a config it cannot read.
 
+`guard_exclude` (.clckernel.yaml) drops paths for one guard only: the guard
+running in this process (current_guard), named by CLCKERNEL_GUARD, which the
+audit orchestrators set for every guard they run (in process or not), else by
+the file of the script that was started (a guard run directly).
+
 Self-contained: Python 3.9+ standard library only. Git runs with argument
 lists, never through a shell; paths are read NUL-separated (-z), so spaces and
 non-ASCII names survive.
@@ -34,6 +39,23 @@ from typing import Callable, Optional
 BINARY_PROBE_BYTES = 8000
 MANAGED_REGISTRY = "tools/.clckernel-managed.json"
 CONFIG_NAMES = ('.clckernel.yaml', '.clckernel.yml', '.clc-forge.yaml', '.clc-forge.yml')
+GUARD_ENV = "CLCKERNEL_GUARD"
+
+
+def current_guard() -> Optional[str]:
+    """
+    Name of the guard running in this process, the key of its `guard_exclude`
+    entry: CLCKERNEL_GUARD when set (the audit orchestrators set it), else the
+    file name without extension of the script that was started (scan_secrets
+    for `python3 tools/scan_secrets.py`). None when neither is known.
+    """
+    name = os.environ.get(GUARD_ENV, "").strip()
+    if name:
+        return name
+    script = sys.argv[0] if sys.argv else ""
+    if not script or script in ("-c", "-"):
+        return None
+    return os.path.splitext(os.path.basename(script))[0] or None
 
 
 def project_config(target_dir: Optional[str] = None) -> Optional[dict]:
@@ -95,8 +117,9 @@ def changed_files(target_dir: Optional[str] = None, extensions=None) -> dict:
     List the files added, copied, modified or renamed in the snapshot.
 
     Returns {"mode": "staged" | "last-commit" | None, "files": [...]}, minus
-    the registry-listed files and the config's exclude_paths; when extensions
-    is given, only paths ending in one of them are kept.
+    the registry-listed files, the config's exclude_paths and the running
+    guard's guard_exclude globs; when extensions is given, only paths ending in
+    one of them are kept.
     """
     cwd = str(target_dir or os.getcwd())
     any_staged = _git(cwd, "diff", "--cached", "--name-only", "-z")
@@ -120,11 +143,19 @@ def changed_files(target_dir: Optional[str] = None, extensions=None) -> dict:
 
     managed = _managed_files(cwd, mode)
     config = project_config(cwd)
-    excluded = glob_matcher(config["exclude_paths"] if config else [])
+    excluded = glob_matcher(_excluded_globs(config, current_guard()))
     files = [f for f in _split_nul(out) if f not in managed and not excluded(f)]
     if extensions:
         files = [f for f in files if f.endswith(tuple(extensions))]
     return {"mode": mode, "files": files}
+
+
+def _excluded_globs(config: Optional[dict], guard: Optional[str]) -> list:
+    """The config's exclude_paths plus the guard_exclude globs of `guard`."""
+    if not config:
+        return []
+    per_guard = (config.get("guard_exclude") or {}).get(guard, []) if guard else []
+    return list(config["exclude_paths"]) + list(per_guard)
 
 
 def pure_renames(target_dir: Optional[str], mode: Optional[str]) -> set:
@@ -219,7 +250,9 @@ def list_files(target_dir: Optional[str], mode: Optional[str]) -> list:
     List every file of the snapshot, for whole-repository facts (e.g. a name
     that must be unique, a link target that must exist): the index in staged
     mode, HEAD in last-commit mode. Paths are relative to the repository root
-    and sorted; nothing is excluded. With mode None (no git) nothing is listed.
+    and sorted; nothing is excluded (neither exclude_paths nor guard_exclude:
+    hiding a file here would turn an existing path into a missing one). With
+    mode None (no git) nothing is listed.
     """
     cwd = str(target_dir or os.getcwd())
     if mode == "staged":

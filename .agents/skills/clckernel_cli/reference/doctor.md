@@ -6,7 +6,7 @@ Use this playbook to diagnose environment health, detect hook drift, or verify c
 
 Start with `npx clckernel doctor [dir]`: it checks `AGENTS.md`, `sdds/`, `docs/Journal/`, `tools/`, the pre-commit hook, that `tools/*.js` loads as CommonJS (the nearest `package.json` from `tools/` must not set `"type": "module"`; install writes `tools/package.json` for that), that each `tools/check_*` guard loads (JS) or parses (Python), and the orchestrators' imports. Then:
 
-1. **Config Integrity:** When `.clckernel.yaml` exists, check its keys against the README "Configuration" table (`rules`, `exclude_paths`, `mirrors`, `hitl`, `update`, `tdd`, `severities`); report any invalid value or deprecated key the guards warn about.
+1. **Config Integrity:** When `.clckernel.yaml` exists, check its keys against the README "Configuration" table (`rules`, `exclude_paths`, `mirrors`, `hitl`, `update`, `tdd`, `severities`, `guard_exclude`); report any invalid value or deprecated key the guards warn about.
 2. **Hook Parity:** Check that the hook git runs (`.githooks/pre-commit` with `core.hooksPath=.githooks`, or `.husky/pre-commit` when Husky owns `core.hooksPath`) is executable and calls `node tools/audit.js --hook` and/or `python3 tools/audit.py --hook`.
 3. **Tools & Guards Health:** Run `npx clckernel audit`: it runs every guard the hook runs (kernel guards and project guards in `tools/guards/`).
 4. **Drift Remediation:** If drift is detected, offer automatic fix or report clear steps.

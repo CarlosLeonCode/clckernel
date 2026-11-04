@@ -21,6 +21,11 @@
  * config file appears (run `clckernel update`). An invalid config
  * throws its ConfigError: a guard never runs on a config it cannot read.
  *
+ * `guard_exclude` (.clckernel.yaml) drops paths for one guard only: the guard
+ * running in this process (currentGuard), named by CLCKERNEL_GUARD, which the
+ * audit orchestrators set for every guard they run (in process or not), else
+ * by the file of the script that was started (a guard run directly).
+ *
  * Self-contained: uses only Node.js built-ins. Git runs with argument arrays,
  * never through a shell; paths are read NUL-separated (-z), so spaces and
  * non-ASCII names survive.
@@ -33,6 +38,30 @@ const BINARY_PROBE_BYTES = 8000;
 const MANAGED_REGISTRY = 'tools/.clckernel-managed.json';
 const MAX_BUFFER = 512 * 1024 * 1024;
 const CONFIG_NAMES = ['.clckernel.yaml', '.clckernel.yml', '.clc-forge.yaml', '.clc-forge.yml'];
+const GUARD_ENV = 'CLCKERNEL_GUARD';
+
+/**
+ * Name of the guard running in this process, the key of its `guard_exclude`
+ * entry: CLCKERNEL_GUARD when set (the audit orchestrators set it), else the
+ * file name without extension of the script that was started (scan_secrets
+ * for `node tools/scan_secrets.js`). null when neither is known.
+ * @returns {string|null}
+ */
+function currentGuard() {
+  const name = String(process.env[GUARD_ENV] || '').trim();
+  if (name) return name;
+  const script = require.main && require.main.filename;
+  return script ? path.basename(script, path.extname(script)) || null : null;
+}
+
+/** The config's exclude_paths plus the guard_exclude globs of `guard`. */
+function excludedGlobs(config, guard) {
+  if (!config) return [];
+  const perGuard = guard && config.guard_exclude && Object.prototype.hasOwnProperty.call(config.guard_exclude, guard)
+    ? config.guard_exclude[guard]
+    : [];
+  return [...config.exclude_paths, ...perGuard];
+}
 
 /**
  * The project's validated config (defaults filled in), or null when the
@@ -87,7 +116,8 @@ function hasCommit(dir, rev) {
 
 /**
  * Lists the files added, copied, modified or renamed in the snapshot, minus
- * the registry-listed files and the config's exclude_paths.
+ * the registry-listed files, the config's exclude_paths and the running
+ * guard's guard_exclude globs.
  * @param {string} dir - Directory inside the repository
  * @param {{ extensions?: string[], includeManaged?: boolean }} [options] - Keep only
  *   paths ending in one of `extensions`; `includeManaged` keeps registry-listed paths too
@@ -116,7 +146,7 @@ function changedFiles(dir, { extensions, includeManaged = false } = {}) {
 
   const managed = includeManaged ? new Set() : managedFiles(cwd, mode);
   const config = projectConfig(cwd);
-  const excluded = globMatcher(config ? config.exclude_paths : []);
+  const excluded = globMatcher(excludedGlobs(config, currentGuard()));
   let files = splitNul(out).filter(f => !managed.has(f) && !excluded(f));
   if (Array.isArray(extensions) && extensions.length > 0) {
     files = files.filter(f => extensions.some(ext => f.endsWith(ext)));
@@ -222,7 +252,9 @@ function exists(dir, file, mode) {
  * Lists every file of the snapshot, for whole-repository facts (e.g. a name
  * that must be unique, a link target that must exist): the index in staged
  * mode, HEAD in last-commit mode. Paths are relative to the repository root
- * and sorted; nothing is excluded. With mode null (no git) nothing is listed.
+ * and sorted; nothing is excluded (neither exclude_paths nor guard_exclude:
+ * hiding a file here would turn an existing path into a missing one). With
+ * mode null (no git) nothing is listed.
  * @param {string} dir - Directory inside the repository
  * @param {'staged'|'last-commit'|null} mode - Snapshot (from changedFiles)
  * @returns {string[]}
@@ -276,4 +308,7 @@ function nearestPackageDeps(dir, file, mode, cache = new Map()) {
   return deps;
 }
 
-module.exports = { changedFiles, pureRenames, readFile, exists, listFiles, managedFiles, nearestPackageDeps, projectConfig, globMatcher };
+module.exports = {
+  changedFiles, pureRenames, readFile, exists, listFiles, managedFiles, nearestPackageDeps, projectConfig, globMatcher,
+  currentGuard, GUARD_ENV,
+};

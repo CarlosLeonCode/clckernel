@@ -26,7 +26,7 @@ import _yaml  # noqa: E402
 # Lookup order: the canonical name first, then older names kept for compatibility.
 CONFIG_NAMES = ['.clckernel.yaml', '.clckernel.yml', '.clc-forge.yaml', '.clc-forge.yml']
 
-KEYS = ["rules", "exclude_paths", "mirrors", "hitl", "update", "tdd", "severities"]
+KEYS = ["rules", "exclude_paths", "mirrors", "hitl", "update", "tdd", "severities", "guard_exclude"]
 LEVELS = ["error", "warning"]
 
 DEPRECATED_KEYS = {
@@ -59,6 +59,7 @@ def default_config() -> dict:
         "update": {"exclude": []},
         "tdd": {"code": [], "ignore": []},
         "severities": {},
+        "guard_exclude": {},
     }
 
 
@@ -137,6 +138,21 @@ def _validate_severities(value: Any, file: str) -> dict:
     return out
 
 
+def _validate_guard_exclude(value: Any, file: str) -> dict:
+    """guard_exclude: a mapping of guard name -> globs that guard never evaluates."""
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ConfigError(
+            "guard_exclude", f"expected a mapping of guard name to a list of globs, got {_type_name(value)}", file)
+    out = {}
+    for name, globs in value.items():
+        if not isinstance(name, str) or name.strip() == "":
+            raise ConfigError("guard_exclude", "guard names must be non-empty", file)
+        out[name] = _string_list(globs, f"guard_exclude.{name}", file)
+    return out
+
+
 def _check_mirror_path(item: str, key: str, file: str) -> None:
     segments = item.replace("\\", "/").split("/")
     if os.path.isabs(item) or item.startswith("/") or ".." in segments:
@@ -200,6 +216,7 @@ def validate_config(raw: Any, file: str = CONFIG_NAMES[0]) -> tuple:
         config["tdd"]["ignore"] = _string_list(tdd["ignore"], "tdd.ignore", file)
 
     config["severities"] = _validate_severities(raw.get("severities"), file)
+    config["guard_exclude"] = _validate_guard_exclude(raw.get("guard_exclude"), file)
 
     return config, warnings
 

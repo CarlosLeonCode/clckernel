@@ -145,7 +145,7 @@ git commit -m "feat(auth): add user authentication endpoint"
 ```
 Los hooks pre-commit ejecutan automáticamente los guards instalados (por ejemplo Clean Architecture, Fuga de Secretos o Reversibilidad de Migraciones, según el stack). Cualquier violación queda **bloqueada por el hook pre-commit** (`--no-verify` lo omite; CI actúa como respaldo).
 
-El escaneo de secretos (`scan_secrets`, en todos los stacks) detecta claves privadas, tokens de AWS, Stripe, OpenAI, Anthropic, Google, Slack y GitHub, JWTs, asignaciones entre comillas de claves, secretos y contraseñas, y valores con nombre de secreto en archivos `.env` commiteados (se omiten `.env.example`, `.env.sample` y `.env.template`).
+El escaneo de secretos (`scan_secrets`, en todos los stacks) detecta claves privadas, tokens de AWS, Stripe, OpenAI, Anthropic, Google, Slack y GitHub, JWTs, asignaciones entre comillas de claves, secretos y contraseñas, y valores con nombre de secreto en archivos `.env` commiteados (se omiten `.env.example`, `.env.sample` y `.env.template`). Una línea que lleva el marcador `clckernel: allow-secret` (en un comentario de cualquier sintaxis) no se reporta; el marcador cubre solo esa línea. Para dejar fixtures de tests o ejemplos de documentación fuera del escaneo, use `guard_exclude` (ver [Configuración](#configuracion)).
 
 El hook se escribe en `.githooks/pre-commit` (y `core.hooksPath` apunta a `.githooks` en la configuración local de git del repositorio), o en `.husky/pre-commit` cuando Husky ya ejecuta los hooks del repositorio. `core.hooksPath` no se modifica cuando el directorio no es la raíz de un repositorio git o cuando otro gestor de hooks lo controla; en ese caso el bloque Next steps imprime el comando que activa el hook. El hook no enumera guards: llama a los orquestadores de auditoría (`node tools/audit.js --hook`, `python3 tools/audit.py --hook`, cada uno si está instalado) y luego a las herramientas externas del stack (linters, test runners) cuando están disponibles. Los orquestadores descubren todos los guards — los del kernel y los propios del proyecto, ya sea en la raíz de `tools/` (`check_*`, `scan_*`, `verify_*`, `*_guard`) o en `tools/guards/` — y ejecutan cada uno exactamente una vez, así que el hook de commit y `clckernel audit` siempre ejecutan el mismo conjunto.
 
@@ -297,7 +297,7 @@ con `Invalid .clckernel.yaml: key "<key>" — <motivo>` (no se escribe nada, el 
 | Clave | Efecto | Por defecto | La lee |
 |---|---|---|---|
 | `rules` | Reglas regex propias (`name`, `pattern`, `message`, opcionales `severity`, `scope`, `exclude`) sobre los archivos cambiados | ninguna | `check_custom` |
-| `exclude_paths` | Globs que ningún guard basado en el diff evalúa (secretos, verificador TDD, reglas propias, …) | ninguno | `_changes.js/.py` |
+| `exclude_paths` | Globs que ningún guard basado en el diff evalúa (secretos, verificador TDD, reglas propias, …): todos los guards dejan de verlos; para silenciar un solo guard, prefiera `guard_exclude` | ninguno | `_changes.js/.py` |
 | `mirrors.list` | Mirrors de IDE (symlinks a `AGENTS.md`) que install crea y `check_symlinks` verifica | install: `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.cursor/rules/clckernel_context.mdc`, `.github/copilot-instructions.md`, `.antigravity/rules.md`; `check_symlinks`: `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.windsurfrules` | install/update, `check_symlinks` |
 | `mirrors.required` | `true`: un mirror listado que falta hace fallar `check_symlinks` | `false` | `check_symlinks` |
 | `hitl.markers` | Regex (sin distinguir mayúsculas, una línea, fuera de bloques de código) que cuentan como marcador Human-in-the-Loop; reemplazan a los de por defecto | una línea `HITL:` o un encabezado `## Human checkpoint` / `## HITL` | `check_hitl` |
@@ -307,6 +307,7 @@ con `Invalid .clckernel.yaml: key "<key>" — <motivo>` (no se escribe nada, el 
 | `tdd.code` | Globs extra que cuentan como código de producción (cualquier lenguaje), p. ej. tools en Python testeadas con tests JS | ninguno | `verify_tdd.js/.py` |
 | `tdd.ignore` | Globs que nunca cuentan como código de producción | ninguno | `verify_tdd.js/.py` |
 | `severities` | `{ <nombre del guard>: warning \| error }`: un guard que falla en `warning` se reporta (`WARN`, veredicto `PASSED_WITH_WARNINGS`) pero no bloquea; `error` bloquea aunque el guard reporte `level: 'warning'`. Un crash siempre bloquea | el nivel propio de cada guard (`error` salvo que reporte `warning`) | `audit.js` / `audit.py` (auditoría y hook de pre-commit) |
+| `guard_exclude` | `{ <nombre del guard>: [globs] }`: archivos cambiados que un solo guard nunca evalúa; los demás guards los siguen viendo. El nombre del guard es el de su archivo sin extensión (`scan_secrets`, `check_custom`, el nombre propio de un guard de `tools/guards/`); se acepta cualquier nombre | ninguno | `_changes.js/.py`, para el guard que nombran los orquestadores de auditoría (o una ejecución directa) |
 
 ```yaml
 exclude_paths: ["vendor/**"]
@@ -321,7 +322,16 @@ tdd:
   code: ["tools/**/*.py"]
 severities:
   check_seo: warning
+guard_exclude:
+  scan_secrets: ["tests/**", "**/tests/**", "**/*.md"]
 ```
+
+Prefiera `guard_exclude` a `exclude_paths` cuando un solo guard falla en falso sobre algunas rutas: con
+`exclude_paths: ["tests/**"]` el verificador TDD también dejaría de ver los cambios en los tests, mientras que
+`guard_exclude: { scan_secrets: ["tests/**"] }` deja las credenciales falsas de los fixtures de tests fuera
+solo del escaneo de secretos. Igual que `exclude_paths`, filtra los archivos cambiados que evalúa un guard, no
+el listado completo del repositorio contra el que algunos guards comprueban hechos (el destino de un enlace,
+un marcador de proyecto).
 
 Las claves que versiones anteriores aceptaban sin efecto alguno — `active_guards`, `phases`, `gate_mode`,
 `layers`, `scope` — se ignoran con un aviso de deprecación; borralas. Una clave desconocida de

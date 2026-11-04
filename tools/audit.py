@@ -11,7 +11,9 @@ tools/audit.js is not installed: then audit.py runs them too, with node.
 A top-level guard of this language that defines check() is called in
 process; every other guard runs as a process (exit code decides, a JSON
 result is optional). A guard listed in the managed registry but missing on
-disk fails the run. Results are grouped into 4 lenses.
+disk fails the run. Results are grouped into 4 lenses. Every guard runs with
+CLCKERNEL_GUARD set to its file name without extension, so the snapshot
+helpers (_changes) apply that guard's `guard_exclude` from .clckernel.yaml.
 
 CLI (sdds/audit-cli): audit.py [targetDir] [--hook] [--change <name>] [--staged]
   (none)           print the 4-lens summary; write nothing
@@ -47,6 +49,7 @@ REGISTRY_FILE = ".clckernel-managed.json"
 USAGE = "usage: audit.py [targetDir] [--hook] [--change <name>] [--staged]"
 CHANGE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 GUARD_STEM = re.compile(r"^(check|scan|verify)_")
+GUARD_ENV = "CLCKERNEL_GUARD"  # read by _changes.current_guard()
 
 # Runs a JS guard that exports a function (module contract) as a process:
 # prints its result as JSON and exits with its exitCode.
@@ -246,8 +249,9 @@ def run_project_guard(guard_path: pathlib.Path, target_dir: str) -> dict:
         args = [runner, "-e", JS_MODULE_RUNNER, str(guard_path)]
     else:
         args = [runner, str(guard_path)]
+    env = {**os.environ, GUARD_ENV: fallback_name}
     try:
-        proc = subprocess.run(args, cwd=target_dir, capture_output=True, text=True)
+        proc = subprocess.run(args, cwd=target_dir, capture_output=True, text=True, env=env)
     except OSError as exc:
         return {
             "exit_code": 1, "skipped": False, "crashed": True, "name": fallback_name, "lens": fallback_lens,
@@ -290,11 +294,24 @@ def run_project_guard(guard_path: pathlib.Path, target_dir: str) -> dict:
 
 def run_guard(guard_path: pathlib.Path, target_dir: str) -> dict:
     """
-    Run a single guard module by dynamic import and call its check() function.
+    Run a single guard module by dynamic import and call its check() function,
+    with CLCKERNEL_GUARD naming it (restored afterwards).
     Returns a normalized result dict on success, or a FAILED result if it cannot run.
     """
     guard_name = guard_path.stem  # e.g. "check_scope"
+    previous = os.environ.get(GUARD_ENV)
+    os.environ[GUARD_ENV] = guard_name
+    try:
+        return _call_check(guard_path, guard_name, target_dir)
+    finally:
+        if previous is None:
+            os.environ.pop(GUARD_ENV, None)
+        else:
+            os.environ[GUARD_ENV] = previous
 
+
+def _call_check(guard_path: pathlib.Path, guard_name: str, target_dir: str) -> dict:
+    """Load the guard module and call its check() (run_guard's body)."""
     try:
         spec = importlib.util.spec_from_file_location(guard_name, str(guard_path))
         if spec is None or spec.loader is None:

@@ -160,7 +160,7 @@ $ npx clckernel update
       {
         id: "config-yaml",
         title: "Configuración (.clckernel.yaml)",
-        desc: "Opcional. Claves: rules, exclude_paths, mirrors, hitl, update, tdd, severities (ver la tabla Configuración del README). Los guards los elige el stack, no este archivo; se agregan más con clckernel update --add-guards.",
+        desc: "Opcional. Claves: rules, exclude_paths, mirrors, hitl, update, tdd, severities, guard_exclude (ver la tabla Configuración del README). Para dejar rutas fuera de un solo guard, prefiera guard_exclude a exclude_paths, que las oculta a todos los guards. Los guards los elige el stack, no este archivo; se agregan más con clckernel update --add-guards.",
         code: `# .clckernel.yaml (optional; every key below is optional)
 rules:
   - name: no-console-log
@@ -174,7 +174,9 @@ update:
 tdd:
   ignore: ["scripts/**"]
 severities:
-  check_seo: warning`,
+  check_seo: warning
+guard_exclude:
+  scan_secrets: ["tests/**", "**/*.md"]`,
       },
       {
         id: "authoring-guards",

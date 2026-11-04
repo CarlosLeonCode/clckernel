@@ -13,6 +13,10 @@
  *     `.env.sample`, `.env.template`), `NAME=value` where a `_` segment of NAME
  *     is a secret word and the value is not numeric-only or a boolean/null word.
  *
+ * A line holding the marker `clckernel: allow-secret` (in any comment syntax) is
+ * not reported; the marker covers that line only. To keep whole paths out of
+ * this guard, use `guard_exclude: { scan_secrets: [globs] }` in .clckernel.yaml.
+ *
  * @param {string} targetDir - Directory to scan (defaults to cwd)
  * @returns {{ exitCode: number, skipped: boolean, name: string, data: object }}
  */
@@ -26,6 +30,8 @@ const PLACEHOLDER_WORDS = ['xxx', 'your', 'changeme', 'change_me', 'change-me', 
   'dummy', 'replace', 'insert', 'redacted', 'fake', 'sample', 'todo', '...', '***'];
 const NON_SECRET_WORDS = ['true', 'false', 'yes', 'no', 'on', 'off', 'null', 'none'];
 const TEMPLATE_SEGMENTS = ['example', 'sample', 'template'];
+// Same-line allow marker (precedent: gitleaks `gitleaks:allow`, detect-secrets `pragma: allowlist secret`).
+const ALLOW_MARKER = /clckernel:\s*allow-secret(?![\w-])/;
 
 /** True for values that are obviously not a real secret. */
 function isPlaceholder(value) {
@@ -120,6 +126,7 @@ function findSecrets(text, filename) {
   const lines = String(text).split('\n');
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    if (ALLOW_MARKER.test(line)) continue;
     for (const rule of rules) {
       const match = rule.regex.exec(line);
       if (match && (!rule.accept || rule.accept(match))) {

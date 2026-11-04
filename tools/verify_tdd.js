@@ -44,7 +44,7 @@ const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { stripVTControlCharacters } = require('util');
-const { changedFiles, listFiles, managedFiles, pureRenames, projectConfig, globMatcher } = require('./_changes');
+const { changedFiles, listFiles, managedFiles, pureRenames, projectConfig, globMatcher, GUARD_ENV } = require('./_changes');
 
 const NAME = 'verify_tdd';
 const DEFAULT_TIMEOUT = 300;
@@ -598,7 +598,9 @@ function nodeTestCount(output, tree, files) {
 function runTests(tree, runner) {
   // NODE_TEST_CONTEXT is set when the verifier itself runs under node --test; a
   // child that inherits it skips running its files ("run() is being called recursively").
-  const dropped = new Set([...CALLER_GIT_ENV, 'NODE_TEST_CONTEXT']);
+  // The guard identity (_changes.currentGuard) belongs to this guard, not to the
+  // project's tests: a test that launches a guard is named by its script.
+  const dropped = new Set([...CALLER_GIT_ENV, 'NODE_TEST_CONTEXT', GUARD_ENV]);
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !dropped.has(key)));
   env.NODE_ENV = 'test';
   // An interactive terminal propagates FORCE_COLOR to child processes; colour

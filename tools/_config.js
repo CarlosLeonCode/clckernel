@@ -20,6 +20,8 @@
  *   severities        { <guard name>: warning | error }: the level of a failing
  *                     guard in the audit orchestrators (warning = reported,
  *                     not blocking; a crash is always an error)
+ *   guard_exclude     { <guard name>: [globs] }: paths that one guard never
+ *                     evaluates (_changes); other guards still see them
  *
  * Removed keys (no effect) produce a deprecation warning; unknown top-level
  * keys a warning; an invalid value throws ConfigError naming file and key.
@@ -32,7 +34,7 @@ const { parseYaml, globToRegex } = require('./yaml.js');
 // Lookup order: the canonical name first, then older names kept for compatibility.
 const CONFIG_NAMES = ['.clckernel.yaml', '.clckernel.yml', '.clc-forge.yaml', '.clc-forge.yml'];
 
-const KEYS = ['rules', 'exclude_paths', 'mirrors', 'hitl', 'update', 'tdd', 'severities'];
+const KEYS = ['rules', 'exclude_paths', 'mirrors', 'hitl', 'update', 'tdd', 'severities', 'guard_exclude'];
 const LEVELS = ['error', 'warning'];
 
 /** Keys earlier releases documented that never had an effect, with the reason. */
@@ -73,6 +75,7 @@ function defaultConfig() {
     update: { exclude: [] },
     tdd: { code: [], ignore: [] },
     severities: {},
+    guard_exclude: {},
   };
 }
 
@@ -128,6 +131,20 @@ function validateSeverities(value, file) {
     if (name.trim() === '') throw new ConfigError('severities', 'guard names must be non-empty', file);
     if (!LEVELS.includes(level)) throw new ConfigError(`severities.${name}`, `invalid level ${JSON.stringify(level)}`, file, LEVELS);
     out[name] = level;
+  }
+  return out;
+}
+
+/** guard_exclude: a mapping of guard name -> globs that guard never evaluates. */
+function validateGuardExclude(value, file) {
+  if (value === undefined || value === null) return {};
+  if (!isMapping(value)) {
+    throw new ConfigError('guard_exclude', `expected a mapping of guard name to a list of globs, got ${typeName(value)}`, file);
+  }
+  const out = {};
+  for (const [name, globs] of Object.entries(value)) {
+    if (name.trim() === '') throw new ConfigError('guard_exclude', 'guard names must be non-empty', file);
+    out[name] = stringList(globs, `guard_exclude.${name}`, file);
   }
   return out;
 }
@@ -205,6 +222,7 @@ function validateConfig(raw, file = CONFIG_NAMES[0]) {
   if (tdd.ignore !== undefined && tdd.ignore !== null) config.tdd.ignore = stringList(tdd.ignore, 'tdd.ignore', file);
 
   config.severities = validateSeverities(raw.severities, file);
+  config.guard_exclude = validateGuardExclude(raw.guard_exclude, file);
 
   return { config, warnings };
 }

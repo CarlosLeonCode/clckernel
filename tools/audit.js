@@ -11,7 +11,9 @@
  * A top-level guard of this language that exports a function is called in
  * process; every other guard runs as a process (exit code decides, a JSON
  * result is optional). A guard listed in the managed registry but missing on
- * disk fails the run. Results are grouped into 4 lenses.
+ * disk fails the run. Results are grouped into 4 lenses. Every guard runs with
+ * CLCKERNEL_GUARD set to its file name without extension, so the snapshot
+ * helpers (_changes) apply that guard's `guard_exclude` from .clckernel.yaml.
  *
  * CLI (sdds/audit-cli): audit.js [targetDir] [--hook] [--change <name>] [--staged]
  *   (none)           print the 4-lens summary; write nothing
@@ -40,6 +42,7 @@ const SIBLING = { ext: '.py', orchestrator: 'audit.py' };
 const REGISTRY_FILE = '.clckernel-managed.json';
 const USAGE = 'usage: audit.js [targetDir] [--hook] [--change <name>] [--staged]';
 const CHANGE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+const GUARD_ENV = 'CLCKERNEL_GUARD'; // read by _changes.currentGuard()
 
 /**
  * Runs a Python guard that defines check() (module contract) as a process:
@@ -275,7 +278,8 @@ function runProjectGuard(guardPath, targetDir) {
   const fallbackName = path.basename(guardPath, ext);
   const moduleContract = ext === '.py' && definesCheck(guardPath);
   const args = moduleContract ? ['-c', PY_MODULE_RUNNER, guardPath] : [guardPath];
-  const res = spawnSync(PROJECT_GUARD_RUNNERS[ext], args, { cwd: targetDir, encoding: 'utf-8', maxBuffer: MAX_BUFFER });
+  const env = { ...process.env, [GUARD_ENV]: fallbackName };
+  const res = spawnSync(PROJECT_GUARD_RUNNERS[ext], args, { cwd: targetDir, encoding: 'utf-8', maxBuffer: MAX_BUFFER, env });
   const fallbackLens = getLensForGuard(fallbackName);
   if (res.error) {
     return {
@@ -316,13 +320,26 @@ function runProjectGuard(guardPath, targetDir) {
 }
 
 /**
- * Run a single guard module with try/catch.
+ * Run a single guard module with try/catch, with CLCKERNEL_GUARD naming it
+ * (restored afterwards; the plan runs guards one at a time).
  * @param {string} guardPath - Absolute path to the guard script
  * @param {string} targetDir - Directory to scan
  * @returns {object} Result from the guard, or a FAILED result if it cannot run
  */
 async function runGuard(guardPath, targetDir) {
   const guardName = path.basename(guardPath, '.js');
+  const previous = process.env[GUARD_ENV];
+  process.env[GUARD_ENV] = guardName;
+  try {
+    return await callGuard(guardPath, guardName, targetDir);
+  } finally {
+    if (previous === undefined) delete process.env[GUARD_ENV];
+    else process.env[GUARD_ENV] = previous;
+  }
+}
+
+/** Loads the guard module and calls its exported function (runGuard's body). */
+async function callGuard(guardPath, guardName, targetDir) {
   const lens = getLensForGuard(guardName);
   try {
     const mod = require(guardPath);

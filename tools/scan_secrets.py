@@ -13,6 +13,10 @@ same regex sources and flags. The two generic rules skip placeholder values
   - Dotenv Secret: in `.env`, `.env.*` and `*.env` files (not `.env.example`,
     `.env.sample`, `.env.template`), `NAME=value` where a `_` segment of NAME
     is a secret word and the value is not numeric-only or a boolean/null word.
+
+A line holding the marker `clckernel: allow-secret` (in any comment syntax) is
+not reported; the marker covers that line only. To keep whole paths out of
+this guard, use `guard_exclude: { scan_secrets: [globs] }` in .clckernel.yaml.
 """
 from __future__ import annotations
 
@@ -44,6 +48,8 @@ PLACEHOLDER_WORDS = (
 )
 NON_SECRET_WORDS = ("true", "false", "yes", "no", "on", "off", "null", "none")
 TEMPLATE_SEGMENTS = ("example", "sample", "template")
+# Same-line allow marker (precedent: gitleaks `gitleaks:allow`, detect-secrets `pragma: allowlist secret`).
+ALLOW_MARKER = re.compile(r"clckernel:\s*allow-secret(?![\w-])")
 
 
 def _is_placeholder(value: str) -> bool:
@@ -168,6 +174,8 @@ def find_secrets(text: str, filename: str) -> List[dict]:
     findings: List[dict] = []
     # Split on "\n" only, like the JS guard, so line numbers and snippets match.
     for line_no, line in enumerate(str(text).split("\n"), start=1):
+        if ALLOW_MARKER.search(line):
+            continue
         for rule in rules:
             m = rule.regex.search(line)
             if m and (rule.accept is None or rule.accept(m)):

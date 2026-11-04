@@ -521,9 +521,10 @@ describe('honest claims — playbooks and AGENTS.md vs the CLI (sdds/final-sweep
     assert.doesNotMatch(skill('SKILL.md'), START_MATERIALIZES);
   });
 
-  it('playbooks list every config key, severities included', () => {
+  it('playbooks list every config key, severities and guard_exclude included', () => {
     for (const rel of ['reference/start.md', 'reference/doctor.md']) {
       assert.match(skill(rel), /`severities`/, rel);
+      assert.match(skill(rel), /`guard_exclude`/, rel);
     }
   });
 

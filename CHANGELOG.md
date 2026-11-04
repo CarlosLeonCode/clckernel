@@ -16,6 +16,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `guard_exclude` in `.clckernel.yaml`: `{ <guard name>: [globs] }` keeps paths out of one guard only, for
+  every guard and stack (kernel guards and `tools/guards/` project guards, JS and Python). The changed-file
+  helpers (`_changes.js/.py`) drop the globs of the guard that is running: both audit orchestrators set
+  `CLCKERNEL_GUARD` to the guard's file name for in-process and subprocess guards, and a guard run directly is
+  named by its own file; `verify_tdd` removes `CLCKERNEL_GUARD` from the test runs it starts. Validated like `severities` (`Invalid .clckernel.yaml: key "guard_exclude.<name>…"`).
+  Prefer it to `exclude_paths`, which hides the paths from every guard (the TDD verifier included). The
+  repository-wide listing (`listFiles` / `list_files`) stays unfiltered, as with `exclude_paths`.
+- `scan_secrets` (JS and Python): a line that carries the marker `clckernel: allow-secret` is not reported;
+  the marker covers that line only.
 - `clckernel report-bug <summary>`: an agent command (playbook `reference/report-bug.md`) for bugs in CLC
   Kernel itself. The agent decides whether the failing file is kernel-owned, never patches it in the project,
   offers a temporary `.clckernel.yaml` workaround (`severities`, `exclude_paths`, `update.exclude`,
