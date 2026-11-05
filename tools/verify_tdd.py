@@ -21,7 +21,8 @@ the result is the same as a whole-repository run.
 
 The project config (.clckernel.yaml) widens or narrows what counts as
 production code: a file matching `tdd.code` is code whatever its language,
-a file matching `tdd.ignore` never is. A .py file matching `tdd.code` is
+a file matching `tdd.ignore` is left out of the verification, code or test
+(e.g. end-to-end tests another runner owns). A .py file matching `tdd.code` is
 handed to verify_tdd.js when it is installed next to this file (it is the
 code of the JS suite, e.g. Python tools tested by JS tests).
 
@@ -183,23 +184,22 @@ def _is_test_path(rel: str) -> bool:
 
 
 def _classify(changed: list[str], rules: dict = NO_RULES) -> dict:
-    """Split into tests, support and code; tdd.code files are code, tdd.ignore files never are."""
+    """Split into tests, support and code; tdd.code files are code, tdd.ignore files are none of them."""
     tests: list[str] = []
     support: list[str] = []
     code: list[str] = []
     for rel in changed:
-        if not _in_scope(rel, rules):
+        if not _in_scope(rel, rules) or rules["ignore"](rel):
             continue
         if rules["extra"](rel):
-            if not rules["ignore"](rel):
-                code.append(rel)
+            code.append(rel)
             continue
         name = pathlib.PurePosixPath(rel).name
         if name == "conftest.py":
             support.append(rel)
         elif _is_test_path(rel):
             (support if name in SUPPORT_NAMES else tests).append(rel)
-        elif not rules["ignore"](rel):
+        else:
             code.append(rel)
     return {"tests": tests, "support": support, "code": code}
 

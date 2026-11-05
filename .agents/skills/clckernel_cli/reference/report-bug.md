@@ -36,7 +36,7 @@ workaround the kernel supports in `.clckernel.yaml`, and say that it is temporar
 | `guard_exclude` | One guard misfires on some paths | `guard_exclude: { scan_secrets: ["path/to/affected/**"] }` (only that guard stops evaluating them; prefer it to `exclude_paths`) |
 | `exclude_paths` | One path triggers the bug in several guards | `exclude_paths: ["path/to/affected/**"]` (no diff-based guard evaluates it) |
 | `update.exclude` | You must keep a local file the kernel would overwrite | `update: { exclude: ["path/to/file"] }` |
-| `tdd.ignore` | The TDD verifier misclassifies a file as production code | `tdd: { ignore: ["path/to/file"] }` |
+| `tdd.ignore` | The TDD verifier misclassifies a file as production code, or hands a test owned by another runner (e.g. Playwright) to the unit runner | `tdd: { ignore: ["path/to/file"] }` |
 
 Apply the workaround only after the user approves it, and record in the report how to remove it: delete the
 entry after updating to the release that contains the fix (`npx clckernel update`).

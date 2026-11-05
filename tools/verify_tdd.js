@@ -32,8 +32,9 @@
  *
  * The project config (.clckernel.yaml) widens or narrows what counts as
  * production code: a file matching `tdd.code` is code whatever its language
- * (e.g. Python tools tested by JS tests), a file matching `tdd.ignore` never
- * is. A JS/TS file matching `tdd.code` is handed to verify_tdd.py when it is
+ * (e.g. Python tools tested by JS tests), a file matching `tdd.ignore` is
+ * left out of the verification, code or test (e.g. end-to-end specs another
+ * runner owns are never handed to the unit runner). A JS/TS file matching `tdd.code` is handed to verify_tdd.py when it is
  * installed next to this file (it is the code of the Python suite).
  *
  * Self-contained: uses only Node.js built-ins. Commands run with argument
@@ -362,9 +363,9 @@ function locate(rel, files, rules) {
 
 /** 'test' / 'support' / 'code' of a non-JS file in its root, or null. */
 function profileKind(profile, rel, root, rules) {
+  if (rules.ignore(rel)) return null;
   let kind = profile.classify(relative(rel, root));
   if (kind === null && rules.extra(rel)) kind = 'code';
-  if (kind === 'code' && rules.ignore(rel)) return null;
   return kind;
 }
 
@@ -463,16 +464,16 @@ function relative(rel, root) {
  * support: *.config.*, vitest/jest.setup.*, anything under a fixtures/ dir of a
  *          test dir, and helpers under test/ or tests/ without a test suffix
  * code:    everything else, plus any file matching tdd.code; a file matching
- *          tdd.ignore is never code (by default generated files, see _config.js)
+ *          tdd.ignore is none of them (by default generated files, see _config.js)
  */
 function classify(changed, rules = NO_RULES) {
   const tests = [];
   const support = [];
   const code = [];
   for (const rel of changed) {
-    if (!inScope(rel, rules)) continue;
+    if (!inScope(rel, rules) || rules.ignore(rel)) continue;
     if (rules.extra(rel)) {
-      if (!rules.ignore(rel)) code.push(rel);
+      code.push(rel);
       continue;
     }
     const parts = rel.split('/');
@@ -486,7 +487,7 @@ function classify(changed, rules = NO_RULES) {
       tests.push(rel);
     } else if (testDirIdx >= 0) {
       support.push(rel);
-    } else if (!rules.ignore(rel)) {
+    } else {
       code.push(rel);
     }
   }

@@ -119,6 +119,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- `verify_tdd` (JS and Python) applies `tdd.ignore` to tests too: a matching file is left out of the
+  verification, code or test. An end-to-end spec owned by another runner (e.g. `e2e/**` for Playwright) is no
+  longer handed to the unit runner, which reported "Changed tests do not pass" for a test that never ran.
 - `check_architecture` and `check_performance` no longer say "Not a Next.js project" in a monorepo or
   full-stack repository whose Next.js package had no changed file: the skip now reads "No changed files in a
   Next.js package — skipping". A repository without any Next.js package keeps the previous messages.
