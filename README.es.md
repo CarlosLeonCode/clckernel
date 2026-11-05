@@ -359,17 +359,38 @@ instalar aplica de inmediato.
 ### 🧱 Full-stack y monorepos
 
 Un repositorio puede tener varias partes de código. `clckernel` busca un stack en la raíz, en los directorios
-declarados como workspaces (`package.json#workspaces`, como lista o `{ packages }`, y `packages:` de
-`pnpm-workspace.yaml`) y en los directorios convencionales `frontend`, `backend`, `web`, `api`, `server`,
-`client`, `apps/*`, `services/*` y `packages/*` (hasta dos niveles; se omiten `node_modules`, `.git`,
-`vendor`, `dist` y `build`). Los patrones de workspace se interpretan como directorios literales o `dir/*`;
-otras formas de glob se ignoran.
+declarados como workspaces (`package.json#workspaces`, como lista o `{ packages }`, `packages:` de
+`pnpm-workspace.yaml`, `packages` de `lerna.json` y `use` de `go.work`) y en los directorios convencionales
+`frontend`, `backend`, `web`, `api`, `server`, `client`, `apps/*`, `services/*`, `packages/*` y `libs/*`
+(hasta tres niveles; se omiten `node_modules`, `.git`, `vendor`, `dist` y `build`). Los patrones de workspace
+se interpretan como directorios literales, segmentos `*` (`dir/*`, `dir/*/*`) o un `dir/**` final, que
+desciende hasta un directorio con un manifiesto de paquete; otras formas de glob se ignoran, igual que los
+nombres de directorio con caracteres distintos de letras, dígitos, `.`, `_` y `-` (p. ej. `@scope`).
 
 - **Una parte en la raíz:** se instala exactamente igual que un repositorio de un solo stack.
 - **Varias partes** (p. ej. Next.js en la raíz + `backend/` FastAPI, o `apps/web` + `apps/api`): el tipo de
   proyecto es `fullstack` (hay una parte en la raíz) o `monorepo` (solo subdirectorios). Dos stacks del mismo
   ecosistema en un directorio (p. ej. FastAPI y Django) siguen siendo una parte, y gana el primer adapter,
   como antes.
+- **Partes de librería:** un subdirectorio con un manifiesto de paquete que ningún adapter de framework
+  reconoce es una parte de librería de su ecosistema, y cuenta como parte por sí sola (un repositorio solo de
+  librerías es `monorepo`; Next.js en la raíz más `packages/ui` es `fullstack`):
+
+  | Parte | Manifiesto | Herramientas del hook (dentro de la parte) |
+  |---|---|---|
+  | `TypeScript Library` | `package.json` (o un `project.json` de Nx) + `tsconfig.json` | `tsc --noEmit` (su `node_modules/.bin/tsc`, o el de la raíz) |
+  | `JavaScript Library` | `package.json` o un `project.json` de Nx | ninguna: solo los guards JS |
+  | `Python Library` | `pyproject.toml`, `setup.py` o `setup.cfg` | `ruff`, `pytest` (el código 5, sin tests, pasa) |
+  | `PHP Library` | `composer.json` (sin `artisan`) | `vendor/bin/phpstan`, `vendor/bin/pest` o si no `vendor/bin/phpunit` |
+  | `Ruby Library` | `*.gemspec` o `Gemfile` (sin `config/routes.rb`) | `rubocop`, `rspec` (según `Gemfile.lock`), o si no Minitest con `rake test` |
+
+  Los módulos Go y los crates Rust ya son partes con sus propios adapters. La raíz nunca es una parte de
+  librería, así que un repositorio de un solo paquete se detecta como antes. Una `JavaScript Library` se
+  descarta cuando otra parte node (Next.js, Astro, una librería TypeScript) ya instala los guards JS, porque no
+  agrega nada, así que una raíz Next.js con paquetes JS simples en workspaces sigue siendo de un solo stack. Una
+  raíz Agent-OS cuyas únicas partes serían librerías sigue siendo Agent-OS. Un `Cargo.toml` raíz con
+  `[workspace]` es una sola parte: `cargo test` y `cargo clippy` en la raíz ya cubren los crates miembros, así
+  que los miembros no son partes aparte.
 - **Guards:** la unión de los guards de las partes se instala una vez en `tools/` de la raíz, con un
   orquestador de auditoría por lenguaje, y se ejecuta una vez desde la raíz.
 - **Herramientas externas** (ruff, pytest, tsc, …) se ejecutan dentro del directorio de su parte; si una no
@@ -400,8 +421,9 @@ en `tdd.ignore`); Minitest corre con `ruby -Ilib -Itest`, no con `rails test`; G
 asume los bin proxies de Composer 2.2+.
 
 Fuera de alcance: Agent-OS como parte de un monorepo, repositorios git anidados o submódulos, elegir partes
-manualmente en el prompt interactivo ("Elegir otro stack" instala un solo stack) y los workspaces de
-Go/Cargo/Composer (sus partes solo se detectan por los directorios convencionales).
+manualmente en el prompt interactivo ("Elegir otro stack" instala un solo stack) y los path repositories de
+Composer (las partes PHP solo se detectan por workspaces de otras herramientas y los directorios
+convencionales).
 
 ---
 

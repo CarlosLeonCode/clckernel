@@ -62,10 +62,16 @@ describe('Next.js guards in a workspaces monorepo', () => {
       assert.deepStrictEqual(Object.keys(res.result.data.violations), [`apps/web/${file}`], res.stdout);
     });
 
-    it(`${guard}: no changed file in a Next.js project -> the existing skip`, () => {
+    it(`${guard}: no changed file in a Next.js package -> a skip that says so`, () => {
       const res = runGuard(guard, { [`apps/lib/${file}`]: content });
       assert.strictEqual(res.result.skipped, true, res.stdout);
-      assert.strictEqual(res.result.data.message, 'Not a Next.js project — skipping', res.stdout);
+      assert.strictEqual(res.result.data.message, 'No changed files in a Next.js package — skipping', res.stdout);
+    });
+
+    it(`${guard}: no root package.json but a Next.js part -> the monorepo skip, not "No package.json"`, () => {
+      const res = runGuard(guard, { [`tools/${file}`]: content }, { 'frontend/package.json': NEXT_PKG });
+      assert.strictEqual(res.status, 0, res.stdout);
+      assert.strictEqual(res.result.data.message, 'No changed files in a Next.js package — skipping', res.stdout);
     });
 
     it(`${guard}: single-stack Next.js root still checked`, () => {
@@ -76,6 +82,12 @@ describe('Next.js guards in a workspaces monorepo', () => {
 
     it(`${guard}: single-stack non-Next root still skipped`, () => {
       const res = runGuard(guard, { [file]: content }, { 'package.json': PLAIN_PKG });
+      assert.strictEqual(res.status, 0, res.stdout);
+      assert.strictEqual(res.result.data.message, 'Not a Next.js project — skipping', res.stdout);
+    });
+
+    it(`${guard}: a non-Next workspaces repo (no Next.js package anywhere) is not a Next.js project`, () => {
+      const res = runGuard(guard, { [`apps/lib/${file}`]: content }, { 'package.json': ROOT_PKG, 'apps/lib/package.json': PLAIN_PKG });
       assert.strictEqual(res.status, 0, res.stdout);
       assert.strictEqual(res.result.data.message, 'Not a Next.js project — skipping', res.stdout);
     });

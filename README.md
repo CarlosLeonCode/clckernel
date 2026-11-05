@@ -354,16 +354,36 @@ ignored with a warning. The guards read it through `tools/_config.js` (+ `yaml.j
 ### 🧱 Full-stack & monorepos
 
 A repository can hold several code parts. `clckernel` looks for a stack in the root, in the directories
-declared as workspaces (`package.json#workspaces`, array or `{ packages }`, and `pnpm-workspace.yaml`
-`packages:`) and in the conventional directories `frontend`, `backend`, `web`, `api`, `server`, `client`,
-`apps/*`, `services/*` and `packages/*` (at most two levels deep; `node_modules`, `.git`, `vendor`, `dist` and
-`build` are skipped). Workspace patterns are read as literal directories or `dir/*`; other glob forms are
-ignored.
+declared as workspaces (`package.json#workspaces`, array or `{ packages }`, `pnpm-workspace.yaml`
+`packages:`, `lerna.json` `packages` and `go.work` `use`) and in the conventional directories `frontend`,
+`backend`, `web`, `api`, `server`, `client`, `apps/*`, `services/*`, `packages/*` and `libs/*` (at most
+three levels deep; `node_modules`, `.git`, `vendor`, `dist` and `build` are skipped). Workspace patterns are
+read as literal directories, `*` segments (`dir/*`, `dir/*/*`) or a trailing `dir/**`, which descends until a
+directory holding a package manifest; other glob forms are ignored, and so are directory names with
+characters other than letters, digits, `.`, `_` and `-` (e.g. `@scope`).
 
 - **One part at the root:** installed exactly as a single-stack repository.
 - **Several parts** (e.g. Next.js at the root + `backend/` FastAPI, or `apps/web` + `apps/api`): the project
   type is `fullstack` (a part at the root) or `monorepo` (only subdirectories). Two stacks of the same
   ecosystem in one directory (e.g. FastAPI and Django) stay one part, the first adapter winning as before.
+- **Library parts:** a subdirectory with a package manifest that no framework adapter matches is a library
+  part of its ecosystem, and counts as a part on its own (a repository of libraries only is a `monorepo`;
+  Next.js at the root plus `packages/ui` is `fullstack`):
+
+  | Part | Manifest | Hook tools (inside the part) |
+  |---|---|---|
+  | `TypeScript Library` | `package.json` (or an Nx `project.json`) + `tsconfig.json` | `tsc --noEmit` (its own `node_modules/.bin/tsc`, else the root's) |
+  | `JavaScript Library` | `package.json` or an Nx `project.json` | none: the JS guards only |
+  | `Python Library` | `pyproject.toml`, `setup.py` or `setup.cfg` | `ruff`, `pytest` (exit 5, no tests collected, passes) |
+  | `PHP Library` | `composer.json` (no `artisan`) | `vendor/bin/phpstan`, `vendor/bin/pest` else `vendor/bin/phpunit` |
+  | `Ruby Library` | `*.gemspec` or `Gemfile` (no `config/routes.rb`) | `rubocop`, `rspec` (from `Gemfile.lock`), else Minitest via `rake test` |
+
+  Go modules and Rust crates are already parts through their own adapters. The root is never a library part,
+  so a single-package repository is detected as before. A `JavaScript Library` is dropped when another node
+  part (Next.js, Astro, a TypeScript library) already installs the JS guards, because it adds nothing, so a
+  Next.js root with plain JS workspace packages stays single-stack. An Agent-OS root whose only parts would
+  be libraries stays Agent-OS. A root `Cargo.toml` with `[workspace]` is one part: `cargo test` and
+  `cargo clippy` at the root already cover the member crates, so members are not separate parts.
 - **Guards:** the union of the parts' guards is installed once in the root `tools/`, with one audit
   orchestrator per guard language, and runs once from the root.
 - **External tools** (ruff, pytest, tsc, …) run inside their part's directory; a missing one prints
@@ -396,8 +416,8 @@ separated for the red run, so a `src/` change needs a changed integration test u
 package; PHP assumes Composer 2.2+ bin proxies. Only committed or staged files exist in the trees (no `.env`).
 
 Not supported: Agent-OS as one part of a monorepo, nested git repositories or submodules, choosing parts by
-hand in the interactive prompt ("Choose another stack" installs a single stack), and Go/Cargo/Composer
-workspaces (their parts are found only through the conventional directories).
+hand in the interactive prompt ("Choose another stack" installs a single stack), and Composer path
+repositories (PHP parts are found only through workspaces of other tools and the conventional directories).
 
 ---
 

@@ -16,6 +16,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Library parts: a subdirectory with a package manifest that no framework adapter matches is a library part
+  of its ecosystem: `TypeScript Library` (`package.json`, or an Nx `project.json` without one, + `tsconfig.json`; the hook runs `tsc --noEmit`
+  inside it with the part's or the hoisted root `node_modules/.bin/tsc`), `JavaScript Library`
+  (`package.json` or an Nx `project.json`; JS guards only), `Python Library` (`pyproject.toml` / `setup.py` / `setup.cfg`; ruff and
+  pytest), `PHP Library` (`composer.json` without `artisan`; phpstan and Pest / PHPUnit from `vendor/bin`) and
+  `Ruby Library` (`*.gemspec` or `Gemfile` without `config/routes.rb`; rubocop and RSpec, or Minitest via
+  `rake test`). Library parts count on their own: a repository of libraries only is a `monorepo`, and a
+  framework at the root plus library packages is `fullstack`. The root is never a library part; a
+  `JavaScript Library` is dropped when another node part already installs the JS guards; an Agent-OS root
+  whose only parts would be libraries stays Agent-OS. AGENTS.md lists each library part with its test runner.
+- Part discovery: `libs/*` (Nx) is a conventional part directory; `lerna.json` `packages` and `go.work`
+  `use` directories are read as part patterns; workspace patterns accept `dir/*/*` and a trailing `dir/**`
+  (descending until a directory with a package manifest), up to three levels deep. A root `Cargo.toml` with
+  `[workspace]` stays one part (its member crates are not separate parts).
 - `guard_exclude` in `.clckernel.yaml`: `{ <guard name>: [globs] }` keeps paths out of one guard only, for
   every guard and stack (kernel guards and `tools/guards/` project guards, JS and Python). The changed-file
   helpers (`_changes.js/.py`) drop the globs of the guard that is running: both audit orchestrators set
@@ -44,6 +58,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- `check_architecture` and `check_performance` no longer say "Not a Next.js project" in a monorepo or
+  full-stack repository whose Next.js package had no changed file: the skip now reads "No changed files in a
+  Next.js package — skipping". A repository without any Next.js package keeps the previous messages.
 - Kernel files no longer break the project's linters. Every JS and Python file install and update write into
   `tools/` starts with file-level pragmas that declare it kernel-owned (`/* eslint-disable */`,
   `// biome-ignore-all lint:`, `// @ts-nocheck`; `# ruff: noqa`, `# flake8: noqa`, `# pylint: skip-file`,
