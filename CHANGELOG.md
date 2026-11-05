@@ -7,6 +7,56 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- `verify_tdd` (JS and Python) applies `tdd.ignore` to tests too: a matching file is left out of the
+  verification, code or test. An end-to-end spec owned by another runner (e.g. `e2e/**` for Playwright) is no
+  longer handed to the unit runner, which reported "Changed tests do not pass" for a test that never ran.
+
+## [2.2.0] - 2026-11-04
+
+### Added
+
+- Technology detection: Supabase (`supabase/config.toml` in the root or a part), a configured SQL migrations
+  folder (`sql_migrations.paths`), a Node data client (`@supabase/supabase-js`, `drizzle-orm`,
+  `@prisma/client`, `postgres`, `pg`) and an MCP server (`@modelcontextprotocol/sdk`). The install summary shows
+  a row per technology and AGENTS.md lists each technology guard.
+- `check_sql_migrations`: SQL migration rules on the changed files, each with its own level
+  (`sql_migrations.severities`): applied migrations are immutable, `create table` in the checked schemas needs
+  `enable row level security` in the same file, `security definer` functions set `search_path`, no write grants
+  to anonymous roles, `drop table` / `drop column` are named warnings. Comments, string literals and
+  dollar-quoted bodies are ignored. A later `alter function … set search_path` satisfies `search_path`;
+  `set search_path` sets the schema of unqualified names; quoted identifiers keep their case; `drop <column>`
+  without `column` is named; *applied* means present at the merge-base with the branch's upstream when there
+  is one (else HEAD), so a migration only committed locally may still change.
+- `check_query_efficiency` (JS/TS counterpart of `check_db_efficiency`): query calls of supabase-js, drizzle,
+  prisma, postgres and pg awaited inside loops (N+1, a heuristic: warning by default) and supabase-js
+  `select('*')` without `limit`/`range` (warning); extra patterns in `query_efficiency.call_patterns`.
+  Pagination loops (`.range(`, `.offset(`, `skip`, `cursor`, SQL `OFFSET`) and functions defined inside a loop
+  (a handler registered per route) are not N+1; statements without semicolons end at the end of the line.
+- `check_mcp_contracts`: every MCP tool registration (`registerTool`, and the deprecated `tool()`) declares an
+  input schema (`missing_schema`). With `mcp_contracts.contracts_modules` configured the schema must be imported
+  from them, never inline; with `mcp_contracts.forbid_data_clients: true` a file that registers tools imports no
+  data client. Both are off by default.
+- `.clckernel.yaml` keys `sql_migrations`, `query_efficiency`, `mcp_contracts` and `ui_reuse`, validated in
+  `tools/_config.js` and `tools/_config.py` (per-rule levels `error`, `warning` or `"off"`, quoted). Both readers
+  reject an invalid `query_efficiency.call_patterns` regex. The guards fall back to each section's defaults when
+  an older `tools/_config.js` (kept because you edited it) does not know the section.
+- Library parts: a subdirectory with a package manifest that no framework adapter matches is a library part
+  of its ecosystem: `TypeScript Library` (`package.json`, or an Nx `project.json` without one, + `tsconfig.json`; the hook runs `tsc --noEmit`
+  inside it with the part's or the hoisted root `node_modules/.bin/tsc`), `JavaScript Library`
+  (`package.json` or an Nx `project.json`; JS guards only), `Python Library` (`pyproject.toml` / `setup.py` / `setup.cfg`; ruff and
+  pytest), `PHP Library` (`composer.json` without `artisan`; phpstan and Pest / PHPUnit from `vendor/bin`) and
+  `Ruby Library` (`*.gemspec` or `Gemfile` without `config/routes.rb`; rubocop and RSpec, or Minitest via
+  `rake test`). Library parts count on their own: a repository of libraries only is a `monorepo`, and a
+  framework at the root plus library packages is `fullstack`. The root is never a library part; a
+  `JavaScript Library` is dropped when another node part already installs the JS guards; an Agent-OS root
+  whose only parts would be libraries stays Agent-OS. AGENTS.md lists each library part with its test runner.
+- Part discovery: `libs/*` (Nx) is a conventional part directory; `lerna.json` `packages` and `go.work`
+  `use` directories are read as part patterns; workspace patterns accept `dir/*/*` and a trailing `dir/**`
+  (descending until a directory with a package manifest), up to three levels deep. A root `Cargo.toml` with
+  `[workspace]` stays one part (its member crates are not separate parts).
+
 ### Changed
 
 - Tests, fixtures and docs use neutral synthetic examples: retired-guard tests run on a synthetic fixture
@@ -44,53 +94,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `check_ui_reuse`: files under `**/components/ui/**` (`ui_reuse.primitives`) are exempt from the raw
   `<button>` / `<input>` / `<select>` rules; raw color classes are still reported there.
 
-- Relicensed from MIT to AGPL-3.0-only with the Installed Files Exception (`LICENSE-EXCEPTION.md`): files
-  CLC Kernel installs into a project can be used under that project's own terms. Trademark policy added
-  (`TRADEMARKS.md`), copyright notice in `NOTICE`, and contributions now need a DCO sign-off
-  (`git commit -s`). Releases up to and including 2.0.4 remain available under the MIT License.
+### Fixed
+
+- `check_architecture` and `check_performance` no longer say "Not a Next.js project" in a monorepo or
+  full-stack repository whose Next.js package had no changed file: the skip now reads "No changed files in a
+  Next.js package — skipping". A repository without any Next.js package keeps the previous messages.
+
+## [2.1.0] - 2026-11-04
+
+### ⚠ BREAKING CHANGES
+
+- The license changed from MIT to AGPL-3.0-only (see *Changed*). Releases up to and including 2.0.4 stay MIT.
 
 ### Added
 
-- Technology detection: Supabase (`supabase/config.toml` in the root or a part), a configured SQL migrations
-  folder (`sql_migrations.paths`), a Node data client (`@supabase/supabase-js`, `drizzle-orm`,
-  `@prisma/client`, `postgres`, `pg`) and an MCP server (`@modelcontextprotocol/sdk`). The install summary shows
-  a row per technology and AGENTS.md lists each technology guard.
-- `check_sql_migrations`: SQL migration rules on the changed files, each with its own level
-  (`sql_migrations.severities`): applied migrations are immutable, `create table` in the checked schemas needs
-  `enable row level security` in the same file, `security definer` functions set `search_path`, no write grants
-  to anonymous roles, `drop table` / `drop column` are named warnings. Comments, string literals and
-  dollar-quoted bodies are ignored. A later `alter function … set search_path` satisfies `search_path`;
-  `set search_path` sets the schema of unqualified names; quoted identifiers keep their case; `drop <column>`
-  without `column` is named; *applied* means present at the merge-base with the branch's upstream when there
-  is one (else HEAD), so a migration only committed locally may still change.
-- `check_query_efficiency` (JS/TS counterpart of `check_db_efficiency`): query calls of supabase-js, drizzle,
-  prisma, postgres and pg awaited inside loops (N+1, a heuristic: warning by default) and supabase-js
-  `select('*')` without `limit`/`range` (warning); extra patterns in `query_efficiency.call_patterns`.
-  Pagination loops (`.range(`, `.offset(`, `skip`, `cursor`, SQL `OFFSET`) and functions defined inside a loop
-  (a handler registered per route) are not N+1; statements without semicolons end at the end of the line.
-- `check_mcp_contracts`: every MCP tool registration (`registerTool`, and the deprecated `tool()`) declares an
-  input schema (`missing_schema`). With `mcp_contracts.contracts_modules` configured the schema must be imported
-  from them, never inline; with `mcp_contracts.forbid_data_clients: true` a file that registers tools imports no
-  data client. Both are off by default.
-- `.clckernel.yaml` keys `sql_migrations`, `query_efficiency`, `mcp_contracts` and `ui_reuse`, validated in
-  `tools/_config.js` and `tools/_config.py` (per-rule levels `error`, `warning` or `"off"`, quoted). Both readers
-  reject an invalid `query_efficiency.call_patterns` regex. The guards fall back to each section's defaults when
-  an older `tools/_config.js` (kept because you edited it) does not know the section.
-
-- Library parts: a subdirectory with a package manifest that no framework adapter matches is a library part
-  of its ecosystem: `TypeScript Library` (`package.json`, or an Nx `project.json` without one, + `tsconfig.json`; the hook runs `tsc --noEmit`
-  inside it with the part's or the hoisted root `node_modules/.bin/tsc`), `JavaScript Library`
-  (`package.json` or an Nx `project.json`; JS guards only), `Python Library` (`pyproject.toml` / `setup.py` / `setup.cfg`; ruff and
-  pytest), `PHP Library` (`composer.json` without `artisan`; phpstan and Pest / PHPUnit from `vendor/bin`) and
-  `Ruby Library` (`*.gemspec` or `Gemfile` without `config/routes.rb`; rubocop and RSpec, or Minitest via
-  `rake test`). Library parts count on their own: a repository of libraries only is a `monorepo`, and a
-  framework at the root plus library packages is `fullstack`. The root is never a library part; a
-  `JavaScript Library` is dropped when another node part already installs the JS guards; an Agent-OS root
-  whose only parts would be libraries stays Agent-OS. AGENTS.md lists each library part with its test runner.
-- Part discovery: `libs/*` (Nx) is a conventional part directory; `lerna.json` `packages` and `go.work`
-  `use` directories are read as part patterns; workspace patterns accept `dir/*/*` and a trailing `dir/**`
-  (descending until a directory with a package manifest), up to three levels deep. A root `Cargo.toml` with
-  `[workspace]` stays one part (its member crates are not separate parts).
 - `guard_exclude` in `.clckernel.yaml`: `{ <guard name>: [globs] }` keeps paths out of one guard only, for
   every guard and stack (kernel guards and `tools/guards/` project guards, JS and Python). The changed-file
   helpers (`_changes.js/.py`) drop the globs of the guard that is running: both audit orchestrators set
@@ -100,16 +117,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   repository-wide listing (`listFiles` / `list_files`) stays unfiltered, as with `exclude_paths`.
 - `scan_secrets` (JS and Python): a line that carries the marker `clckernel: allow-secret` is not reported;
   the marker covers that line only.
-- `clckernel report-bug <summary>`: an agent command (playbook `reference/report-bug.md`) for bugs in CLC
-  Kernel itself. The agent decides whether the failing file is kernel-owned, never patches it in the project,
-  offers a temporary `.clckernel.yaml` workaround (`severities`, `exclude_paths`, `update.exclude`,
-  `tdd.ignore`), prepares a bug report and explains the fork + pull request path (or an issue), waiting for the
-  user's approval before anything outward-facing. Every generated AGENTS.md gains an "If the bug is in CLC
-  Kernel" section (and a `report-bug` row in the command tables); the `fix` playbook switches to it when the
-  root cause is kernel-owned; `npx clckernel report-bug` prints the agent-command message and the issues URL.
-- Website: a new plain-language home page (EN `/`, ES `/es/`) with a lazy-loaded three.js figure and GSAP
-  motion, and a separate technical page (`/how-it-works`, `/es/how-it-works`) holding the loop, guards, stacks,
-  file anatomy, quickstart, known limits and glossary. The unused `ogl` background was removed.
+
+### Changed
+
+- Relicensed from MIT to AGPL-3.0-only with the Installed Files Exception (`LICENSE-EXCEPTION.md`): files
+  CLC Kernel installs into a project can be used under that project's own terms. Trademark policy added
+  (`TRADEMARKS.md`), copyright notice in `NOTICE`, and contributions now need a DCO sign-off
+  (`git commit -s`). Releases up to and including 2.0.4 remain available under the MIT License.
+
+## [2.0.4] - 2026-11-03
+
+### Added
+
 - Website: the brand logo's palette (sky blue accent, amber used sparingly) replaces the lime accent; the lion
   head is the nav mark and favicon; social cards use `images/brand/og.jpg`. The hero figure is now one
   interactive three.js scene that follows a four-chapter story as the page scrolls (one rulebook, your AI
@@ -119,12 +138,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
-- `verify_tdd` (JS and Python) applies `tdd.ignore` to tests too: a matching file is left out of the
-  verification, code or test. An end-to-end spec owned by another runner (e.g. `e2e/**` for Playwright) is no
-  longer handed to the unit runner, which reported "Changed tests do not pass" for a test that never ran.
-- `check_architecture` and `check_performance` no longer say "Not a Next.js project" in a monorepo or
-  full-stack repository whose Next.js package had no changed file: the skip now reads "No changed files in a
-  Next.js package — skipping". A repository without any Next.js package keeps the previous messages.
 - Kernel files no longer break the project's linters. Every JS and Python file install and update write into
   `tools/` starts with file-level pragmas that declare it kernel-owned (`/* eslint-disable */`,
   `// biome-ignore-all lint:`, `// @ts-nocheck`; `# ruff: noqa`, `# flake8: noqa`, `# pylint: skip-file`,
@@ -137,17 +150,48 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   and empty `catch` blocks; `check_skills.js` had a literal BOM in a regex; `verify_tdd.js` used a dynamic
   `delete` and a control character in a regex (now `util.stripVTControlCharacters`); `audit.py` an ambiguous
   name `l`; `celery_guard.py` f-strings without placeholders; `check_architecture.py` an unused `re` import.
+
+## [2.0.3] - 2026-11-03
+
+### Added
+
+- Website: a new plain-language home page (EN `/`, ES `/es/`) with a lazy-loaded three.js figure and GSAP
+  motion, and a separate technical page (`/how-it-works`, `/es/how-it-works`) holding the loop, guards, stacks,
+  file anatomy, quickstart, known limits and glossary. The unused `ogl` background was removed.
+
+### Fixed
+
 - Projects with `"type": "module"` in `package.json`: install and update write `tools/package.json`
   (`{ "type": "commonjs" }`, kernel-owned, listed in `tools/.clckernel-managed.json`; a project file is kept)
   whenever a JS file goes into `tools/`, so the CommonJS guards and the pre-commit hook no longer crash with
   `require is not defined in ES module scope`. `doctor` gains a *tools/ JS runs as CommonJS* check whose
   failure says what to run or change; `verify_tdd.js` does not treat that marker as a project root; the
   install's Next steps tell to add `tools/**` to the linter's ignores.
+
+## [2.0.2] - 2026-10-29
+
+### Added
+
+- `clckernel report-bug <summary>`: an agent command (playbook `reference/report-bug.md`) for bugs in CLC
+  Kernel itself. The agent decides whether the failing file is kernel-owned, never patches it in the project,
+  offers a temporary `.clckernel.yaml` workaround (`severities`, `exclude_paths`, `update.exclude`,
+  `tdd.ignore`), prepares a bug report and explains the fork + pull request path (or an issue), waiting for the
+  user's approval before anything outward-facing. Every generated AGENTS.md gains an "If the bug is in CLC
+  Kernel" section (and a `report-bug` row in the command tables); the `fix` playbook switches to it when the
+  root cause is kernel-owned; `npx clckernel report-bug` prints the agent-command message and the issues URL.
+
+### Fixed
+
 - `check_a11y` reads each JSX tag whole: attributes on later lines (an `aria-label`, an `alt`, an
   `onKeyDown`) are seen, hidden inputs and inputs removed from the accessibility tree (`hidden`, `aria-hidden="true"`, a `hidden`
   class, inline `display: none`) are skipped while `sr-only` and responsive `md:hidden` inputs are still checked, inputs labelled through `htmlFor`/`for` or wrapped by a
   `<label>` pass, spread props are not reported, and components named `Input`/`Img` are no longer treated
   as native elements.
+
+## [2.0.1] - 2026-10-25
+
+### Fixed
+
 - `npx clckernel` no longer prints the `clc-forge` deprecation notice. The legacy `clc-forge` and
   `create-clc-forge` binaries now point to `bin/deprecated.js`, so npx runs the bin named like the package
   instead of the first (alphabetically sorted) one.
@@ -384,6 +428,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Previous release.
 
-[Unreleased]: https://github.com/CarlosLeonCode/clc_forge/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/CarlosLeonCode/clc_forge/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/CarlosLeonCode/clc_forge/compare/v2.1.0...v2.2.0
+[2.1.0]: https://github.com/CarlosLeonCode/clc_forge/compare/v2.0.4...v2.1.0
+[2.0.4]: https://github.com/CarlosLeonCode/clc_forge/compare/v2.0.3...v2.0.4
+[2.0.3]: https://github.com/CarlosLeonCode/clc_forge/compare/v2.0.2...v2.0.3
+[2.0.2]: https://github.com/CarlosLeonCode/clc_forge/compare/v2.0.1...v2.0.2
+[2.0.1]: https://github.com/CarlosLeonCode/clc_forge/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/CarlosLeonCode/clc_forge/compare/v1.2.19...v2.0.0
 [1.2.19]: https://github.com/CarlosLeonCode/clc_forge/releases/tag/v1.2.19
