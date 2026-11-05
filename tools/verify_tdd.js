@@ -88,7 +88,8 @@ const SIBLING_VERIFIER = 'verify_tdd.py';
  * @returns {{ extra: (rel: string) => boolean, ignore: (rel: string) => boolean, handed: (rel: string) => boolean }}
  */
 function codeRules(repo) {
-  const config = projectConfig(repo);
+  // Without a config file the defaults apply (tdd.ignore: generated files).
+  const config = projectConfig(repo) || defaultConfig();
   const extra = globMatcher(config ? config.tdd.code : []);
   const sibling = fs.existsSync(path.join(__dirname, SIBLING_VERIFIER));
   return {
@@ -96,6 +97,15 @@ function codeRules(repo) {
     ignore: globMatcher(config ? config.tdd.ignore : []),
     handed: sibling ? (rel) => JS_EXTENSIONS.includes(path.posix.extname(rel)) && extra(rel) : () => false,
   };
+}
+
+/** The config defaults; an older install without tools/_config.js has none (no ignore list). */
+function defaultConfig() {
+  try {
+    return require('./_config.js').defaultConfig();
+  } catch {
+    return null;
+  }
 }
 
 const NO_RULES = { extra: () => false, ignore: () => false, handed: () => false };
@@ -453,7 +463,7 @@ function relative(rel, root) {
  * support: *.config.*, vitest/jest.setup.*, anything under a fixtures/ dir of a
  *          test dir, and helpers under test/ or tests/ without a test suffix
  * code:    everything else, plus any file matching tdd.code; a file matching
- *          tdd.ignore is never code
+ *          tdd.ignore is never code (by default generated files, see _config.js)
  */
 function classify(changed, rules = NO_RULES) {
   const tests = [];
@@ -541,12 +551,21 @@ function readPackageJson(tree) {
  * Choose the runner from the CANDIDATE package.json.
  * @returns {{ name: string, command: string|null, args: string[], error?: string }}
  */
-function detectRunner(tree, tests) {
-  const pkg = readPackageJson(tree);
-  const deps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
+function detectRunner(tree, tests, rootTree = tree) {
+  // A workspace part that does not declare the runner uses the workspace
+  // root's, and a part node_modules without the binary falls through to the
+  // root's node_modules/.bin (hoisted by npm/yarn/pnpm workspaces).
+  const trees = rootTree && path.resolve(rootTree) !== path.resolve(tree) ? [tree, rootTree] : [tree];
+  const depsOf = (dir) => {
+    const pkg = readPackageJson(dir);
+    return { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
+  };
+  const declared = trees.map(depsOf);
   for (const [name, args] of [['vitest', ['run']], ['jest', ['--runTestsByPath']]]) {
-    if (!deps[name]) continue;
-    const bin = path.join(tree, 'node_modules', '.bin', process.platform === 'win32' ? `${name}.cmd` : name);
+    if (!declared.some((deps) => deps[name])) continue;
+    const exe = process.platform === 'win32' ? `${name}.cmd` : name;
+    const bins = trees.map((dir) => path.join(dir, 'node_modules', '.bin', exe));
+    const bin = bins.find((file) => fs.existsSync(file)) || bins[0];
     if (!fs.existsSync(bin)) {
       return {
         name, command: null, args: [],
@@ -676,7 +695,7 @@ function redGreen(repo, candidateRoot, baseRoot, root, groups, data, links, lang
         if (link) links.push(link);
       }
     }
-    runner = detectRunner(candidateDir, runFiles);
+    runner = detectRunner(candidateDir, runFiles, candidateRoot);
   } else {
     const profile = PROFILE_BY_LANG.get(lang);
     for (const dir of [candidateDir, baseDir]) {

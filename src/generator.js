@@ -9,6 +9,7 @@ const { spawnSync } = require('child_process');
 const { readProjectConfig, globMatcher } = require('./config.js');
 const { createIO, runWithIO, activeIO, currentIO, registeredPaths, MANAGED_REGISTRY } = require('./io');
 const { FIRST_SESSION_SECTION, KERNEL_BUG_SECTION } = require('./onboarding');
+const { technologySafeguards } = require('./technologies/detector');
 
 /**
  * Shell condition that decides at commit time whether an external tool runs.
@@ -81,9 +82,9 @@ function managedToolPaths(toolFiles) {
  * @param {object} io - Active io session
  * @param {string} targetDir - Target project root
  */
-function writeManagedRegistry(io, targetDir) {
+function writeManagedRegistry(io, targetDir, technologies = [], extraGuards = []) {
   const { version } = require('../package.json');
-  const registry = { kernelVersion: version, files: io.managedEntries() };
+  const registry = { kernelVersion: version, technologies, extraGuards, files: io.managedEntries() };
   io.writeFile(path.join(targetDir, MANAGED_REGISTRY), JSON.stringify(registry, null, 2) + '\n');
 }
 
@@ -138,9 +139,50 @@ function selectGuards(io, tools, addGuards) {
     if (!isGuard(tool)) return true;
     const rel = `tools/${tool.path}`;
     if (addAll || add.has(tool.name) || registered.has(rel) || io.exists(rel)) return true;
+    if (newTechnology(io, tool)) {
+      io.noteDetected(`${tool.name} (${tool.technology})`);
+      return true;
+    }
     io.noteAvailable(tool.name);
     return false;
   });
+}
+
+/**
+ * True for a technology guard whose technology appeared since the last
+ * install/update (sdds/laila-platform-fit, REQ-17): the registry records the
+ * technologies detected then; one not listed is new. A registry without the
+ * list (older releases) counts every detected technology as new, once.
+ * @param {object} io - Active io session (update)
+ * @param {object} tool - Manifest entry
+ * @returns {boolean}
+ */
+function newTechnology(io, tool) {
+  if (!Array.isArray(tool.technologies) || tool.technologies.length === 0) return false;
+  const known = io.registry.technologies;
+  if (!Array.isArray(known)) return true;
+  return tool.technologies.some(tech => !known.includes(tech));
+}
+
+/**
+ * Catalog guards outside the stack's manifest (sdds/laila-platform-fit,
+ * REQ-7): the ones requested with --add-guards and the ones an earlier
+ * --add-guards recorded in the registry, as tool descriptors.
+ * @param {object} io - Active io session
+ * @param {Array} manifest - Guards of the stack's manifest
+ * @param {string[]|'all'} [addGuards]
+ * @returns {Array}
+ */
+function extraGuardTools(io, manifest, addGuards) {
+  const { bundledGuard } = require('./catalog');
+  const offered = new Set(manifest.filter(isGuard).map(tool => tool.name));
+  const names = [...new Set([...(Array.isArray(addGuards) ? addGuards : []), ...(io.registry.extraGuards || [])])];
+  return names.filter(name => !offered.has(name)).map(bundledGuard).filter(Boolean);
+}
+
+/** Technology ids of a detected config, sorted (recorded in the registry). */
+function detectedTechnologies(config) {
+  return [...new Set((config.techTools || []).flatMap(tool => tool.technologies || []))].sort();
 }
 
 /** Fallback files as guard descriptors (audit orchestrators excluded). */
@@ -543,8 +585,36 @@ function installToolsFromManifest(targetDir, manifest, config) {
     written.push(...installYamlModule(targetDir));
   }
   written.push(...installSnapshotHelpers(targetDir, copiedPaths));
+  written.push(...installGuardHelpers(targetDir, copiedPaths));
   written.push(...installModuleTypeMarker(targetDir, written));
   return { installed, written };
+}
+
+/**
+ * Sibling modules a guard requires beyond the snapshot helpers
+ * (sdds/laila-platform-fit): the JS source scanner of the JS/TS code guards.
+ */
+const GUARD_HELPERS = {
+  'check_query_efficiency.js': ['_jscode.js'],
+  'check_mcp_contracts.js': ['_jscode.js'],
+};
+
+/**
+ * Copies the helpers (GUARD_HELPERS) of the guards copied into tools/.
+ * @param {string} targetDir - Target project root
+ * @param {string[]} copiedFiles - tools/ file names copied for this project
+ * @returns {string[]} File names written into tools/
+ */
+function installGuardHelpers(targetDir, copiedFiles) {
+  const helpers = new Set(copiedFiles.flatMap(f => GUARD_HELPERS[f] || []));
+  const written = [];
+  for (const file of helpers) {
+    const src = path.join(__dirname, '..', 'tools', file);
+    if (!fs.existsSync(src)) continue;
+    currentIO(targetDir).copyManaged(src, `tools/${file}`);
+    written.push(file);
+  }
+  return written;
 }
 
 /** tools/package.json the kernel writes next to its JS files (sdds/esm-tools-commonjs). */
@@ -677,6 +747,9 @@ function partsAgentsMd(config) {
   const rows = config.parts.map(p => `| \`${p.dir}\` | ${p.adapter.name} | ${p.adapter.testRunner} |`).join('\n');
   const sections = config.parts.map((p, i) => `### 2.${i + 1} Core AI Safeguards — \`${p.dir}\` (${p.adapter.name})
 ${p.adapter.getSafeguards().map(s => `- ${s}`).join('\n')}`).join('\n\n');
+  const techLines = technologySafeguards(config.techTools);
+  const techSection = techLines.length === 0 ? '' : `\n\n### 2.${config.parts.length + 1} Technology guards (whole repository)
+${techLines.map(s => `- ${s}`).join('\n')}`;
   return `# CLC Kernel ${config.projectType.toUpperCase()} (${config.parts.length} parts) — AGENTS
 
 This document is the **authoritative law** for AI agents working in this repository.
@@ -710,11 +783,76 @@ ${rows}
 
 ## 2. Core AI Safeguards (per part)
 
-${sections}
+${sections}${techSection}
 
 ${commandTable(testRunner)}
 ${KERNEL_BUG_SECTION}
 ${FIRST_SESSION_SECTION}`;
+}
+
+/**
+ * Text of the `## ` section starting at `heading` (the heading line up to the
+ * next `## ` heading or the end), or null when the document has no such line.
+ * @param {string} text - Markdown document
+ * @param {string} heading - Full heading line, e.g. '## Parts'
+ * @returns {{ start: number, end: number, text: string }|null}
+ */
+function markdownSection(text, heading) {
+  let start = text.startsWith(`${heading}\n`) ? 0 : text.indexOf(`\n${heading}\n`);
+  if (start < 0) return null;
+  if (start > 0) start += 1;
+  const next = text.indexOf('\n## ', start + heading.length);
+  const end = next < 0 ? text.length : next + 1;
+  return { start, end, text: text.slice(start, end) };
+}
+
+/**
+ * The kernel-owned AGENTS.md sections of a detected config
+ * (sdds/laila-platform-fit, REQ-3): the Parts table and the per-part
+ * safeguards of a multi-part repo, or section 2 of a single stack the base
+ * adapter renders. Each is { heading, text } as install writes it.
+ * @param {object} config - Detected config
+ * @returns {Array<{ heading: string, text: string }>}
+ */
+function kernelAgentsSections(config) {
+  if (Array.isArray(config.parts) && config.parts.length > 0) {
+    const fresh = partsAgentsMd(config);
+    return ['## Parts', '## 2. Core AI Safeguards (per part)']
+      .map(heading => ({ heading, section: markdownSection(fresh, heading) }))
+      .filter(({ section }) => section)
+      .map(({ heading, section }) => ({ heading, text: section.text }));
+  }
+  const adapter = config.adapter;
+  if (!adapter || adapter.projectType === 'agent-os') return [];
+  const heading = `## 2. Core AI Safeguards (${adapter.name})`;
+  const lines = [...adapter.getSafeguards(), ...technologySafeguards(config.techTools)].map(s => `- ${s}`).join('\n');
+  return [{ heading, text: `${heading}\n${lines}\n` }];
+}
+
+/**
+ * Rewrites the kernel-owned sections of an existing AGENTS.md
+ * (kernelAgentsSections) and keeps every other byte; a section the document
+ * does not have is not added, and an unchanged document is not written.
+ * @param {object} io - Active io session
+ * @param {string} targetDir - Project root
+ * @param {object} config - Detected config
+ * @returns {boolean} true when AGENTS.md was (or, in a dry run, would be) written
+ */
+function refreshAgentsSections(io, targetDir, config) {
+  const file = path.join(targetDir, 'AGENTS.md');
+  const current = io.read(file);
+  if (!current) return false;
+  let text = current.toString('utf-8');
+  for (const { heading, text: fresh } of kernelAgentsSections(config)) {
+    const section = markdownSection(text, heading);
+    if (!section) continue;
+    // The section keeps its own trailing blank lines (the spacing before the next heading).
+    const trailing = /\s*$/.exec(section.text)[0];
+    text = text.slice(0, section.start) + fresh.trimEnd() + trailing + text.slice(section.end);
+  }
+  if (text === current.toString('utf-8')) return false;
+  io.writeFile(file, text);
+  return true;
 }
 
 /**
@@ -838,15 +976,15 @@ Forged by **CLC Kernel: The AI Agent Governance Engine**.
 8. **PR** — Generate PR body.
 
 ## 2. Core AI Safeguards
-${isFront ? `- UI Component Reuse First (components/ui/ & semantic tokens)
+${isFront ? `- UI Component Reuse First protocol (agent-enforced; not checked by a guard for this stack)
 - Responsive & Mobile-First Adaptability Guard
 - SEO, GEO & Web Performance Guard
-- Next.js Clean Architecture Guard
+- Clean Architecture protocol (agent-enforced; no layer guard installed for this stack)
 - Secret & Client Exposure Guard
-- Accessibility & ARIA Guard (A11y)
-- Zod API Contract Guard
-- Next/Image & Tree-Shaking Guard
-- Storybook Coverage Guard
+- Accessibility & ARIA protocol (agent-enforced; not checked by a guard for this stack)
+- Zod API contracts (agent-enforced; \`clckernel update --add-guards check_api_contracts\` adds the guard)
+- Next/Image & Tree-Shaking protocol (agent-enforced; not checked by a guard for this stack)
+- Storybook story coverage (agent-enforced; \`clckernel update --add-guards check_storybook\` adds the guard)
 - Educational Audit Gate
 - Memory protocol (agent-enforced; Engram / Graphify optional, not checked by a guard)` : isGeneric ? `- Wait for Audit Gate
 - Secret Leak Guard (tools/scan_secrets.js, run by the pre-commit hook)
@@ -882,21 +1020,28 @@ ${FIRST_SESSION_SECTION}`;
   // On update only the guards the project has (plus --add-guards) are
   // installed and run (sdds/update-no-additions, decisions 1 and 4).
   const { addGuards } = options;
+  let extras = [];
   if (multiPart) {
     const full = buildPartsManifest(config.parts, config.techTools || [], targetDir);
-    const manifest = { ...full, guards: selectGuards(io, full.guards, addGuards) };
+    extras = extraGuardTools(io, full.guards, addGuards);
+    const manifest = { ...full, guards: selectGuards(io, [...full.guards, ...extras], addGuards) };
     const { installed, written } = installToolsFromManifest(targetDir, manifest.guards, config);
     installedGuards = installed;
     hook = generatePartsHook(config, targetDir, manifest, managedToolPaths(written));
   } else if (config.adapter) {
-    const manifest = selectGuards(io, buildToolManifest(config.adapter, config.techTools || [], targetDir), addGuards);
+    const full = buildToolManifest(config.adapter, config.techTools || [], targetDir);
+    extras = extraGuardTools(io, full, addGuards);
+    const manifest = selectGuards(io, [...full, ...extras], addGuards);
     const { installed, written } = installToolsFromManifest(targetDir, manifest, config);
     installedGuards = installed;
     hook = generateHookFromManifest(config.adapter, targetDir, manifest, managedToolPaths(written));
   } else {
-    const kept = new Set(selectGuards(io, fallbackGuards(config.projectType), addGuards).map(tool => tool.path));
+    const fallback = fallbackGuards(config.projectType);
+    const kept = new Set(selectGuards(io, fallback, addGuards).map(tool => tool.path));
     const keep = file => /^audit\./.test(file) || kept.has(file);
     const { installed } = installFallbackTools(targetDir, config.projectType, keep);
+    extras = extraGuardTools(io, fallback, addGuards);
+    if (extras.length > 0) installed.push(...installToolsFromManifest(targetDir, extras, config).installed);
     installedGuards = installed;
     hook = generateFallbackHook(targetDir, config.projectType);
   }
@@ -905,7 +1050,8 @@ ${FIRST_SESSION_SECTION}`;
   installAgenticCLI(targetDir, projectConfig.config.mirrors.list);
 
   // Step 5: Record what the kernel owns now, with hashes.
-  writeManagedRegistry(io, targetDir);
+  const extraNames = extras.map(tool => tool.name).filter(name => installedGuards.includes(name)).sort();
+  writeManagedRegistry(io, targetDir, detectedTechnologies(config), extraNames);
 
   return { installedGuards, hook };
 }
@@ -971,4 +1117,6 @@ function installAgenticCLI(targetDir, mirrors) {
   });
 }
 
-module.exports = { generateHarness, generateHookFromManifest, buildToolManifest, configureHooksPath, manifestGuardNames };
+module.exports = {
+  generateHarness, generateHookFromManifest, buildToolManifest, configureHooksPath, manifestGuardNames, refreshAgentsSections,
+};

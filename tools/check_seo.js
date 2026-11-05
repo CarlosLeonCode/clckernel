@@ -2,11 +2,11 @@
 /**
  * SEO, GEO & Web Performance Guard
  * Scans changed frontend files (.tsx, .jsx, .vue, .astro, .html) for:
- * 1. Missing page metadata (title, description, canonical)
- * 2. OpenGraph & Social Sharing tags (og:title, og:image, og:description)
- * 3. Semantic HTML & Heading hierarchy (single <h1> per page, <main> landmark usage)
- * 4. GEO & Localized Structured Data tags (geo.region, geo.position, ICBM, JSON-LD)
- * 5. LCP & Performance: Hero image priority optimization
+ * 1. More than one <h1> in a page or layout file
+ * 2. Malformed GEO meta tags (geo.position, ICBM coordinates)
+ * 3. LCP: a hero image without priority / fetchpriority
+ * 4. target="_blank" links without rel="noopener noreferrer"
+ * Page metadata and social sharing tags are not checked.
  *
  * Self-contained: uses only Node.js built-ins.
  *

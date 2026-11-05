@@ -270,11 +270,24 @@ npx clckernel . --yes --dry-run
 `update` refreshes what the project already has; it never adds guards or IDE mirrors on its own:
 - **Guards:** only the guards in the registry or present in `tools/` are refreshed and run by the hook. New
   guards of your stack are listed as *available, not installed*; opt in with `--add-guards` (they stay
-  installed and updated from then on). An unknown name fails with exit 1 and writes nothing. Support files
+  installed and updated from then on). `--add-guards` accepts any bundled guard of the catalog, also one
+  your stack does not install (e.g. `check_api_contracts`, `check_storybook`, `check_scope`): update warns
+  that it is not part of the detected stack, records it in the registry (`extraGuards`) and refreshes it
+  like the others. A name outside the catalog (or an external CLI) fails with exit 1 and writes nothing.
+- **Technologies detected since the last run:** the one exception. The registry records the technologies
+  detected at install/update (`technologies`); one that appeared since (a `Dockerfile`, a
+  `supabase/config.toml`, a data client or the MCP SDK in a `package.json`) brings its guard, listed as
+  *added for newly detected technologies* (`--dry-run`: *would add*). A registry written by an older release
+  has no list, so every detected technology whose guard is missing is added once; after that a guard you
+  remove stays removed (it is listed as available). Support files
   (`_changes.js/.py`, the config readers `_config.js/.py`, `yaml.js`, `_yaml.py`, the audit orchestrators,
   `tools/package.json`) follow the installed guards.
 - **Mirrors:** a mirror you deleted (e.g. `.cursor/rules/clckernel_context.mdc`) is not recreated; it is
   reported as *not present (skipped)*. A fresh install still creates them all.
+- **AGENTS.md:** the kernel-owned sections are refreshed: the *Parts* table and *Core AI Safeguards* of a
+  full-stack or monorepo `AGENTS.md`, or section *2. Core AI Safeguards (<stack>)* of a single stack. Every other
+  section keeps your edits, a document without those headings is not touched, and `update.exclude:
+  [AGENTS.md]` keeps it out entirely. `--dry-run` lists AGENTS.md when it would change.
 - **`.gitignore`:** an entry whose path git tracks (a mirror or the skill you commit) is never added, on
   install or update; it is reported as *tracked, not ignored*.
 ```bash
@@ -302,9 +315,19 @@ with `Invalid .clckernel.yaml: key "<key>" — <reason>` (nothing is written, th
 | `hitl.optOut` | `{ key, value }`: a file whose frontmatter has `key: value` is exempt | none | `check_hitl` |
 | `update.exclude` | Root-relative globs install and update never write, move or remove; listed as *excluded by config* | none | install/update |
 | `tdd.code` | Extra globs counted as production code (any language), e.g. Python tools tested by JS tests | none | `verify_tdd.js/.py` |
-| `tdd.ignore` | Globs never counted as production code | none | `verify_tdd.js/.py` |
+| `tdd.ignore` | Globs never counted as production code; setting the key replaces the default | generated code: `**/database.types.ts`, `**/*.generated.*`, `**/*.gen.*`, `**/__generated__/**`, `**/generated/**` | `verify_tdd.js/.py` |
 | `severities` | `{ <guard name>: warning \| error }`: a failing guard at `warning` is reported (`WARN`, verdict `PASSED_WITH_WARNINGS`) but does not block; `error` blocks even when the guard reports `level: 'warning'`. A crash always blocks | each guard's own level (`error` unless it reports `warning`) | `audit.js` / `audit.py` (audit and pre-commit hook) |
 | `guard_exclude` | `{ <guard name>: [globs] }`: changed files that one guard never evaluates; every other guard still sees them. The guard name is its file name without extension (`scan_secrets`, `check_custom`, a `tools/guards/` guard's own name); any name is accepted | none | `_changes.js/.py`, for the guard the audit orchestrators (or a direct run) name |
+| `sql_migrations.paths` | Globs of the SQL migration files; a configured folder that exists also installs the guard | `**/supabase/migrations/**/*.sql` | `check_sql_migrations`, install/update |
+| `sql_migrations.schemas` | Schemas whose `create table` needs `enable row level security` in the same file | `public` | `check_sql_migrations` |
+| `sql_migrations.anon_roles` | Roles that must get no `insert` / `update` / `delete` / `all` grant | `anon` | `check_sql_migrations` |
+| `sql_migrations.severities` | `{ immutable, rls, search_path, anon_write, destructive }`: `error`, `warning` or `off` per rule | `destructive: warning`, the rest `error` | `check_sql_migrations` |
+| `query_efficiency.call_patterns` | Extra regexes of query calls (matched on code with comments and literal text blanked), for any file | none (the presets follow the file's data client) | `check_query_efficiency` |
+| `query_efficiency.severities` | `{ n_plus_one, unbounded_select }`: `error`, `warning` or `off` | `n_plus_one: error`, `unbounded_select: warning` | `check_query_efficiency` |
+| `mcp_contracts.contracts_modules` | Modules (and their subpaths) tool input schemas must be imported from | none: any imported schema; inline ones still fail | `check_mcp_contracts` |
+| `mcp_contracts.forbid_data_clients` | `true`: a file that registers tools may not import a data client | `true` | `check_mcp_contracts` |
+| `mcp_contracts.severities` | `{ inline_schema, schema_source, data_client }`: `error`, `warning` or `off` | all `error` | `check_mcp_contracts` |
+| `ui_reuse.primitives` | Globs of the UI primitives, exempt from the raw `<button>` / `<input>` / `<select>` rules | `**/components/ui/**` | `check_ui_reuse` |
 
 ```yaml
 exclude_paths: ["vendor/**"]
@@ -321,6 +344,10 @@ severities:
   check_seo: warning
 guard_exclude:
   scan_secrets: ["tests/**", "**/tests/**", "**/*.md"]
+sql_migrations:
+  severities: { destructive: "off" }
+mcp_contracts:
+  contracts_modules: ["@acme/contracts"]
 ```
 
 Prefer `guard_exclude` over `exclude_paths` when only one guard misfires on some paths: with
@@ -415,6 +442,45 @@ separated for the red run, so a `src/` change needs a changed integration test u
 `tdd.ignore` entry); Minitest runs through plain `ruby -Ilib -Itest`, not `rails test`; Go is verified per
 package; PHP assumes Composer 2.2+ bin proxies. Only committed or staged files exist in the trees (no `.env`).
 
+<a id="technology-guards"></a>
+#### Technology guards
+
+Install and `update` also look for technologies in the root and in every part, and add their guard (JS,
+stack-agnostic; listed in the install summary and in AGENTS.md):
+
+| Technology | Detected by | Guard |
+|---|---|---|
+| Supabase / SQL migrations | `supabase/config.toml`, or a configured `sql_migrations.paths` folder | `check_sql_migrations` |
+| Database client | `@supabase/supabase-js`, `drizzle-orm`, `@prisma/client`, `postgres` or `pg` in a `package.json` | `check_query_efficiency` |
+| MCP server | `@modelcontextprotocol/sdk` in a `package.json` | `check_mcp_contracts` |
+| Celery, Redis, PostgreSQL (Python), Docker | Python dependencies, `redis.conf`, `Dockerfile`, `docker-compose.yml` | `celery_guard`, `redis_guard`, `postgres_guard`, `docker_guard` |
+
+- **`check_sql_migrations`** reads the changed migration files statement by statement (comments, string
+  literals and dollar-quoted bodies blanked; case-insensitive): a migration present at BASE that is modified,
+  deleted or renamed (`immutable`); a `create table` in a checked schema without `enable row level security`
+  in the same file (`rls`); a `security definer` function or procedure without `set search_path` (`search_path`);
+  `insert`/`update`/`delete`/`all` granted to an anonymous role, `alter default privileges` included
+  (`anon_write`); `drop table` / `drop column`, named (`destructive`, a warning). Not seen: SQL built in
+  `EXECUTE` strings, RLS enabled in another migration, `alter table … drop <column>` without the `column`
+  keyword.
+- **`check_query_efficiency`** (the JS/TS counterpart of `check_db_efficiency`) reads changed JS/TS files whose
+  nearest `package.json` (or the root one) depends on a client: a query call awaited in a `for` / `for…of` /
+  `for await` / `while` / `do` body, or any query call in a `.forEach(` / `.map(async` / `.flatMap(async`
+  callback, is an N+1 error; supabase-js `.select('*')` without `.limit(` / `.range(` / `.single(` /
+  `.maybeSingle(` is a warning. Calls: supabase-js `.from(…).select|insert|update|upsert|delete(` and `.rpc(`;
+  drizzle `db.`/`tx.` `select|insert|update|delete|execute(` and `db.query.<t>.findMany|findFirst(`; prisma
+  `prisma.<model>.<operation>(`; postgres `` sql`…` ``; pg `client|pool|db.query(`. Test files and generated
+  types are skipped. Known false positives: a loop that runs a few fixed times, a batch call that is a single
+  query. Not seen: a query helper called inside a loop, a client under another variable name, `.select()`
+  without arguments.
+- **`check_mcp_contracts`** reads changed JS/TS files of packages that depend on the MCP SDK. A registration is
+  `<x>.registerTool("name", { inputSchema, … }, cb)` (the SDK's current API, checked against
+  `@modelcontextprotocol/sdk` 1.32) or the deprecated `<x>.tool("name", …)`: an inline schema
+  (`z.object(…)`, `z.*`, a raw shape with zod members) fails (`inline_schema`); a schema identifier not imported
+  from `mcp_contracts.contracts_modules` fails (`schema_source`); a file that registers tools and imports a data
+  client (type-only imports included) fails (`data_client`). Not followed: a config object passed as a variable,
+  a schema re-exported through a local module.
+
 Not supported: Agent-OS as one part of a monorepo, nested git repositories or submodules, choosing parts by
 hand in the interactive prompt ("Choose another stack" installs a single stack), and Composer path
 repositories (PHP parts are found only through workspaces of other tools and the conventional directories).
@@ -444,8 +510,12 @@ repositories (PHP parts are found only through workspaces of other tools and the
   CommonJS too.
 - **Rust inline unit tests** (`#[cfg(test)]`) cannot be separated for the red run; see
   [Red→Green on Go, Rust, Ruby and PHP](#red-green-other-stacks).
-- **Existing installs keep their `AGENTS.md`.** `update` never rewrites it, so the *First session after
-  install* section and other template changes reach only fresh installs; copy them by hand if you want them.
+- **Existing installs keep most of their `AGENTS.md`.** `update` refreshes only the parts table and the
+  safeguard lists (section 2), so the *First session after install* section and other template changes reach
+  only fresh installs; copy them by hand if you want them.
+- **Technology guards are heuristics on source text**, not parsers: see [Technology guards](#technology-guards)
+  for what each one does not see. They are JS guards, so a Python-only stack with Supabase needs Node at
+  commit time (it has it: the CLI runs with npx).
 - **Windsurf has no default mirror.** List `.windsurfrules` in `mirrors.list` before installing; on an
   existing install `update` does not add mirrors, so create it yourself (`ln -s AGENTS.md .windsurfrules`).
 - **External linters and test runners run only when available.** The hook runs each one (tsc, ruff, pytest,

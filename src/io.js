@@ -50,24 +50,29 @@ function loadKnownHashes() {
 /**
  * Reads the registry in either format.
  * @param {string} root - Project root
- * @returns {{ format: 'none'|'list'|'hashed', paths: string[], hashes: Map<string, string> }}
+ * @returns {{ format: 'none'|'list'|'hashed', paths: string[], hashes: Map<string, string>, technologies: string[]|null, extraGuards: string[] }}
  */
 function readRegistry(root) {
   let data;
   try {
     data = JSON.parse(fs.readFileSync(path.join(root, MANAGED_REGISTRY), 'utf-8'));
   } catch {
-    return { format: 'none', paths: [], hashes: new Map() };
+    return { format: 'none', paths: [], hashes: new Map(), technologies: null, extraGuards: [] };
   }
   if (Array.isArray(data)) {
-    return { format: 'list', paths: data.filter((f) => typeof f === 'string'), hashes: new Map() };
+    return { format: 'list', paths: data.filter((f) => typeof f === 'string'), hashes: new Map(), technologies: null, extraGuards: [] };
   }
   const files = data && Array.isArray(data.files) ? data.files : [];
   const hashes = new Map();
   for (const f of files) {
     if (f && typeof f.path === 'string' && typeof f.sha256 === 'string') hashes.set(f.path, f.sha256);
   }
-  return { format: 'hashed', paths: [...hashes.keys()], hashes };
+  // Technologies detected by the last install/update (sdds/laila-platform-fit,
+  // REQ-17); null when the registry predates the field.
+  const technologies = data && Array.isArray(data.technologies) ? data.technologies.filter((t) => typeof t === 'string') : null;
+  // Catalog guards added with --add-guards outside the stack's manifest (REQ-7).
+  const extraGuards = data && Array.isArray(data.extraGuards) ? data.extraGuards.filter((t) => typeof t === 'string') : [];
+  return { format: 'hashed', paths: [...hashes.keys()], hashes, technologies, extraGuards };
 }
 
 /**
@@ -103,6 +108,8 @@ function createIO({ root, dryRun = false, knownHashes = loadKnownHashes(), mode:
     written: [], unchanged: [], protected: [], moved: [], removed: [], gitignore: [], gitConfig: [],
     // sdds/update-no-additions: what update left out on purpose.
     available: [], mirrorsSkipped: [], trackedNotIgnored: [],
+    // sdds/laila-platform-fit (REQ-17): guards update adds for technologies detected since the last run.
+    detected: [],
     // sdds/config-foundation: paths the config's update.exclude keeps out.
     excluded: [],
   };
@@ -297,6 +304,11 @@ function createIO({ root, dryRun = false, knownHashes = loadKnownHashes(), mode:
     note(plan.available, name);
   }
 
+  /** Records a guard update adds because its technology appeared since the last run. */
+  function noteDetected(entry) {
+    note(plan.detected, entry);
+  }
+
   /** Records a .gitignore entry left out because the project tracks that path. */
   function noteTrackedNotIgnored(entry) {
     note(plan.trackedNotIgnored, entry);
@@ -364,6 +376,7 @@ function createIO({ root, dryRun = false, knownHashes = loadKnownHashes(), mode:
     symlink,
     mirror,
     noteAvailable,
+    noteDetected,
     noteTrackedNotIgnored,
     remove,
     move,

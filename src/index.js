@@ -9,6 +9,7 @@ const { spawnSync } = require('child_process');
 const { autoDetectStack } = require('./detector');
 const { printBanner, printBox, promptOptions, printSuccess, partLines, colors } = require('./ui');
 const { generateHarness } = require('./generator');
+const { technologyNames } = require('./technologies/detector');
 const { runDoctor } = require('./doctor');
 
 /** Commands that only read state. Safe to run against any project. */
@@ -363,7 +364,9 @@ async function runCli() {
     { label: '🧪 Test Runner', value: detected.testRunner, badgeColor: colors.cyan },
     { label: '🔒 Git Hooks', value: detected.gitHooks, badgeColor: colors.blue },
     // Multi-part repos (sdds/fullstack-monorepo): one row per part.
-    ...partLines(detected).map((line) => ({ label: '🧩 Parte', value: line, badgeColor: colors.emerald }))
+    ...partLines(detected).map((line) => ({ label: '🧩 Parte', value: line, badgeColor: colors.emerald })),
+    // Detected technologies and their guards (sdds/laila-platform-fit, REQ-4).
+    ...technologyNames(detected.techTools).map((name) => ({ label: '🧰 Tecnología', value: name, badgeColor: colors.violet }))
   ]);
 
   // 4. Prompt User for Confirmation or Override

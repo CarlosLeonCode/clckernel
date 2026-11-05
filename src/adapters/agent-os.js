@@ -105,7 +105,7 @@ class AgentOSAdapter extends BaseAdapter {
 
   getSafeguards() {
     return [
-      'Dual-Layer Architecture: Layer 1 (Engineering) & Layer 2 (Domain Runtime)',
+      'Dual-Layer Architecture: Layer 1 (Engineering) & Layer 2 (Domain Runtime) (agent-enforced; not checked by a guard)',
       'Human-in-the-Loop (HITL) checkpoints: every changed skill and playbook declares a `HITL:` line or a `## Human checkpoint` section (check_hitl)',
       'Skill frontmatter: unique lowercase `name` and a `description` of at most 1024 characters in every changed SKILL.md (check_skills)',
       'Relative Markdown links resolve to files in the commit (check_links)',
@@ -115,7 +115,7 @@ class AgentOSAdapter extends BaseAdapter {
       'Project rules from .clckernel.yaml (check_custom)',
       'Secret Leak Guard (scan_secrets)',
       'Single Source of Truth (SSOT) memory protocol (agent-enforced; not checked by a guard)',
-      'Local-only Spec Driven Development (sdds/)',
+      'Local-only Spec Driven Development (sdds/, gitignored by install; agent-enforced)',
       'Red→Green TDD Verifier (runs changed tests with vitest / jest / node:test)'
     ];
   }

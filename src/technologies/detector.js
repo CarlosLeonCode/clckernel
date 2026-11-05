@@ -1,25 +1,45 @@
 /**
  * CLC Kernel — TechnologyDetector
- * Detects Phase-1 technologies (Celery, Redis, PostgreSQL, Docker) via file signatures.
+ * Detects technologies via file signatures: Celery, Redis, PostgreSQL and
+ * Docker, a Supabase CLI project, a configured SQL migrations folder, a Node
+ * data client and an MCP server (sdds/laila-platform-fit).
  */
 
 const fs = require('fs');
 const path = require('path');
 
 /**
- * @typedef {'celery' | 'redis' | 'postgresql' | 'docker'} Technology
+ * @typedef {'celery' | 'redis' | 'postgresql' | 'docker' | 'supabase' | 'sql-migrations' | 'data-client' | 'mcp'} Technology
  */
+
+/** Node packages that query a database (check_query_efficiency, check_mcp_contracts). */
+const DATA_CLIENTS = ['@supabase/supabase-js', 'drizzle-orm', '@prisma/client', 'postgres', 'pg'];
+const MCP_SDK = '@modelcontextprotocol/sdk';
+
+/** Display name of each technology (install summary, AGENTS.md, update plan). */
+const TECHNOLOGY_LABELS = {
+  celery: 'Celery',
+  redis: 'Redis',
+  postgresql: 'PostgreSQL',
+  docker: 'Docker',
+  supabase: 'Supabase',
+  'sql-migrations': 'SQL migrations',
+  'data-client': 'Database client',
+  mcp: 'MCP server',
+};
 
 /**
  * TechnologyDetector scans a project root for Phase-1 technology signatures.
  */
 class TechnologyDetector {
   /**
-   * Detect which Phase-1 technologies are present in targetDir.
-   * @param {string} targetDir - Project root path
+   * Detect which technologies are present in targetDir.
+   * @param {string} targetDir - Project root or part dir
+   * @param {{ sqlMigrationPaths?: string[] }} [options] - Globs of a configured
+   *   SQL migrations folder (.clckernel.yaml `sql_migrations.paths`)
    * @returns {Technology[]} Array of detected technology identifiers
    */
-  detect(targetDir) {
+  detect(targetDir, options = {}) {
     /** @type {Technology[]} */
     const detected = [];
 
@@ -46,6 +66,24 @@ class TechnologyDetector {
       // Docker detection
       if (this._detectDocker(targetDir)) {
         detected.push('docker');
+      }
+
+      // Supabase CLI project
+      if (fs.existsSync(path.join(targetDir, 'supabase', 'config.toml'))) {
+        detected.push('supabase');
+      }
+
+      // A configured SQL migrations folder that exists
+      if (this._detectSqlMigrations(targetDir, options.sqlMigrationPaths)) {
+        detected.push('sql-migrations');
+      }
+
+      const deps = this._packageDeps(targetDir);
+      if (DATA_CLIENTS.some((name) => Object.prototype.hasOwnProperty.call(deps, name))) {
+        detected.push('data-client');
+      }
+      if (Object.prototype.hasOwnProperty.call(deps, MCP_SDK)) {
+        detected.push('mcp');
       }
     } catch (err) {
       console.warn(`[TechnologyDetector] Error during detection: ${err.message}`);
@@ -143,6 +181,45 @@ class TechnologyDetector {
   }
 
   /**
+   * dependencies + devDependencies of targetDir/package.json ({} without one).
+   * @param {string} targetDir
+   * @returns {object}
+   */
+  _packageDeps(targetDir) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(path.join(targetDir, 'package.json'), 'utf-8'));
+      return { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
+    } catch {
+      return {};
+    }
+  }
+
+  /**
+   * True when a configured migrations glob names a folder that exists: the
+   * glob's literal leading segments (before the first wildcard) form a
+   * directory of targetDir.
+   * @param {string} targetDir
+   * @param {string[]|undefined} globs
+   * @returns {boolean}
+   */
+  _detectSqlMigrations(targetDir, globs) {
+    if (!Array.isArray(globs)) return false;
+    return globs.some((glob) => {
+      const literal = [];
+      for (const segment of glob.split('/')) {
+        if (/[*?{[]/.test(segment)) break;
+        literal.push(segment);
+      }
+      if (literal.length === 0 || literal.length === glob.split('/').length) return false;
+      try {
+        return fs.statSync(path.join(targetDir, ...literal)).isDirectory();
+      } catch {
+        return false;
+      }
+    });
+  }
+
+  /**
    * Check if a file exists and contains a case-insensitive substring.
    * @param {string} targetDir
    * @param {string} filename
@@ -196,6 +273,16 @@ class TechnologyDetector {
     const tools = [];
 
     for (const tech of technologies) {
+      const known = tools.find((t) => t.path === TECH_GUARDS[tech]?.path);
+      if (known) {
+        if (!known.technologies.includes(tech)) known.technologies.push(tech);
+        continue;
+      }
+      if (TECH_GUARDS[tech]) {
+        tools.push({ ...TECH_GUARDS[tech], technology: TECHNOLOGY_LABELS[tech], technologies: [tech] });
+        continue;
+      }
+      const before = tools.length;
       switch (tech) {
         case 'celery':
           tools.push({
@@ -234,10 +321,56 @@ class TechnologyDetector {
           });
           break;
       }
+      for (const tool of tools.slice(before)) Object.assign(tool, { technology: TECHNOLOGY_LABELS[tech], technologies: [tech] });
     }
 
     return tools;
   }
 }
 
-module.exports = { TechnologyDetector };
+/** Guards of the technologies added by sdds/laila-platform-fit (JS, stack-agnostic). */
+const SQL_MIGRATIONS_GUARD = {
+  name: 'check_sql_migrations',
+  language: 'js',
+  path: 'check_sql_migrations.js',
+  command: 'node tools/check_sql_migrations.js',
+  description: 'SQL migration guard: applied migrations unchanged, row level security on new tables, security definer search_path, no write grants to anon, drops named',
+};
+const TECH_GUARDS = {
+  supabase: SQL_MIGRATIONS_GUARD,
+  'sql-migrations': SQL_MIGRATIONS_GUARD,
+  'data-client': {
+    name: 'check_query_efficiency',
+    language: 'js',
+    path: 'check_query_efficiency.js',
+    command: 'node tools/check_query_efficiency.js',
+    description: 'Query efficiency guard: awaited database calls inside loops (N+1), unbounded select(\'*\') without limit/range',
+  },
+  mcp: {
+    name: 'check_mcp_contracts',
+    language: 'js',
+    path: 'check_mcp_contracts.js',
+    command: 'node tools/check_mcp_contracts.js',
+    description: 'MCP contract guard: tool input schemas imported from the contracts modules (no inline z.object), no data client imports in tool files',
+  },
+};
+
+/**
+ * AGENTS.md lines for the technology guards of a config: one per guard,
+ * naming its technologies and the file the hook runs. [] without any.
+ * @param {Array} techTools - config.techTools
+ * @returns {string[]}
+ */
+function technologySafeguards(techTools) {
+  return (techTools || []).map((tool) => {
+    const labels = (tool.technologies || []).map((tech) => TECHNOLOGY_LABELS[tech] || tech);
+    return `${labels.join(' / ') || tool.name}: ${tool.description} (tools/${tool.path})`;
+  });
+}
+
+/** Display names of the technologies of a config, in detection order, once each. */
+function technologyNames(techTools) {
+  return [...new Set((techTools || []).flatMap((tool) => (tool.technologies || []).map((tech) => TECHNOLOGY_LABELS[tech] || tech)))];
+}
+
+module.exports = { TechnologyDetector, TECHNOLOGY_LABELS, DATA_CLIENTS, technologySafeguards, technologyNames };

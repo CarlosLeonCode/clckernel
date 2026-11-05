@@ -216,6 +216,8 @@ function planLines(plan, { dryRun = false } = {}) {
   section(label('Removed', 'Would remove'), plan.removed);
   section(label('Added to .gitignore', 'Would add to .gitignore'), plan.gitignore);
   section(label('git config', 'Would set git config'), plan.gitConfig.map((c) => `${c.key} = ${c.value}`));
+  // sdds/laila-platform-fit (REQ-17): guards of technologies detected since the last run.
+  section(label('Added for newly detected technologies', 'Would add for newly detected technologies'), plan.detected || []);
   // sdds/update-no-additions, decision 5: what was left out on purpose.
   section('Available, not installed (add with --add-guards <name,...|all>)', plan.available || [], colors.cyan);
   section('Mirrors not present (skipped)', plan.mirrorsSkipped || [], colors.cyan);

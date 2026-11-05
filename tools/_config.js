@@ -16,12 +16,24 @@
  *   hitl.optOut       { key, value }: a file whose frontmatter has key: value is exempt
  *   update.exclude    globs install/update never write
  *   tdd.code          extra globs verify_tdd counts as production code
- *   tdd.ignore        globs verify_tdd never counts as production code
+ *   tdd.ignore        globs verify_tdd never counts as production code (default:
+ *                     GENERATED_FILES, generated code; setting the key replaces them)
  *   severities        { <guard name>: warning | error }: the level of a failing
  *                     guard in the audit orchestrators (warning = reported,
  *                     not blocking; a crash is always an error)
  *   guard_exclude     { <guard name>: [globs] }: paths that one guard never
  *                     evaluates (_changes); other guards still see them
+ *   sql_migrations    check_sql_migrations: paths (globs of the migration files),
+ *                     schemas (where a table needs row level security),
+ *                     anon_roles (roles that must get no write grant) and
+ *                     severities { <rule>: error | warning | off }
+ *   query_efficiency  check_query_efficiency: call_patterns (extra regexes
+ *                     of query calls) and severities { <rule>: ... }
+ *   mcp_contracts     check_mcp_contracts: contracts_modules (modules tool
+ *                     input schemas come from), forbid_data_clients and
+ *                     severities { <rule>: ... }
+ *   ui_reuse          check_ui_reuse: primitives (globs of the UI primitives,
+ *                     exempt from the raw-element rules)
  *
  * Removed keys (no effect) produce a deprecation warning; unknown top-level
  * keys a warning; an invalid value throws ConfigError naming file and key.
@@ -34,8 +46,42 @@ const { parseYaml, globToRegex } = require('./yaml.js');
 // Lookup order: the canonical name first, then older names kept for compatibility.
 const CONFIG_NAMES = ['.clckernel.yaml', '.clckernel.yml', '.clc-forge.yaml', '.clc-forge.yml'];
 
-const KEYS = ['rules', 'exclude_paths', 'mirrors', 'hitl', 'update', 'tdd', 'severities', 'guard_exclude'];
+const KEYS = ['rules', 'exclude_paths', 'mirrors', 'hitl', 'update', 'tdd', 'severities', 'guard_exclude', 'sql_migrations', 'query_efficiency', 'mcp_contracts', 'ui_reuse'];
 const LEVELS = ['error', 'warning'];
+/** Levels of one rule of a guard (its section's `severities`): 'off' disables the rule. */
+const RULE_LEVELS = ['error', 'warning', 'off'];
+
+/**
+ * Generated code verify_tdd never counts as production code unless the
+ * project sets tdd.ignore (sdds/laila-platform-fit, REQ-13): Supabase CLI
+ * types, codegen outputs (*.generated.*, *.gen.*) and generated directories.
+ */
+const GENERATED_FILES = [
+  '**/database.types.ts', '**/*.generated.*', '**/*.gen.*', '**/__generated__/**', '**/generated/**',
+];
+
+/**
+ * Settings of the generic guards (sdds/laila-platform-fit): each section's
+ * defaults, and the rules its `severities` sub-key accepts with their level.
+ */
+const GUARD_SECTIONS = {
+  sql_migrations: {
+    defaults: { paths: ['**/supabase/migrations/**/*.sql'], schemas: ['public'], anon_roles: ['anon'] },
+    rules: { immutable: 'error', rls: 'error', search_path: 'error', anon_write: 'error', destructive: 'warning' },
+  },
+  query_efficiency: {
+    defaults: { call_patterns: [] },
+    rules: { n_plus_one: 'error', unbounded_select: 'warning' },
+  },
+  mcp_contracts: {
+    defaults: { contracts_modules: [], forbid_data_clients: true },
+    rules: { inline_schema: 'error', schema_source: 'error', data_client: 'error' },
+  },
+  ui_reuse: {
+    defaults: { primitives: ['**/components/ui/**'] },
+    rules: {},
+  },
+};
 
 /** Keys earlier releases documented that never had an effect, with the reason. */
 const DEPRECATED_KEYS = {
@@ -73,9 +119,13 @@ function defaultConfig() {
     mirrors: { list: null, required: false },
     hitl: { markers: null, paths: null, optOut: null },
     update: { exclude: [] },
-    tdd: { code: [], ignore: [] },
+    tdd: { code: [], ignore: [...GENERATED_FILES] },
     severities: {},
     guard_exclude: {},
+    ...Object.fromEntries(Object.entries(GUARD_SECTIONS).map(([key, { defaults, rules }]) => [
+      key,
+      { ...JSON.parse(JSON.stringify(defaults)), severities: { ...rules } },
+    ])),
   };
 }
 
@@ -147,6 +197,34 @@ function validateGuardExclude(value, file) {
     out[name] = stringList(globs, `guard_exclude.${name}`, file);
   }
   return out;
+}
+
+/**
+ * A generic guard's section (sql_migrations, query_efficiency, mcp_contracts):
+ * lists of non-empty strings, booleans, and `severities` mapping each rule of
+ * the guard to error | warning | off. Unknown sub-keys and rules throw.
+ */
+function validateGuardSection(raw, key, file, config) {
+  const { defaults, rules } = GUARD_SECTIONS[key];
+  const value = section(raw, key, [...Object.keys(defaults), 'severities'], file);
+  for (const [sub, def] of Object.entries(defaults)) {
+    const item = value[sub];
+    if (item === undefined || item === null) continue;
+    if (typeof def === 'boolean') {
+      if (typeof item !== 'boolean') throw new ConfigError(`${key}.${sub}`, `expected true or false, got ${typeName(item)}`, file);
+      config[key][sub] = item;
+    } else {
+      config[key][sub] = stringList(item, `${key}.${sub}`, file, sub === 'call_patterns' ? (p, k) => checkRegex(p, k, file) : undefined);
+    }
+  }
+  const severities = section(value, 'severities', Object.keys(rules), file, `${key}.severities`);
+  for (const [rule, level] of Object.entries(severities)) {
+    if (level === undefined || level === null) continue;
+    if (!RULE_LEVELS.includes(level)) {
+      throw new ConfigError(`${key}.severities.${rule}`, `invalid level ${JSON.stringify(level)}`, file, RULE_LEVELS);
+    }
+    config[key].severities[rule] = level;
+  }
 }
 
 function checkMirrorPath(item, key, file) {
@@ -223,6 +301,7 @@ function validateConfig(raw, file = CONFIG_NAMES[0]) {
 
   config.severities = validateSeverities(raw.severities, file);
   config.guard_exclude = validateGuardExclude(raw.guard_exclude, file);
+  for (const key of Object.keys(GUARD_SECTIONS)) validateGuardSection(raw, key, file, config);
 
   return { config, warnings };
 }
@@ -301,6 +380,8 @@ function reportWarnings(loaded) {
 module.exports = {
   CONFIG_NAMES,
   DEPRECATED_KEYS,
+  GUARD_SECTIONS,
+  GENERATED_FILES,
   ConfigError,
   defaultConfig,
   validateConfig,

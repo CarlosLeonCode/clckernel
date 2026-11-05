@@ -24,6 +24,22 @@ const PhpLibraryAdapter = require('./adapters/php-library');
 const RubyLibraryAdapter = require('./adapters/ruby-library');
 const { TechnologyDetector } = require('./technologies/detector');
 
+/**
+ * Root-level detection options from .clckernel.yaml: the configured SQL
+ * migration globs (sql_migrations.paths). An unreadable or invalid config
+ * gives none; install and update report that config error themselves.
+ * @param {string} targetDir - Project root
+ * @returns {{ sqlMigrationPaths?: string[] }}
+ */
+function rootTechOptions(targetDir) {
+  try {
+    const { readProjectConfig } = require('./config');
+    return { sqlMigrationPaths: readProjectConfig(targetDir).config.sql_migrations.paths };
+  } catch {
+    return {};
+  }
+}
+
 const adapters = [
   new AgentOSAdapter(),
   new NextjsAdapter(),
@@ -67,7 +83,7 @@ function isPartOnly(adapter) {
 function buildStackConfig(targetDir, adapter) {
   // Phase-1 technologies (Celery, Redis, PostgreSQL, Docker)
   const techDetector = new TechnologyDetector();
-  const detectedTechs = techDetector.detect(targetDir);
+  const detectedTechs = techDetector.detect(targetDir, rootTechOptions(targetDir));
   const techTools = techDetector.getToolsForTech(detectedTechs);
   const gitHooks = fs.existsSync(path.join(targetDir, '.husky')) ? 'husky' : 'githooks';
 
@@ -388,13 +404,16 @@ function agentOsRoot(targetDir) {
 function partsTechTools(targetDir, parts) {
   const techDetector = new TechnologyDetector();
   const tools = [];
-  const names = new Set();
   const dirs = ['.', ...parts.map((p) => p.dir)];
   for (const rel of [...new Set(dirs)]) {
-    for (const tool of techDetector.getToolsForTech(techDetector.detect(path.join(targetDir, rel)))) {
-      if (names.has(tool.name)) continue;
-      names.add(tool.name);
-      tools.push(tool);
+    const options = rel === '.' ? rootTechOptions(targetDir) : {};
+    for (const tool of techDetector.getToolsForTech(techDetector.detect(path.join(targetDir, rel), options))) {
+      const known = tools.find((t) => t.name === tool.name);
+      if (known) {
+        for (const tech of tool.technologies || []) if (!known.technologies.includes(tech)) known.technologies.push(tech);
+        continue;
+      }
+      tools.push({ ...tool, technologies: [...(tool.technologies || [])] });
     }
   }
   return tools;

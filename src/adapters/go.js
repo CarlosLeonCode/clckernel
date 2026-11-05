@@ -19,7 +19,7 @@ class GoAdapter extends BaseAdapter {
   getSafeguards() {
     return [
       'golangci-lint Code Quality Linter (external CLI)',
-      'Go Clean Architecture Guard (Domain -> UseCase -> Handler)',
+      'Go Clean Architecture protocol (agent-enforced; no layer guard installed for this stack)',
       'Red→Green TDD Verifier (runs changed tests with go test)',
       'Secret & Private Key Leak Scanner',
       'Educational Audit Gate (05-audit-report.md)',

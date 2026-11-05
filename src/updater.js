@@ -11,7 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 const { autoDetectStack } = require('./detector');
-const { generateHarness, manifestGuardNames } = require('./generator');
+const { generateHarness, manifestGuardNames, refreshAgentsSections } = require('./generator');
 const { createIO, runWithIO, currentIO, sha256, NEW_SUFFIX } = require('./io');
 const { CONFIG_NAMES, readProjectConfig, globMatcher } = require('./config');
 
@@ -167,23 +167,26 @@ function retiredKernelGuards(io, dir, knownHashes) {
 }
 
 /**
- * Checks --add-guards against the stack's manifest.
+ * Checks --add-guards (sdds/laila-platform-fit, REQ-7): any bundled catalog
+ * guard is accepted; the ones the stack's manifest does not offer are
+ * returned as `foreign` (the CLI warns about them).
  * @param {string[]|'all'|undefined} requested - Guard names, or 'all'
  * @param {string[]} offered - Guard names of the stack's manifest
- * @returns {string[]|'all'} The guards to add
- * @throws {Error} When a name is not a guard of this stack
+ * @returns {{ add: string[]|'all', foreign: string[] }} The guards to add
+ * @throws {Error} When a name is not a bundled catalog guard
  */
 function validateAddGuards(requested, offered) {
-  if (requested === undefined || requested === null) return [];
-  if (requested === 'all') return 'all';
-  const unknown = requested.filter((name) => !offered.includes(name));
+  if (requested === undefined || requested === null) return { add: [], foreign: [] };
+  if (requested === 'all') return { add: 'all', foreign: [] };
+  const { bundledGuard } = require('./catalog');
+  const unknown = requested.filter((name) => !offered.includes(name) && !bundledGuard(name));
   if (unknown.length > 0) {
     throw new Error(
       `Unknown guard(s) for --add-guards: ${unknown.join(', ')}. ` +
-        `This stack offers: ${offered.join(', ') || '(none)'}. Nothing was written.`
+        `This stack offers: ${offered.join(', ') || '(none)'}; any other bundled guard of the catalog can be added too. Nothing was written.`
     );
   }
-  return [...requested];
+  return { add: [...requested], foreign: requested.filter((name) => !offered.includes(name)) };
 }
 
 /**
@@ -209,7 +212,7 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
 
   // --add-guards is checked before anything is written: an unknown name
   // fails the whole update (sdds/update-no-additions, decision 1).
-  const addGuards = validateAddGuards(options.addGuards, manifestGuardNames(resolvedDir, detected));
+  const { add: addGuards, foreign: foreignGuards } = validateAddGuards(options.addGuards, manifestGuardNames(resolvedDir, detected));
 
   // 2. Identify existing preserved assets
   const preserved = {
@@ -234,6 +237,8 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
     // Snapshot the installed skill first: the legacy copy is compared against it.
     const previousSkill = snapshotFiles(path.join(resolvedDir, SKILLS_REL, CURRENT_SKILL)).files;
     generateHarness(resolvedDir, detected, { addGuards, projectConfig });
+    // sdds/laila-platform-fit (REQ-3): parts and safeguards follow the project.
+    refreshAgentsSections(io, resolvedDir, detected);
     const retired = retiredKernelGuards(io, resolvedDir, knownHashes);
     const cleanup = cleanupLegacyArtifacts(resolvedDir, previousSkill);
     const { ensureGitignoreEntries } = require('./gitignore');
@@ -248,6 +253,7 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
     dryRun: io.dryRun,
     preserved,
     configWarnings: projectConfig.warnings,
+    foreignGuards,
     legacyCleanup,
     retiredGuards,
     plan: io.plan(),
@@ -296,6 +302,9 @@ async function runUpdate(targetDir = process.cwd(), options = {}) {
 
     for (const warning of result.configWarnings) {
       console.log(`${colors.amber}⚠ ${warning}${colors.reset}`);
+    }
+    for (const name of result.foreignGuards) {
+      console.log(`${colors.amber}⚠ ${name}: not part of the detected stack; installed on request (--add-guards) and refreshed by later updates${colors.reset}`);
     }
     for (const retiredPath of result.retiredGuards) {
       console.log(`${colors.amber}⚠ ${retiredPath}: retired kernel guard kept as project guard (the kernel no longer ships it; the hook and the audit still run it)${colors.reset}`);

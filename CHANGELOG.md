@@ -9,12 +9,54 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- `clckernel update` re-detects technologies: the registry (`tools/.clckernel-managed.json`) records the
+  technologies detected at install/update (`technologies`); one detected since (a `Dockerfile`, a
+  `supabase/config.toml`, a data client or the MCP SDK in a `package.json`) brings its guard, listed as
+  *added for newly detected technologies* (`--dry-run`: *would add*). A registry without the list (older
+  releases) adds each detected technology's missing guard once.
+- `--add-guards` accepts any bundled guard of the catalog (e.g. `check_api_contracts`, `check_storybook`,
+  `check_scope`, the new technology guards): one foreign to the stack prints a warning, is recorded in the
+  registry (`extraGuards`) and is refreshed by later updates instead of being reported as retired.
+- `clckernel update` refreshes the kernel-owned AGENTS.md sections (the *Parts* table and the per-part
+  safeguards, or section 2 of a single stack) and keeps every other section; a document without those
+  headings is untouched, and `--dry-run` lists AGENTS.md when it would change.
+- AGENTS.md promises only what is installed: Next.js lists Zod contracts and Storybook coverage as
+  agent-enforced (addable with `--add-guards`), Astro's UI reuse and design tokens and Go's Clean Architecture
+  are agent-enforced, Agent-OS marks its Dual-Layer and `sdds/` lines, the fallback frontend template marks
+  what it does not install, and installed technology guards are listed. `check_seo` is described as what it
+  checks (single `<h1>`, GEO meta formats, LCP image priority, `target="_blank"` rel), not page metadata or
+  OpenGraph. Catalog: `check_api_contracts` and `check_storybook` are `manifest: false`.
+- `verify_tdd.js`: a workspace part whose `package.json` does not declare vitest/jest uses the workspace
+  root's, and a part `node_modules` without the runner binary falls through to the root `node_modules/.bin`.
+- `tdd.ignore` defaults to generated code (`**/database.types.ts`, `**/*.generated.*`, `**/*.gen.*`,
+  `**/__generated__/**`, `**/generated/**`) in `verify_tdd.js` and `verify_tdd.py`; setting the key replaces it.
+- `check_ui_reuse`: files under `**/components/ui/**` (`ui_reuse.primitives`) are exempt from the raw
+  `<button>` / `<input>` / `<select>` rules; raw color classes are still reported there.
+
 - Relicensed from MIT to AGPL-3.0-only with the Installed Files Exception (`LICENSE-EXCEPTION.md`): files
   CLC Kernel installs into a project can be used under that project's own terms. Trademark policy added
   (`TRADEMARKS.md`), copyright notice in `NOTICE`, and contributions now need a DCO sign-off
   (`git commit -s`). Releases up to and including 2.0.4 remain available under the MIT License.
 
 ### Added
+
+- Technology detection: Supabase (`supabase/config.toml` in the root or a part), a configured SQL migrations
+  folder (`sql_migrations.paths`), a Node data client (`@supabase/supabase-js`, `drizzle-orm`,
+  `@prisma/client`, `postgres`, `pg`) and an MCP server (`@modelcontextprotocol/sdk`). The install summary shows
+  a row per technology and AGENTS.md lists each technology guard.
+- `check_sql_migrations`: SQL migration rules on the changed files, each with its own level
+  (`sql_migrations.severities`): applied migrations are immutable, `create table` in the checked schemas needs
+  `enable row level security` in the same file, `security definer` functions set `search_path`, no write grants
+  to anonymous roles, `drop table` / `drop column` are named warnings. Comments, string literals and
+  dollar-quoted bodies are ignored.
+- `check_query_efficiency` (JS/TS counterpart of `check_db_efficiency`): query calls of supabase-js, drizzle,
+  prisma, postgres and pg awaited inside loops (N+1, error) and supabase-js `select('*')` without
+  `limit`/`range` (warning); extra patterns in `query_efficiency.call_patterns`.
+- `check_mcp_contracts`: MCP tool registrations (`registerTool`, and the deprecated `tool()`) take their input
+  schema from `mcp_contracts.contracts_modules`, never an inline zod schema, and a file that registers tools
+  imports no data client (`mcp_contracts.forbid_data_clients`).
+- `.clckernel.yaml` keys `sql_migrations`, `query_efficiency`, `mcp_contracts` and `ui_reuse`, validated in
+  `tools/_config.js` and `tools/_config.py` (per-rule levels `error`, `warning` or `off`).
 
 - Library parts: a subdirectory with a package manifest that no framework adapter matches is a library part
   of its ecosystem: `TypeScript Library` (`package.json`, or an Nx `project.json` without one, + `tsconfig.json`; the hook runs `tsc --noEmit`

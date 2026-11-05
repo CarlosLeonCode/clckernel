@@ -83,9 +83,18 @@ def _code_rules(repo: str) -> dict:
     sibling = os.path.isfile(os.path.join(_TOOLS_DIR, SIBLING_VERIFIER))
     return {
         "extra": extra,
-        "ignore": _changes.glob_matcher(config["tdd"]["ignore"] if config else []),
+        "ignore": _changes.glob_matcher(config["tdd"]["ignore"] if config else _default_ignore()),
         "handed": (lambda rel: rel.endswith(".py") and extra(rel)) if sibling else _never,
     }
+
+
+def _default_ignore() -> list:
+    """tdd.ignore without a config file: the generated files of _config.py (twin of verify_tdd.js)."""
+    try:
+        import _config  # noqa: PLC0415 - sibling, installed with the snapshot helpers
+    except ImportError:
+        return []
+    return list(_config.GENERATED_FILES)
 
 
 def _in_scope(rel: str, rules: dict) -> bool:

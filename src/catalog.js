@@ -60,19 +60,19 @@ const SAFEGUARD_CATALOG = [
     phase: 'audit', file: 'check_responsive.js', manifest: true, planned: false, lens: 'performance' },
 
   { name: 'check_seo', labels: ['check_seo', 'check_seo.js'],
-    checks: 'SEO metadata, OpenGraph, GEO tags, semantic HTML & LCP priority', verify: ['verify_seo', 'verify_geo_metadata', 'verify_core_web_vitals'],
+    checks: 'SEO & GEO heuristics: single <h1>, GEO meta formats, LCP image priority, target="_blank" rel', verify: ['verify_seo', 'verify_geo_metadata', 'verify_core_web_vitals'],
     applies_when: 'frontend', severity: 'warning', gate_mode: 'advisory', config_keys: ['exclude_paths'],
     phase: 'audit', file: 'check_seo.js', manifest: true, planned: false, lens: 'performance' },
 
   { name: 'check_storybook', labels: ['check_storybook', 'check_storybook.js'],
     checks: 'Storybook coverage (`.stories.tsx`)', verify: ['verify_storybook_coverage'],
     applies_when: 'frontend', severity: 'warning', gate_mode: 'advisory', config_keys: ['exclude_paths'],
-    phase: 'audit', file: 'check_storybook.js', manifest: true, planned: false, lens: 'performance' },
+    phase: 'audit', file: 'check_storybook.js', manifest: false, planned: false, lens: 'performance' },
 
   { name: 'check_api_contracts', labels: ['check_api_contracts', 'check_api_contracts.js'],
     checks: 'Zod response-schema parsing', verify: ['verify_api_contracts', 'verify_response_schemas'],
     applies_when: 'frontend', severity: 'error', gate_mode: 'hard', config_keys: ['exclude_paths'],
-    phase: 'audit', file: 'check_api_contracts.js', manifest: true, planned: false, lens: 'correctness' },
+    phase: 'audit', file: 'check_api_contracts.js', manifest: false, planned: false, lens: 'correctness' },
 
   { name: 'check_migrations', labels: ['check_migrations', 'check_migrations.py'],
     checks: 'Alembic/Django migration reversibility (upgrade/downgrade, destructive operations)', verify: ['verify_migration_idempotency'],
@@ -139,6 +139,21 @@ const SAFEGUARD_CATALOG = [
     applies_when: 'agent-os', severity: 'error', gate_mode: 'hard', config_keys: [],
     phase: 'audit', file: 'check_placeholders.js', manifest: true, planned: false, lens: 'correctness' },
 
+  { name: 'check_sql_migrations', labels: ['check_sql_migrations', 'check_sql_migrations.js'],
+    checks: 'SQL migrations: applied migrations unchanged, row level security on new tables, security definer search_path, no write grants to anon, drops named', verify: ['verify_sql_migrations', 'verify_row_level_security'],
+    applies_when: 'supabase|sql-migrations', severity: 'error', gate_mode: 'hard', config_keys: ['sql_migrations', 'exclude_paths', 'guard_exclude'],
+    phase: 'audit', file: 'check_sql_migrations.js', manifest: true, planned: false, lens: 'security' },
+
+  { name: 'check_query_efficiency', labels: ['check_query_efficiency', 'check_query_efficiency.js'],
+    checks: 'N+1 heuristic for JS/TS data clients (supabase-js, drizzle, prisma, postgres, pg): awaited query calls inside loops; unbounded select(\'*\')', verify: ['verify_query_efficiency', 'verify_no_n_plus_1'],
+    applies_when: 'data-client', severity: 'error', gate_mode: 'hard', config_keys: ['query_efficiency', 'exclude_paths', 'guard_exclude'],
+    phase: 'audit', file: 'check_query_efficiency.js', manifest: true, planned: false, lens: 'performance' },
+
+  { name: 'check_mcp_contracts', labels: ['check_mcp_contracts', 'check_mcp_contracts.js'],
+    checks: 'MCP tool registrations take input schemas from contracts modules (no inline zod) and tool files import no data client', verify: ['verify_mcp_contracts'],
+    applies_when: 'mcp', severity: 'error', gate_mode: 'hard', config_keys: ['mcp_contracts', 'exclude_paths', 'guard_exclude'],
+    phase: 'audit', file: 'check_mcp_contracts.js', manifest: true, planned: false, lens: 'architecture' },
+
   { name: 'ruff', labels: ['ruff'],
     checks: 'Python linter (external CLI)', verify: ['verify_python_lint'],
     applies_when: 'backend', severity: 'warning', gate_mode: 'advisory', config_keys: [],
@@ -202,6 +217,7 @@ const VALID_APPLIES_WHEN = [
   'always', 'frontend', 'backend', 'fastapi', 'django', 'django|sqlalchemy',
   'celery', 'redis', 'postgresql', 'docker', 'frontend,backend', 'backend,fastapi,django',
   'agent-os', 'frontend,backend,agent-os',
+  'supabase|sql-migrations', 'data-client', 'mcp',
 ];
 
 /** The 4 RDD lenses guard results are grouped into */
@@ -244,7 +260,31 @@ function lensFor(name) {
   return entry ? entry.lens : null;
 }
 
+/**
+ * Tool descriptor of a bundled catalog guard, for `--add-guards` on any stack
+ * (sdds/laila-platform-fit, REQ-7): the entry's .js file when it has one
+ * (Node always runs: the CLI is npx), else its .py file. null for a name that
+ * is not an entry, an external CLI (file null) or a planned guard.
+ * @param {string} name - Guard name (entry name, not an alias)
+ * @returns {{name: string, language: string, path: string, command: string, description: string}|null}
+ */
+function bundledGuard(name) {
+  const entry = SAFEGUARD_CATALOG.find((e) => e.name === name);
+  if (!entry || !entry.file || entry.planned) return null;
+  const files = entry.file.split('+');
+  const file = files.find((f) => f.endsWith('.js')) || files[0];
+  const language = file.endsWith('.js') ? 'js' : 'py';
+  return {
+    name: entry.name,
+    language,
+    path: file,
+    command: `${language === 'js' ? 'node' : 'python3'} tools/${file}`,
+    description: entry.checks,
+  };
+}
+
 module.exports = {
+  bundledGuard,
   SAFEGUARD_CATALOG,
   VALID_SEVERITIES,
   VALID_GATE_MODES,

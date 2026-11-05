@@ -27,13 +27,13 @@ class AstroAdapter extends BaseAdapter {
 
   getSafeguards() {
     return [
-      'Astro Component & UI Primitive Reuse First Guard',
-      'Tailwind v4 Semantic Design Token Guard',
+      'Astro Component & UI Primitive Reuse protocol (agent-enforced; not checked by a guard)',
+      'Tailwind v4 Semantic Design Token protocol (agent-enforced; not checked by a guard)',
       'Accessibility & ARIA Guard (A11y & alt tags)',
       'Responsive Design & Mobile-First Adaptability Guard (breakpoint & touch target audit)',
-      'SEO, GEO & Web Performance Guard (metadata, OpenGraph, Core Web Vitals)',
+      'SEO, GEO & Web Performance Guard (single <h1>, GEO meta formats, LCP image priority, target="_blank" rel)',
       'Secret & API Key Leak Scanner',
-      'Content Collection Schema Validation Guard',
+      'Content Collection schemas typechecked by astro check (external CLI)',
       'Red→Green TDD Verifier (runs changed tests with vitest / jest / node:test)',
       'Educational Audit Gate (05-audit-report.md)',
       'Memory protocol (agent-enforced; Engram / Graphify optional, not checked by a guard)'
@@ -50,7 +50,7 @@ class AstroAdapter extends BaseAdapter {
       { name: 'scan_secrets',     language: 'js',       path: 'scan_secrets.js',     command: 'node tools/scan_secrets.js',     description: 'Scans for leaked secrets and API keys' },
       { name: 'check_a11y',       language: 'js',       path: 'check_a11y.js',       command: 'node tools/check_a11y.js',       description: 'Validates ARIA and accessibility rules' },
       { name: 'check_responsive', language: 'js',       path: 'check_responsive.js', command: 'node tools/check_responsive.js', description: 'Audits mobile-first responsiveness and fixed-width overflows' },
-      { name: 'check_seo',        language: 'js',       path: 'check_seo.js',        command: 'node tools/check_seo.js',        description: 'Validates SEO metadata, OpenGraph, GEO tags, and LCP priority' },
+      { name: 'check_seo',        language: 'js',       path: 'check_seo.js',        command: 'node tools/check_seo.js',        description: 'Checks a single <h1>, GEO meta formats, LCP image priority and target="_blank" rel' },
       { name: 'verify_tdd',       language: 'js',       path: 'verify_tdd.js',       command: 'node tools/verify_tdd.js',       description: 'Runs changed tests (vitest / jest / node:test) against BASE (must fail) and the staged code (must pass)' },
       { name: 'check_custom',     language: 'js',       path: 'check_custom.js',     command: 'node tools/check_custom.js',     description: 'Runs user-defined custom rules from .clckernel.yaml' },
       { name: 'astro_check',      language: 'external', path: '', command: 'npx astro check', description: 'Astro type checking', extCLI: 'astro', availableIf: '[ -x node_modules/.bin/astro ]' },

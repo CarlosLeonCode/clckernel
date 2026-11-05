@@ -7,6 +7,7 @@
 const path = require('path');
 const { currentIO } = require('../io');
 const { FIRST_SESSION_SECTION, KERNEL_BUG_SECTION } = require('../onboarding');
+const { technologySafeguards } = require('../technologies/detector');
 
 class BaseAdapter {
   constructor(name, projectType, testRunner) {
@@ -84,7 +85,7 @@ Forged by **CLC Kernel: The AI Agent Governance Engine**.
 8. **PR** — Generate PR body.
 
 ## 2. Core AI Safeguards (${this.name})
-${this.getSafeguards().map(s => `- ${s}`).join('\n')}
+${[...this.getSafeguards(), ...technologySafeguards(config && config.techTools)].map(s => `- ${s}`).join('\n')}
 
 ${KERNEL_BUG_SECTION}
 ${FIRST_SESSION_SECTION}`;

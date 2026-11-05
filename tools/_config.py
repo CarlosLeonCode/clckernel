@@ -26,8 +26,40 @@ import _yaml  # noqa: E402
 # Lookup order: the canonical name first, then older names kept for compatibility.
 CONFIG_NAMES = ['.clckernel.yaml', '.clckernel.yml', '.clc-forge.yaml', '.clc-forge.yml']
 
-KEYS = ["rules", "exclude_paths", "mirrors", "hitl", "update", "tdd", "severities", "guard_exclude"]
+KEYS = [
+    "rules", "exclude_paths", "mirrors", "hitl", "update", "tdd", "severities", "guard_exclude",
+    "sql_migrations", "query_efficiency", "mcp_contracts", "ui_reuse",
+]
 LEVELS = ["error", "warning"]
+# Levels of one rule of a guard (its section's `severities`): 'off' disables the rule.
+RULE_LEVELS = ["error", "warning", "off"]
+
+# Generated code verify_tdd never counts as production code unless the project
+# sets tdd.ignore (twin of GENERATED_FILES in _config.js).
+GENERATED_FILES = [
+    "**/database.types.ts", "**/*.generated.*", "**/*.gen.*", "**/__generated__/**", "**/generated/**",
+]
+
+# Settings of the generic guards: each section's defaults, and the rules its
+# `severities` sub-key accepts with their level (twin of GUARD_SECTIONS in _config.js).
+GUARD_SECTIONS = {
+    "sql_migrations": {
+        "defaults": {"paths": ["**/supabase/migrations/**/*.sql"], "schemas": ["public"], "anon_roles": ["anon"]},
+        "rules": {"immutable": "error", "rls": "error", "search_path": "error", "anon_write": "error", "destructive": "warning"},
+    },
+    "query_efficiency": {
+        "defaults": {"call_patterns": []},
+        "rules": {"n_plus_one": "error", "unbounded_select": "warning"},
+    },
+    "mcp_contracts": {
+        "defaults": {"contracts_modules": [], "forbid_data_clients": True},
+        "rules": {"inline_schema": "error", "schema_source": "error", "data_client": "error"},
+    },
+    "ui_reuse": {
+        "defaults": {"primitives": ["**/components/ui/**"]},
+        "rules": {},
+    },
+}
 
 DEPRECATED_KEYS = {
     "active_guards": "guards are chosen by the stack, the registry and `clckernel update --add-guards`",
@@ -57,9 +89,13 @@ def default_config() -> dict:
         "mirrors": {"list": None, "required": False},
         "hitl": {"markers": None, "paths": None, "optOut": None},
         "update": {"exclude": []},
-        "tdd": {"code": [], "ignore": []},
+        "tdd": {"code": [], "ignore": list(GENERATED_FILES)},
         "severities": {},
         "guard_exclude": {},
+        **{
+            key: {**json.loads(json.dumps(spec["defaults"])), "severities": dict(spec["rules"])}
+            for key, spec in GUARD_SECTIONS.items()
+        },
     }
 
 
@@ -161,6 +197,29 @@ def _check_mirror_path(item: str, key: str, file: str) -> None:
         raise ConfigError(key, "AGENTS.md is the source, not a mirror", file)
 
 
+def _validate_guard_section(raw: dict, key: str, file: str, config: dict) -> None:
+    """A generic guard's section: string lists, booleans and per-rule severities."""
+    spec = GUARD_SECTIONS[key]
+    value = _section(raw, key, [*spec["defaults"].keys(), "severities"], file)
+    for sub, default in spec["defaults"].items():
+        item = value.get(sub)
+        if item is None:
+            continue
+        if isinstance(default, bool):
+            if not isinstance(item, bool):
+                raise ConfigError(f"{key}.{sub}", f"expected true or false, got {_type_name(item)}", file)
+            config[key][sub] = item
+        else:
+            config[key][sub] = _string_list(item, f"{key}.{sub}", file)
+    severities = _section(value, "severities", list(spec["rules"].keys()), file, f"{key}.severities")
+    for rule, level in severities.items():
+        if level is None:
+            continue
+        if not isinstance(level, str) or level not in RULE_LEVELS:
+            raise ConfigError(f"{key}.severities.{rule}", f"invalid level {json.dumps(level)}", file, RULE_LEVELS)
+        config[key]["severities"][rule] = level
+
+
 def validate_config(raw: Any, file: str = CONFIG_NAMES[0]) -> tuple:
     """Validate a parsed config and fill in the defaults: (config, warnings)."""
     if not isinstance(raw, dict):
@@ -217,6 +276,8 @@ def validate_config(raw: Any, file: str = CONFIG_NAMES[0]) -> tuple:
 
     config["severities"] = _validate_severities(raw.get("severities"), file)
     config["guard_exclude"] = _validate_guard_exclude(raw.get("guard_exclude"), file)
+    for key in GUARD_SECTIONS:
+        _validate_guard_section(raw, key, file, config)
 
     return config, warnings
 

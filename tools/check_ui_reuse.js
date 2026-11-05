@@ -2,12 +2,15 @@
 /**
  * UI Component Reuse Guard
  * Verifies @/components/ui/ imports and semantic Tailwind token usage.
+ * The UI primitives themselves (`ui_reuse.primitives` in .clckernel.yaml,
+ * default any file under components/ui/) are exempt from the raw-element
+ * rules: they are where the raw <button>/<input>/<select> belong.
  * Self-contained: uses only Node.js built-ins.
  *
  * @param {string} targetDir - Directory to scan (defaults to cwd)
  * @returns {{ exitCode: number, skipped: boolean, name: string, data: object }}
  */
-const { changedFiles, readFile } = require('./_changes');
+const { changedFiles, readFile, projectConfig, globMatcher } = require('./_changes');
 
 const check = async function checkUiReuse(targetDir) {
   const dir = targetDir || process.cwd();
@@ -31,6 +34,8 @@ const check = async function checkUiReuse(targetDir) {
   }
 
   const violations = {};
+  const config = projectConfig(dir) || require('./_config.js').defaultConfig();
+  const isPrimitive = globMatcher(config.ui_reuse.primitives);
 
   for (const file of files) {
     const content = readFile(dir, file, mode);
@@ -47,7 +52,8 @@ const check = async function checkUiReuse(targetDir) {
 
     // Check: raw HTML elements that should be replaced with UI primitives
     // <button without className referencing ui/ or a design system
-    const hasRawButton = /<button\b(?![^>]*className\s*=\s*['"][^'"]*(?:ui-|btn-|button))/i.test(content);
+    const primitive = isPrimitive(file);
+    const hasRawButton = !primitive && /<button\b(?![^>]*className\s*=\s*['"][^'"]*(?:ui-|btn-|button))/i.test(content);
     if (hasRawButton && !/from\s+['"]@\/components\/ui\//.test(content)) {
       fileViolations.push({
         lineNo: 0,
@@ -57,7 +63,7 @@ const check = async function checkUiReuse(targetDir) {
     }
 
     // Check: raw <select> without UI primitive
-    if (/<select\b/i.test(content) && !/from\s+['"]@\/components\/ui\//.test(content)) {
+    if (!primitive && /<select\b/i.test(content) && !/from\s+['"]@\/components\/ui\//.test(content)) {
       fileViolations.push({
         lineNo: 0,
         rule: 'raw-select',
@@ -66,7 +72,7 @@ const check = async function checkUiReuse(targetDir) {
     }
 
     // Check: raw <input> without UI primitive (except type=hidden)
-    if (/<input\b(?!.*type\s*=\s*['"]hidden['"])/i.test(content) && !/from\s+['"]@\/components\/ui\//.test(content)) {
+    if (!primitive && /<input\b(?!.*type\s*=\s*['"]hidden['"])/i.test(content) && !/from\s+['"]@\/components\/ui\//.test(content)) {
       fileViolations.push({
         lineNo: 0,
         rule: 'raw-input',

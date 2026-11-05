@@ -35,6 +35,16 @@
  * that installs a JS file into tools/ gains tools/package.json (the CommonJS
  * module-type marker); Python-only stacks, hooks, config and AGENTS.md are
  * byte-identical.
+ * Regenerated for sdds/laila-platform-fit: only the AGENTS.md of
+ * "FastAPI + Docker" changed — the safeguard list names the technology guards
+ * installed for the detected technologies (Redis, Docker), so AGENTS.md lists
+ * every guard it installs. The same change (REQ-1) rewrote the AGENTS.md
+ * safeguard lines no installed tool keeps: Next.js (Zod contracts, Storybook:
+ * agent-enforced, addable with --add-guards; check_seo described as it is),
+ * Astro (UI reuse and design tokens agent-enforced, content collections via
+ * astro check, check_seo), Go (Clean Architecture agent-enforced) and
+ * Agent-OS (Dual-Layer and sdds/ marked agent-enforced). Hooks, config and
+ * tools/ are byte-identical for every stack.
  */
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
