@@ -116,7 +116,7 @@ describe('Agent-OS Safeguards', () => {
 
     it('passes skills with a "## Human checkpoint" or "## HITL" section', async () => {
       const res = await runHitl({}, {
-        'skills/calendar/SKILL.md': '---\nname: calendar\ndescription: d\n---\n# Calendar\n\n## Human checkpoint\nWait for approval.\n',
+        'skills/report/SKILL.md': '---\nname: report\ndescription: d\n---\n# Report\n\n## Human checkpoint\nWait for approval.\n',
         '.agents/skills/publisher/SKILL.md': '# Publisher\n\n## HITL\nThe operator confirms.\n'
       });
       assert.strictEqual(res.exitCode, 0, JSON.stringify(res.data));

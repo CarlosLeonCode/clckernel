@@ -346,12 +346,14 @@ describe('honest claims — config file name', () => {
 });
 
 // sdds/domain-agnostic, decision 6: the kernel names no business domain. The
-// removed domain guards and their folder appear nowhere in what is shipped or
-// installed, nor in the website. Since sdds/unified-discovery src/updater.js
-// names them nowhere either: retired kernel guards are recognised by registry
-// or published hash, not by name. CHANGELOG.md is the historical record and
-// is exempt.
-const DOMAIN_FORBIDDEN = ['content-calendar', 'check_domain_data', 'check_test_calendar_sync'];
+// retired kernel guards (published versions the table keeps for files no
+// longer in tools/) appear nowhere in what is shipped or installed, nor in the
+// website. Since sdds/unified-discovery src/updater.js names them nowhere
+// either: retired kernel guards are recognised by registry or published hash,
+// not by name. CHANGELOG.md is the historical record and is exempt.
+const DOMAIN_FORBIDDEN = Object.keys(require('../src/known-hashes.json'))
+  .filter((rel) => /^tools\/[^/]+\.(js|py)$/.test(rel) && !fs.existsSync(path.join(ROOT, rel)))
+  .map((rel) => path.basename(rel, path.extname(rel)));
 
 function domainOffenders(file, text) {
   const rel = path.relative(ROOT, file);
@@ -362,6 +364,7 @@ function domainOffenders(file, text) {
 
 describe('honest claims — no business domain in the kernel', () => {
   it('src/, tools/, bin/, READMEs, AGENTS.md, the skill and website/src name no domain guard', () => {
+    assert.ok(DOMAIN_FORBIDDEN.length > 0, 'the shipped table keeps the retired guards');
     const files = [
       ...listTextFiles(path.join(ROOT, 'src')),
       ...listTextFiles(path.join(ROOT, 'tools')),
@@ -386,13 +389,14 @@ describe('honest claims — no business domain in the kernel', () => {
     }
   });
 
-  it('the Agent-OS AGENTS.md generated next to a content-calendar/ folder names no domain guard', () => {
-    const dir = createTmpProject({ 'skills/a/SKILL.md': '---\nname: a\ndescription: d\n---\n', 'content-calendar/x.json': '{}\n' });
+  it('the Agent-OS AGENTS.md generated next to a project data folder names no domain guard', () => {
+    const dir = createTmpProject({ 'skills/a/SKILL.md': '---\nname: a\ndescription: d\n---\n', 'deliverables/x.json': '{}\n' });
     try {
       const { autoDetectStack } = require('../src/detector');
       generateHarness(dir, autoDetectStack(dir));
       const text = fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8');
-      assert.deepStrictEqual(['check_domain_data', 'check_test_calendar_sync'].filter((word) => text.includes(word)), []);
+      assert.deepStrictEqual(DOMAIN_FORBIDDEN.filter((word) => text.includes(word)), []);
+      assert.ok(!text.includes('deliverables/'), 'the project folder is not echoed');
     } finally {
       teardown(dir);
     }

@@ -9,6 +9,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Tests, fixtures and docs use neutral synthetic examples: retired-guard tests run on a synthetic fixture
+  (`test/fixtures/retired_guards/`) with its hash injected into the known-hashes table, and the forbidden-name
+  check derives the retired guard names from that table. The shipped table is unchanged.
 - `clckernel update` re-detects technologies: the registry (`tools/.clckernel-managed.json`) records the
   technologies detected at install/update (`technologies`); one detected since (a `Dockerfile`, a
   `supabase/config.toml`, a data client or the MCP SDK in a `package.json`) brings its guard, listed as
@@ -163,7 +166,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `## Human checkpoint` / `## HITL` section; words such as "review" or "confirm" no longer pass. The guard now
   also covers `playbooks/` and evaluates the files changed in the commit. Existing Agent-OS repositories may
   start failing when they touch a skill or playbook without a marker.
-- **Domain guards leave the kernel.** `check_domain_data` and `check_test_calendar_sync` are no longer shipped
+- **Domain guards leave the kernel.** The two domain-specific guards are no longer shipped
   or installed, and Agent-OS detection no longer reacts to project-specific package names or a
   domain-specific description (`agent-os` and `ai-agents` still work). `clckernel update` leaves
   copies installed by earlier releases exactly where they are in `tools/` (never moves or deletes them), takes
@@ -303,8 +306,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   records the plan. The `update` summary now lists written, unchanged, protected, moved, removed, `.gitignore`
   and `git config` changes, and exits 0 with a visible warning when files were protected. `update` rejects
   unknown flags.
-- **Old domain guards are moved only when intact.** A locally modified `tools/check_domain_data.js` or
-  `tools/check_test_calendar_sync.js` stays in `tools/` with a warning instead of being moved.
+- **Old domain guards are moved only when intact.** A locally modified copy of either domain guard stays in
+  `tools/` with a warning instead of being moved.
 
 - Generated hooks run under `set -e` without `|| true`; audit orchestrators report a crashing guard as
   FAILED.
@@ -356,7 +359,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `check_db_efficiency`: flags only ORM-like calls inside loops, not `dict.get` or `requests.get`.
 - `postgres_guard`: detects unsafe SQL passed to `execute()`.
 - `check_ui_reuse`: skips test files and harness-owned `tools/` sources.
-- `check_test_calendar_sync` reports drift instead of writing files from the hook (`--fix` keeps the old
+- A domain sync guard reports drift instead of writing files from the hook (`--fix` keeps the old
   behavior).
 - Technology guards are run by the generated hook and discovered by `audit`.
 - `update` prints success lines with a defined color.

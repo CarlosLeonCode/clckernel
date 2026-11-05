@@ -3,7 +3,7 @@
  * identical to a file removed in the same change (git R100) is not a code
  * change, and a pure-renamed test is not test evidence. A rename with any
  * content change is still a code change under the full red->green rules.
- * Covers the `clckernel update` move of the old domain guards to tools/guards/.
+ * Covers `clckernel update` keeping retired kernel guards in place.
  */
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
@@ -15,8 +15,8 @@ const { teardown, registryPaths } = require('./helpers');
 
 const ROOT = path.resolve(__dirname, '..');
 const CLI = path.join(ROOT, 'bin', 'cli.js');
-const LEGACY_DIR = path.join(__dirname, 'fixtures', 'legacy_guards');
-const LEGACY_GUARDS = ['check_test_calendar_sync.js', 'check_domain_data.js'];
+const LEGACY_DIR = path.join(__dirname, 'fixtures', 'retired_guards');
+const LEGACY_GUARDS = ['check_retired_example.js', 'check_retired_sample.js'];
 
 /** No git variables inherited from a running hook, no user/system git config. */
 function childEnv() {
@@ -155,7 +155,7 @@ for (const v of VERIFIERS) {
 
 // sdds/unified-discovery: update keeps the retired guards in place (never
 // moved) and the hook keeps running them as project guards.
-describe('clckernel update keeping the old domain guards does not block the next commit', () => {
+describe('clckernel update keeping retired kernel guards does not block the next commit', () => {
   it('real git commit after update: exit 0 and the kept guard runs in the hook', () => {
     const dir = initRepo({
       'skills/research/SKILL.md': '---\nname: research\ndescription: Researches a topic.\n---\n# Research\n\nHITL: the operator approves the brief.\n',
@@ -164,7 +164,7 @@ describe('clckernel update keeping the old domain guards does not block the next
     try {
       const installed = run(process.execPath, [CLI, dir, '--yes'], dir);
       assert.strictEqual(installed.status, 0, `install failed:\n${installed.output}`);
-      // An older install: the domain guards shipped in tools/ and were managed.
+      // An older install: the retired guards shipped in tools/ and were managed.
       const registryFile = path.join(dir, 'tools', '.clckernel-managed.json');
       // An older install: the registry was a list of paths.
       const registry = registryPaths(JSON.parse(fs.readFileSync(registryFile, 'utf-8')));
@@ -178,12 +178,12 @@ describe('clckernel update keeping the old domain guards does not block the next
 
       const updated = run(process.execPath, [CLI, 'update', dir], dir);
       assert.strictEqual(updated.status, 0, `update failed:\n${updated.output}`);
-      assert.ok(fs.existsSync(path.join(dir, 'tools', 'check_test_calendar_sync.js')), updated.output);
-      assert.ok(!fs.existsSync(path.join(dir, 'tools', 'guards', 'check_test_calendar_sync.js')), updated.output);
+      assert.ok(fs.existsSync(path.join(dir, 'tools', 'check_retired_example.js')), updated.output);
+      assert.ok(!fs.existsSync(path.join(dir, 'tools', 'guards', 'check_retired_example.js')), updated.output);
       git(dir, 'add', '-A');
       const commit = run('git', ['commit', '-m', 'chore: clckernel update'], dir);
       assert.strictEqual(commit.status, 0, `the commit after update must pass the hook:\n${commit.output}`);
-      assert.match(commit.output, /^clckernel: \S+\s+check_test_calendar_sync:/m, commit.output);
+      assert.match(commit.output, /^clckernel: \S+\s+check_retired_example:/m, commit.output);
     } finally {
       teardown(dir);
     }

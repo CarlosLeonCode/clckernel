@@ -217,11 +217,12 @@ describe('item 3: an intact older install (no registry) is updated without .clck
     }
   });
 
-  it('the shipped table holds deleted files from the history (the old domain guards)', () => {
+  it('the shipped table keeps guards deleted from tools/ (retired kernel guards stay recognisable)', () => {
     const table = require('../src/known-hashes.json');
-    for (const file of ['check_domain_data.js', 'check_test_calendar_sync.js']) {
-      const bytes = fs.readFileSync(path.join(__dirname, 'fixtures', 'legacy_guards', file));
-      assert.ok((table[`tools/${file}`] || []).includes(sha(bytes)), `tools/${file}`);
+    const retired = Object.entries(table).filter(([rel]) => /^tools\/[^/]+\.(js|py)$/.test(rel) && !fs.existsSync(path.join(ROOT, rel)));
+    assert.ok(retired.length > 0, 'the table keeps the published versions of guards the kernel no longer ships');
+    for (const [rel, hashes] of retired) {
+      assert.ok(hashes.length > 0 && hashes.every((h) => /^[0-9a-f]{64}$/.test(h)), rel);
     }
   });
 
@@ -368,14 +369,21 @@ describe('item 5: the pre-commit hook', () => {
 
 // ── Item 6: --dry-run writes nothing and plans what the real run does ───────
 
-/** A committed install with drift: an edited tool, a stale registered tool, a legacy guard, missing .gitignore entries. */
+const RETIRED_FIXTURE = path.join(__dirname, 'fixtures', 'retired_guards', 'check_retired_example.js');
+/** The shipped table plus the retired fixture, as if an older release had published it. */
+const withRetiredHash = () => ({
+  ...require('../src/known-hashes.json'),
+  'tools/check_retired_example.js': [sha(fs.readFileSync(RETIRED_FIXTURE))],
+});
+
+/** A committed install with drift: an edited tool, a stale registered tool, a retired guard, missing .gitignore entries. */
 function driftedRepo() {
   const dir = installed(AGENT_OS, { repo: true });
   write(dir, 'tools/check_hitl.js', '// edited by the project\n');
   const stale = '// stale kernel copy\n';
   write(dir, 'tools/scan_secrets.js', stale);
   setRegistryHash(dir, 'tools/scan_secrets.js', sha(Buffer.from(stale)));
-  fs.copyFileSync(path.join(__dirname, 'fixtures', 'legacy_guards', 'check_domain_data.js'), path.join(dir, 'tools', 'check_domain_data.js'));
+  fs.copyFileSync(RETIRED_FIXTURE, path.join(dir, 'tools', 'check_retired_example.js'));
   fs.rmSync(path.join(dir, '.agents', 'skills', 'clckernel_cli', 'reference', 'update.md'));
   write(dir, '.gitignore', 'node_modules/\n');
   commitAll(dir, 'drifted install');
@@ -413,8 +421,9 @@ describe('item 6: --dry-run', () => {
     const dir = driftedRepo();
     const copy = copyRepo(dir);
     try {
-      const plannedRun = quietly(() => updateHarness(dir, { dryRun: true }));
-      const doneRun = quietly(() => updateHarness(copy));
+      const knownHashes = withRetiredHash();
+      const plannedRun = quietly(() => updateHarness(dir, { dryRun: true, knownHashes }));
+      const doneRun = quietly(() => updateHarness(copy, { knownHashes }));
       const planned = plannedRun.plan;
       const done = doneRun.plan;
       assert.deepStrictEqual(planned, done);
@@ -423,7 +432,7 @@ describe('item 6: --dry-run', () => {
       assert.ok(planned.written.includes('.agents/skills/clckernel_cli/reference/update.md'));
       // sdds/unified-discovery: a retired kernel guard is kept in place, never moved.
       assert.deepStrictEqual(planned.moved, []);
-      assert.deepStrictEqual(plannedRun.retiredGuards, ['tools/check_domain_data.js']);
+      assert.deepStrictEqual(plannedRun.retiredGuards, ['tools/check_retired_example.js']);
       assert.deepStrictEqual(doneRun.retiredGuards, plannedRun.retiredGuards);
       assert.ok(planned.gitignore.includes('*.clckernel-new'));
       assert.deepStrictEqual(planned.gitConfig, [{ key: 'core.hooksPath', value: '.githooks' }]);

@@ -12,13 +12,18 @@ const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 const { createTmpProject, createGitRepo, teardown, git: gitSync, registryPaths } = require('./helpers');
 const { autoDetectStack } = require('../src/detector');
+const { sha256 } = require('../src/io');
 const { generateHarness } = require('../src/generator');
 const AgentOSAdapter = require('../src/adapters/agent-os');
 
 const ROOT = path.resolve(__dirname, '..');
 const CLI = path.join(ROOT, 'bin', 'cli.js');
-const LEGACY_DIR = path.join(__dirname, 'fixtures', 'legacy_guards');
-const LEGACY_GUARDS = ['check_test_calendar_sync.js', 'check_domain_data.js'];
+const LEGACY_DIR = path.join(__dirname, 'fixtures', 'retired_guards');
+const LEGACY_GUARDS = ['check_retired_example.js', 'check_retired_sample.js'];
+// The names the shipped table keeps for guards deleted from tools/ (retired kernel guards).
+const RETIRED_NAMES = Object.keys(require('../src/known-hashes.json'))
+  .filter((rel) => /^tools\/[^/]+\.(js|py)$/.test(rel) && !fs.existsSync(path.join(ROOT, rel)))
+  .map((rel) => path.basename(rel, path.extname(rel)));
 
 const SKILL = '---\nname: research\ndescription: Researches a topic.\n---\n# Research\n\nHITL: the operator approves the brief.\n';
 const PLAYBOOK = '# Onboarding\n\n## Human checkpoint\nConfirm each step with the operator.\n';
@@ -37,19 +42,20 @@ function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf-8'));
 }
 
-// ── Item 1: no domain guard is installed, check_data_files is ────────────────
+// ── Item 1: no retired guard is installed, check_data_files is ───────────────
 
-describe('Agent-OS installs no domain guard', () => {
-  for (const calendar of ['content-calendar/calendar.json', 'templates/content-calendar/index.html']) {
-    it(`with ${path.dirname(calendar)}/ only generic guards are installed, check_data_files included`, () => {
-      const dir = createTmpProject({ ...AGENT_OS, [calendar]: '{}\n' });
+describe('Agent-OS installs no retired guard', () => {
+  for (const data of ['deliverables/report.json', 'templates/deliverables/index.html']) {
+    it(`with ${path.dirname(data)}/ only generic guards are installed, check_data_files included`, () => {
+      assert.ok(RETIRED_NAMES.length > 0, 'the shipped table keeps the retired guards');
+      const dir = createTmpProject({ ...AGENT_OS, [data]: '{}\n' });
       try {
         const config = autoDetectStack(dir);
         assert.strictEqual(config.projectType, 'agent-os');
         const result = generateHarness(dir, config);
         const registry = registryPaths(readJson(path.join(dir, 'tools', '.clckernel-managed.json')));
         const hook = fs.readFileSync(path.join(dir, '.githooks', 'pre-commit'), 'utf-8');
-        for (const legacy of ['check_domain_data', 'check_test_calendar_sync']) {
+        for (const legacy of RETIRED_NAMES) {
           assert.ok(!result.installedGuards.includes(legacy), `${legacy} must not be installed`);
           assert.ok(!fs.existsSync(path.join(dir, 'tools', `${legacy}.js`)), `${legacy}.js must not be copied`);
           assert.ok(!hook.includes(legacy), `${legacy} must not run in the hook`);
@@ -67,16 +73,16 @@ describe('Agent-OS installs no domain guard', () => {
   }
 
   it('safeguards and AGENTS.md name no domain (Clean Creation State is generic)', () => {
-    const dir = createTmpProject({ ...AGENT_OS, 'content-calendar/calendar.json': '{}\n' });
+    const dir = createTmpProject({ ...AGENT_OS, 'deliverables/report.json': '{}\n' });
     try {
       const adapter = new AgentOSAdapter();
       const safeguards = adapter.getSafeguards(dir).join('\n');
-      assert.doesNotMatch(safeguards, /calendar|metric/i);
+      assert.doesNotMatch(safeguards, /deliverables\/|report\.json/);
       generateHarness(dir, autoDetectStack(dir));
       const agents = fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8');
       assert.match(agents, /Clean Creation State/);
       assert.match(agents, /`null`/);
-      assert.doesNotMatch(agents, /calendar|metric/i);
+      assert.doesNotMatch(agents, /deliverables\/|report\.json/);
     } finally {
       teardown(dir);
     }
@@ -349,7 +355,7 @@ describe('audit orchestrators discover tools/guards/', () => {
   }
 });
 
-// ── Item 5: update keeps the old domain guards in place (sdds/unified-discovery) ─
+// ── Item 5: update keeps retired kernel guards in place (sdds/unified-discovery)
 
 function legacyProject(extra = {}) {
   const dir = createTmpProject({ ...AGENT_OS, ...extra });
@@ -365,7 +371,7 @@ function legacyProject(extra = {}) {
   return dir;
 }
 
-describe('update keeps the removed domain guards where they are, as project guards', () => {
+describe('update keeps retired kernel guards where they are, as project guards', () => {
   const { updateHarness, runUpdate } = require('../src/updater');
 
   it('stays in tools/ with the same content, out of the registry, and is reported as retired', async () => {
@@ -395,11 +401,11 @@ describe('update keeps the removed domain guards where they are, as project guar
   });
 
   it('an existing tools/guards/ copy is left alone too (both are project guards)', () => {
-    const dir = legacyProject({ 'tools/guards/check_domain_data.js': '// the project version\n' });
+    const dir = legacyProject({ 'tools/guards/check_retired_example.js': '// the project version\n' });
     try {
       updateHarness(dir);
-      assert.strictEqual(fs.readFileSync(path.join(dir, 'tools', 'guards', 'check_domain_data.js'), 'utf-8'), '// the project version\n');
-      assert.ok(fs.existsSync(path.join(dir, 'tools', 'check_domain_data.js')), 'the old file is left in place');
+      assert.strictEqual(fs.readFileSync(path.join(dir, 'tools', 'guards', 'check_retired_example.js'), 'utf-8'), '// the project version\n');
+      assert.ok(fs.existsSync(path.join(dir, 'tools', 'check_retired_example.js')), 'the old file is left in place');
     } finally {
       teardown(dir);
     }
@@ -409,24 +415,28 @@ describe('update keeps the removed domain guards where they are, as project guar
     const dir = createTmpProject({ ...AGENT_OS });
     try {
       generateHarness(dir, autoDetectStack(dir));
-      fs.copyFileSync(path.join(LEGACY_DIR, 'check_domain_data.js'), path.join(dir, 'tools', 'check_domain_data.js'));
-      const result = updateHarness(dir);
-      assert.deepStrictEqual(result.retiredGuards, ['tools/check_domain_data.js']);
-      assert.ok(fs.existsSync(path.join(dir, 'tools', 'check_domain_data.js')));
+      const fixture = path.join(LEGACY_DIR, 'check_retired_example.js');
+      fs.copyFileSync(fixture, path.join(dir, 'tools', 'check_retired_example.js'));
+      // As if an older release had published it: its hash is in the table.
+      const knownHashes = { ...require('../src/known-hashes.json'), 'tools/check_retired_example.js': [sha256(fs.readFileSync(fixture))] };
+      const result = updateHarness(dir, { knownHashes });
+      assert.deepStrictEqual(result.retiredGuards, ['tools/check_retired_example.js']);
+      assert.ok(fs.existsSync(path.join(dir, 'tools', 'check_retired_example.js')));
+      assert.deepStrictEqual(updateHarness(dir).retiredGuards, [], 'without the hash it is an unknown project file');
     } finally {
       teardown(dir);
     }
   });
 
-  it('the kept check_test_calendar_sync.js still runs, from tools/, through the orchestrator', () => {
+  it('the kept check_retired_example.js still runs, from tools/, through the orchestrator', () => {
     const dir = legacyProject();
     try {
       updateHarness(dir);
-      const direct = spawnSync(process.execPath, ['tools/check_test_calendar_sync.js'], { cwd: dir, encoding: 'utf-8' });
+      const direct = spawnSync(process.execPath, ['tools/check_retired_example.js'], { cwd: dir, encoding: 'utf-8' });
       assert.strictEqual(direct.status, 0, direct.stdout + direct.stderr);
       const { planGuards } = require(path.join(dir, 'tools', 'audit.js'));
       const labels = planGuards(path.join(dir, 'tools')).map((e) => e.label);
-      assert.ok(labels.includes('check_test_calendar_sync.js'), labels.join(', '));
+      assert.ok(labels.includes('check_retired_example.js'), labels.join(', '));
     } finally {
       teardown(dir);
     }
@@ -436,13 +446,13 @@ describe('update keeps the removed domain guards where they are, as project guar
 // ── Item 6: detection without domain keywords ────────────────────────────────
 
 describe('Agent-OS detection names no domain', () => {
-  it('package.json with marketing-os and nothing else => not Agent-OS', () => {
-    const config = detect({ 'package.json': JSON.stringify({ name: 'acme-marketing-os', keywords: ['marketing-os'] }) });
+  it('package.json with ops-os and nothing else => not Agent-OS', () => {
+    const config = detect({ 'package.json': JSON.stringify({ name: 'acme-ops-os', keywords: ['ops-os'] }) });
     assert.notStrictEqual(config.projectType, 'agent-os');
   });
 
-  it('a "marketing operating system" description alone => not Agent-OS', () => {
-    const config = detect({ 'package.json': JSON.stringify({ name: 'x', description: 'A marketing operating system' }) });
+  it('an "operations platform" description alone => not Agent-OS', () => {
+    const config = detect({ 'package.json': JSON.stringify({ name: 'x', description: 'An operations platform' }) });
     assert.notStrictEqual(config.projectType, 'agent-os');
   });
 
