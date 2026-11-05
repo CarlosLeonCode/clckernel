@@ -1,5 +1,5 @@
 /**
- * check_sql_migrations (sdds/laila-platform-fit, REQ-14): SQL migration rules
+ * check_sql_migrations: SQL migration rules
  * on the changed files of the snapshot. Each rule has a pass and a fail case.
  */
 const { describe, it } = require('node:test');

@@ -6,7 +6,7 @@
  * It does not choose what install puts in a project (the
  * adapters' manifests do) and its severity/gate_mode fields are not
  * configurable here: the audit honours the guard's own `level` and the
- * `severities` key of .clckernel.yaml instead (sdds/audit-cli).
+ * `severities` key of .clckernel.yaml instead.
  *
  * Entry shape (design §1.2, additive fields noted):
  *   name        {string}        guard script basename WITHOUT extension
@@ -146,11 +146,11 @@ const SAFEGUARD_CATALOG = [
 
   { name: 'check_query_efficiency', labels: ['check_query_efficiency', 'check_query_efficiency.js'],
     checks: 'N+1 heuristic for JS/TS data clients (supabase-js, drizzle, prisma, postgres, pg): awaited query calls inside loops; unbounded select(\'*\')', verify: ['verify_query_efficiency', 'verify_no_n_plus_1'],
-    applies_when: 'data-client', severity: 'error', gate_mode: 'hard', config_keys: ['query_efficiency', 'exclude_paths', 'guard_exclude'],
+    applies_when: 'data-client', severity: 'warning', gate_mode: 'advisory', config_keys: ['query_efficiency', 'exclude_paths', 'guard_exclude'],
     phase: 'audit', file: 'check_query_efficiency.js', manifest: true, planned: false, lens: 'performance' },
 
   { name: 'check_mcp_contracts', labels: ['check_mcp_contracts', 'check_mcp_contracts.js'],
-    checks: 'MCP tool registrations take input schemas from contracts modules (no inline zod) and tool files import no data client', verify: ['verify_mcp_contracts'],
+    checks: 'MCP tool registrations declare an input schema; when configured, schemas come from contracts modules (no inline zod) and tool files import no data client', verify: ['verify_mcp_contracts'],
     applies_when: 'mcp', severity: 'error', gate_mode: 'hard', config_keys: ['mcp_contracts', 'exclude_paths', 'guard_exclude'],
     phase: 'audit', file: 'check_mcp_contracts.js', manifest: true, planned: false, lens: 'architecture' },
 
@@ -261,8 +261,7 @@ function lensFor(name) {
 }
 
 /**
- * Tool descriptor of a bundled catalog guard, for `--add-guards` on any stack
- * (sdds/laila-platform-fit, REQ-7): the entry's .js file when it has one
+ * Tool descriptor of a bundled catalog guard, for `--add-guards` on any stack: the entry's .js file when it has one
  * (Node always runs: the CLI is npx), else its .py file. null for a name that
  * is not an entry, an external CLI (file null) or a planned guard.
  * @param {string} name - Guard name (entry name, not an alias)

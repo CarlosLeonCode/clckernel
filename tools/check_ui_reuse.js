@@ -12,6 +12,9 @@
  */
 const { changedFiles, readFile, projectConfig, globMatcher } = require('./_changes');
 
+/** ui_reuse.primitives default (GUARD_SECTIONS in _config.js), for an older _config.js without it. */
+const DEFAULT_PRIMITIVES = ['**/components/ui/**'];
+
 const check = async function checkUiReuse(targetDir) {
   const dir = targetDir || process.cwd();
 
@@ -35,7 +38,8 @@ const check = async function checkUiReuse(targetDir) {
 
   const violations = {};
   const config = projectConfig(dir) || require('./_config.js').defaultConfig();
-  const isPrimitive = globMatcher(config.ui_reuse.primitives);
+  // An older tools/_config.js has no ui_reuse section: its default primitives.
+  const isPrimitive = globMatcher(config.ui_reuse ? config.ui_reuse.primitives : DEFAULT_PRIMITIVES);
 
   for (const file of files) {
     const content = readFile(dir, file, mode);

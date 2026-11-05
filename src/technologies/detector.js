@@ -2,7 +2,7 @@
  * CLC Kernel — TechnologyDetector
  * Detects technologies via file signatures: Celery, Redis, PostgreSQL and
  * Docker, a Supabase CLI project, a configured SQL migrations folder, a Node
- * data client and an MCP server (sdds/laila-platform-fit).
+ * data client and an MCP server.
  */
 
 const fs = require('fs');
@@ -328,7 +328,7 @@ class TechnologyDetector {
   }
 }
 
-/** Guards of the technologies added by sdds/laila-platform-fit (JS, stack-agnostic). */
+/** Guards of the Supabase / SQL migrations / data client / MCP technologies (JS, stack-agnostic). */
 const SQL_MIGRATIONS_GUARD = {
   name: 'check_sql_migrations',
   language: 'js',
@@ -344,14 +344,14 @@ const TECH_GUARDS = {
     language: 'js',
     path: 'check_query_efficiency.js',
     command: 'node tools/check_query_efficiency.js',
-    description: 'Query efficiency guard: awaited database calls inside loops (N+1), unbounded select(\'*\') without limit/range',
+    description: 'Query efficiency guard (warnings by default): awaited database calls inside loops (N+1), unbounded select(\'*\') without limit/range',
   },
   mcp: {
     name: 'check_mcp_contracts',
     language: 'js',
     path: 'check_mcp_contracts.js',
     command: 'node tools/check_mcp_contracts.js',
-    description: 'MCP contract guard: tool input schemas imported from the contracts modules (no inline z.object), no data client imports in tool files',
+    description: 'MCP contract guard: every tool declares an input schema; with mcp_contracts configured, schemas come from the contracts modules (no inline z.object) and tool files import no data client',
   },
 };
 

@@ -56,8 +56,8 @@ describe('docs — first session after install', () => {
   });
 
   const cases = [
-    ['README.md', /## [^\n]*What happens after install/, [/First session after install/, /holds only a comment/, /never rewritten/, /Windsurf/]],
-    ['README.es.md', /## [^\n]*Qué ocurre después de instalar/, [/First session after install/, /solo contiene un comentario/, /nunca se reescribe/, /Windsurf/]],
+    ['README.md', /## [^\n]*What happens after install/, [/First session after install/, /holds only a comment/, /rewrites only the kernel-owned sections/, /Windsurf/]],
+    ['README.es.md', /## [^\n]*Qué ocurre después de instalar/, [/First session after install/, /solo contiene un comentario/, /solo reescribe las secciones del kernel/, /Windsurf/]],
   ];
   for (const [file, heading, facts] of cases) {
     it(`${file} has the after-install section with the facts`, () => {

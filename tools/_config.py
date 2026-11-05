@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import os
 import posixpath
+import re
 import sys
 from typing import Any, Callable, Optional
 
@@ -49,11 +50,11 @@ GUARD_SECTIONS = {
     },
     "query_efficiency": {
         "defaults": {"call_patterns": []},
-        "rules": {"n_plus_one": "error", "unbounded_select": "warning"},
+        "rules": {"n_plus_one": "warning", "unbounded_select": "warning"},
     },
     "mcp_contracts": {
-        "defaults": {"contracts_modules": [], "forbid_data_clients": True},
-        "rules": {"inline_schema": "error", "schema_source": "error", "data_client": "error"},
+        "defaults": {"contracts_modules": [], "forbid_data_clients": False},
+        "rules": {"missing_schema": "error", "inline_schema": "error", "schema_source": "error", "data_client": "error"},
     },
     "ui_reuse": {
         "defaults": {"primitives": ["**/components/ui/**"]},
@@ -197,6 +198,16 @@ def _check_mirror_path(item: str, key: str, file: str) -> None:
         raise ConfigError(key, "AGENTS.md is the source, not a mirror", file)
 
 
+def _check_regex(item: str, key: str, file: str) -> None:
+    """Rejects a pattern that is not a valid regular expression (twin of checkRegex
+    in _config.js). The patterns are JavaScript regexes: a named group
+    `(?<name>...)` is read as Python's `(?P<name>...)` before compiling."""
+    try:
+        re.compile(re.sub(r"\(\?<(?![=!])", "(?P<", item), re.IGNORECASE)
+    except re.error as err:
+        raise ConfigError(key, f"invalid regular expression: {err}", file) from None
+
+
 def _validate_guard_section(raw: dict, key: str, file: str, config: dict) -> None:
     """A generic guard's section: string lists, booleans and per-rule severities."""
     spec = GUARD_SECTIONS[key]
@@ -210,7 +221,8 @@ def _validate_guard_section(raw: dict, key: str, file: str, config: dict) -> Non
                 raise ConfigError(f"{key}.{sub}", f"expected true or false, got {_type_name(item)}", file)
             config[key][sub] = item
         else:
-            config[key][sub] = _string_list(item, f"{key}.{sub}", file)
+            check = (lambda p, k: _check_regex(p, k, file)) if sub == "call_patterns" else None
+            config[key][sub] = _string_list(item, f"{key}.{sub}", file, check)
     severities = _section(value, "severities", list(spec["rules"].keys()), file, f"{key}.severities")
     for rule, level in severities.items():
         if level is None:

@@ -11,7 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 const { autoDetectStack } = require('./detector');
-const { generateHarness, manifestGuardNames, refreshAgentsSections } = require('./generator');
+const { generateHarness, manifestGuardNames } = require('./generator');
 const { createIO, runWithIO, currentIO, sha256, NEW_SUFFIX } = require('./io');
 const { CONFIG_NAMES, readProjectConfig, globMatcher } = require('./config');
 
@@ -23,8 +23,7 @@ const LEGACY_CURSOR_RULE = '.cursor/rules/clc_forge_context.mdc';
 const LEGACY_RESOLVED_JSON = '.clc-forge.resolved.json';
 const BUNDLED_SKILL_DIR = path.join(__dirname, '..', SKILLS_REL, CURRENT_SKILL);
 
-// Guard file names the audit orchestrators discover at the top of tools/
-// (sdds/unified-discovery): check_*, scan_*, verify_* or *_guard, .js or .py.
+// Guard file names the audit orchestrators discover at the top of tools/: check_*, scan_*, verify_* or *_guard, .js or .py.
 const GUARD_FILE_RE = /^tools\/(?:(?:check|scan|verify)_[^/]*|[^/]*_guard)\.(?:js|py)$/;
 
 /**
@@ -135,7 +134,7 @@ function cleanupLegacyArtifacts(dir, previousSkill) {
 }
 
 /**
- * Kernel guards this update retired (sdds/unified-discovery, decision 6): a
+ * Kernel guards this update retired: a
  * guard file in tools/ that the kernel wrote before — listed in the prior
  * registry, or byte-identical to a version it published — and that this run
  * did not write because the current manifest no longer ships it. Nothing is
@@ -167,7 +166,7 @@ function retiredKernelGuards(io, dir, knownHashes) {
 }
 
 /**
- * Checks --add-guards (sdds/laila-platform-fit, REQ-7): any bundled catalog
+ * Checks --add-guards: any bundled catalog
  * guard is accepted; the ones the stack's manifest does not offer are
  * returned as `foreign` (the CLI warns about them).
  * @param {string[]|'all'|undefined} requested - Guard names, or 'all'
@@ -191,8 +190,7 @@ function validateAddGuards(requested, offered) {
 
 /**
  * Refreshes the harness of an installed project. It updates what the project
- * has and never adds guards or mirrors it does not have
- * (sdds/update-no-additions); options.addGuards opts guards in.
+ * has and never adds guards or mirrors it does not have; options.addGuards opts guards in.
  * @param {string} [targetDir] - Project root
  * @param {{ dryRun?: boolean, addGuards?: string[]|'all', knownHashes?: object }} [options]
  */
@@ -204,14 +202,14 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
   }
 
   // The project config is read before anything is written: an invalid one
-  // throws its ConfigError and the update writes nothing (sdds/config-foundation).
+  // throws its ConfigError and the update writes nothing.
   const projectConfig = readProjectConfig(resolvedDir);
 
   // 1. Detect Stack
   const detected = autoDetectStack(resolvedDir);
 
   // --add-guards is checked before anything is written: an unknown name
-  // fails the whole update (sdds/update-no-additions, decision 1).
+  // fails the whole update.
   const { add: addGuards, foreign: foreignGuards } = validateAddGuards(options.addGuards, manifestGuardNames(resolvedDir, detected));
 
   // 2. Identify existing preserved assets
@@ -222,7 +220,7 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
   };
 
   // 3. Run harness generation (refreshes tools, hooks, skills, and symlinks)
-  // inside one io session (sdds/safe-update): every write follows the
+  // inside one io session: every write follows the
   // ownership rule, and a dry run only records the plan.
   const { loadKnownHashes } = require('./io');
   const knownHashes = options.knownHashes || loadKnownHashes();
@@ -236,9 +234,8 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
   const { retiredGuards, legacyCleanup } = runWithIO(io, () => {
     // Snapshot the installed skill first: the legacy copy is compared against it.
     const previousSkill = snapshotFiles(path.join(resolvedDir, SKILLS_REL, CURRENT_SKILL)).files;
+    // Also refreshes the kernel-owned AGENTS.md sections (generator: syncAgentsSections).
     generateHarness(resolvedDir, detected, { addGuards, projectConfig });
-    // sdds/laila-platform-fit (REQ-3): parts and safeguards follow the project.
-    refreshAgentsSections(io, resolvedDir, detected);
     const retired = retiredKernelGuards(io, resolvedDir, knownHashes);
     const cleanup = cleanupLegacyArtifacts(resolvedDir, previousSkill);
     const { ensureGitignoreEntries } = require('./gitignore');
@@ -325,7 +322,7 @@ async function runUpdate(targetDir = process.cwd(), options = {}) {
     } else {
       console.log(`${colors.emerald}✨ ¡Proyecto actualizado con éxito a la última versión de CLC Kernel!${colors.reset}\n`);
     }
-    // sdds/onboarding: a short Next steps block, only when something needs attention.
+    // a short Next steps block, only when something needs attention.
     const { updateNextStepsLines } = require('./ui');
     const steps = dryRun ? [] : updateNextStepsLines(result.plan);
     if (steps.length > 0) console.log(`${steps.join('\n')}\n`);

@@ -9,7 +9,8 @@ const { spawnSync } = require('child_process');
 const { readProjectConfig, globMatcher } = require('./config.js');
 const { createIO, runWithIO, activeIO, currentIO, registeredPaths, MANAGED_REGISTRY } = require('./io');
 const { FIRST_SESSION_SECTION, KERNEL_BUG_SECTION } = require('./onboarding');
-const { technologySafeguards } = require('./technologies/detector');
+const { renderSafeguards, stackLines, extraLines } = require('./safeguards');
+const { sha256 } = require('./io');
 
 /**
  * Shell condition that decides at commit time whether an external tool runs.
@@ -74,7 +75,7 @@ function managedToolPaths(toolFiles) {
 }
 
 /**
- * Writes the registry (sdds/safe-update, decision 2): every kernel-owned file
+ * Writes the registry: every kernel-owned file
  * whose bytes are the kernel's after this run (tools/*, the hook, the skill),
  * with its sha256. Protected files are left out: their content is the
  * project's. The snapshot helpers (_changes.js/.py) drop these paths, and the
@@ -82,9 +83,9 @@ function managedToolPaths(toolFiles) {
  * @param {object} io - Active io session
  * @param {string} targetDir - Target project root
  */
-function writeManagedRegistry(io, targetDir, technologies = [], extraGuards = []) {
+function writeManagedRegistry(io, targetDir, technologies = [], extraGuards = [], agentsSections = {}) {
   const { version } = require('../package.json');
-  const registry = { kernelVersion: version, technologies, extraGuards, files: io.managedEntries() };
+  const registry = { kernelVersion: version, technologies, extraGuards, agentsSections, files: io.managedEntries() };
   io.writeFile(path.join(targetDir, MANAGED_REGISTRY), JSON.stringify(registry, null, 2) + '\n');
 }
 
@@ -118,8 +119,7 @@ function isGuard(tool) {
 }
 
 /**
- * The manifest an install or update works with (sdds/update-no-additions,
- * decision 1). A fresh install keeps every guard. An update keeps only the
+ * The manifest an install or update works with. A fresh install keeps every guard. An update keeps only the
  * guards the project has: those in the hashed registry plus those present in
  * tools/ (a protected or project-owned file with a kernel guard's name is
  * still installed); an old path-list registry, or none, means present files
@@ -150,9 +150,11 @@ function selectGuards(io, tools, addGuards) {
 
 /**
  * True for a technology guard whose technology appeared since the last
- * install/update (sdds/laila-platform-fit, REQ-17): the registry records the
- * technologies detected then; one not listed is new. A registry without the
- * list (older releases) counts every detected technology as new, once.
+ * install/update: the registry records the technologies detected then; one
+ * not listed is new. A registry without the list (older releases) is a
+ * baseline: nothing is new on that run (its guards are listed as available,
+ * and the registry then records the current technologies), so a guard the
+ * project removed is not brought back.
  * @param {object} io - Active io session (update)
  * @param {object} tool - Manifest entry
  * @returns {boolean}
@@ -160,13 +162,12 @@ function selectGuards(io, tools, addGuards) {
 function newTechnology(io, tool) {
   if (!Array.isArray(tool.technologies) || tool.technologies.length === 0) return false;
   const known = io.registry.technologies;
-  if (!Array.isArray(known)) return true;
+  if (!Array.isArray(known)) return false;
   return tool.technologies.some(tech => !known.includes(tech));
 }
 
 /**
- * Catalog guards outside the stack's manifest (sdds/laila-platform-fit,
- * REQ-7): the ones requested with --add-guards and the ones an earlier
+ * Catalog guards outside the stack's manifest: the ones requested with --add-guards and the ones an earlier
  * --add-guards recorded in the registry, as tool descriptors.
  * @param {object} io - Active io session
  * @param {Array} manifest - Guards of the stack's manifest
@@ -214,7 +215,7 @@ function manifestGuardNames(targetDir, config) {
 }
 
 /**
- * Guard block every hook starts with (sdds/unified-discovery): the hook runs
+ * Guard block every hook starts with: the hook runs
  * no guard itself. It calls the audit orchestrators with --hook, and they
  * discover and run every guard once — the kernel guards installed for the
  * project and the project guards (top-level tools/ guards the kernel does not
@@ -254,7 +255,7 @@ function configureHooksPath(targetDir) {
 
 /**
  * configureHooksPath, also returning the command that activates the hook
- * when it was left inactive (sdds/onboarding: the Next steps repeat it).
+ * when it was left inactive (the Next steps repeat it).
  * @param {string} targetDir - Target project root
  * @returns {{ active: boolean, activate: string|null }}
  */
@@ -356,7 +357,7 @@ function writeHook(targetDir, isFront, commands, banner) {
   lines.push(...commands);
 
   // Generated per project: overwritten only when it still matches the
-  // registry's hash (sdds/safe-update, decision 3).
+  // registry's hash.
   const file = path.posix.join(useHusky ? '.husky' : GITHOOKS_DIR, 'pre-commit');
   const status = currentIO(targetDir).writeManaged(file, lines.join('\n') + '\n', { mode: '755' });
 
@@ -395,8 +396,7 @@ function shellQuote(value) {
 }
 
 /**
- * Hook line for an external tool of a part (sdds/fullstack-monorepo,
- * decision 4): it runs inside the part's dir, in a subshell so the cd does
+ * Hook line for an external tool of a part: it runs inside the part's dir, in a subshell so the cd does
  * not leak. A failing tool fails the subshell, and with it the hook under
  * `set -e`; a missing one prints a skip notice naming the dir.
  * @param {object} tool - External tool descriptor
@@ -429,7 +429,7 @@ function nodeBinOf(tool) {
 }
 
 /**
- * `if/elif` branches of a part's Node tool (sdds/monorepo-gaps, gap 1): the
+ * `if/elif` branches of a part's Node tool: the
  * part's own node_modules/.bin/<bin> first, then the one hoisted to the
  * repository root by npm/yarn/pnpm workspaces. The branch runs the binary it
  * found (not npx), with cwd = the part dir. The caller appends the else/fi.
@@ -448,7 +448,7 @@ function hoistedNodeBody(tool, bin, dir, local) {
 }
 
 /**
- * Tool manifest of a multi-part repo (sdds/fullstack-monorepo, decision 3):
+ * Tool manifest of a multi-part repo:
  * the guards of every part, once each (by file), with the technology tools
  * before the user-defined rules (check_custom), then each part's external
  * tools tagged with the part dir.
@@ -529,8 +529,7 @@ function installOrchestrators(targetDir, copiedFiles) {
 
 /**
  * Shared modules the diff-based guards import from their own directory, by
- * guard language: the snapshot helper and the config reader it uses
- * (sdds/config-foundation), so a config added after install works without
+ * guard language: the snapshot helper and the config reader it uses, so a config added after install works without
  * `clckernel update`.
  */
 const SNAPSHOT_HELPERS = { '.js': ['_changes.js', '_config.js', 'yaml.js'], '.py': ['_changes.py', '_config.py', '_yaml.py'] };
@@ -591,8 +590,7 @@ function installToolsFromManifest(targetDir, manifest, config) {
 }
 
 /**
- * Sibling modules a guard requires beyond the snapshot helpers
- * (sdds/laila-platform-fit): the JS source scanner of the JS/TS code guards.
+ * Sibling modules a guard requires beyond the snapshot helpers: the JS source scanner of the JS/TS code guards.
  */
 const GUARD_HELPERS = {
   'check_query_efficiency.js': ['_jscode.js'],
@@ -617,7 +615,7 @@ function installGuardHelpers(targetDir, copiedFiles) {
   return written;
 }
 
-/** tools/package.json the kernel writes next to its JS files (sdds/esm-tools-commonjs). */
+/** tools/package.json the kernel writes next to its JS files. */
 const MODULE_TYPE_MARKER = `${JSON.stringify({ type: 'commonjs' }, null, 2)}\n`;
 
 /**
@@ -737,17 +735,20 @@ function generateFallbackHook(targetDir, projectType) {
 }
 
 /**
- * AGENTS.md of a multi-part repo (sdds/fullstack-monorepo, decision 6): one
+ * AGENTS.md of a multi-part repo: one
  * law with a table of the parts and each part's stack rules grouped.
  * @param {object} config - Multi-part config
+ * @param {{ installed: Set<string>, manifest: Set<string> }|null} [state] - Installed
+ *   guards (update); null: every manifest guard (install). See src/safeguards.js.
  * @returns {string}
  */
-function partsAgentsMd(config) {
+function partsAgentsMd(config, state = null) {
   const testRunner = "the part's test runner (see Parts)";
   const rows = config.parts.map(p => `| \`${p.dir}\` | ${p.adapter.name} | ${p.adapter.testRunner} |`).join('\n');
+  const covered = new Set();
   const sections = config.parts.map((p, i) => `### 2.${i + 1} Core AI Safeguards — \`${p.dir}\` (${p.adapter.name})
-${p.adapter.getSafeguards().map(s => `- ${s}`).join('\n')}`).join('\n\n');
-  const techLines = technologySafeguards(config.techTools);
+${stackLines(p.adapter.getSafeguards(), state, covered).map(s => `- ${s}`).join('\n')}`).join('\n\n');
+  const techLines = extraLines(config.techTools, state, covered);
   const techSection = techLines.length === 0 ? '' : `\n\n### 2.${config.parts.length + 1} Technology guards (whole repository)
 ${techLines.map(s => `- ${s}`).join('\n')}`;
   return `# CLC Kernel ${config.projectType.toUpperCase()} (${config.parts.length} parts) — AGENTS
@@ -807,16 +808,17 @@ function markdownSection(text, heading) {
 }
 
 /**
- * The kernel-owned AGENTS.md sections of a detected config
- * (sdds/laila-platform-fit, REQ-3): the Parts table and the per-part
+ * The kernel-owned AGENTS.md sections of a detected config: the Parts table and the per-part
  * safeguards of a multi-part repo, or section 2 of a single stack the base
  * adapter renders. Each is { heading, text } as install writes it.
  * @param {object} config - Detected config
+ * @param {{ installed: Set<string>, manifest: Set<string> }|null} [state] - Installed
+ *   guards (update); null: every manifest guard (install)
  * @returns {Array<{ heading: string, text: string }>}
  */
-function kernelAgentsSections(config) {
+function kernelAgentsSections(config, state = null) {
   if (Array.isArray(config.parts) && config.parts.length > 0) {
-    const fresh = partsAgentsMd(config);
+    const fresh = partsAgentsMd(config, state);
     return ['## Parts', '## 2. Core AI Safeguards (per part)']
       .map(heading => ({ heading, section: markdownSection(fresh, heading) }))
       .filter(({ section }) => section)
@@ -825,34 +827,81 @@ function kernelAgentsSections(config) {
   const adapter = config.adapter;
   if (!adapter || adapter.projectType === 'agent-os') return [];
   const heading = `## 2. Core AI Safeguards (${adapter.name})`;
-  const lines = [...adapter.getSafeguards(), ...technologySafeguards(config.techTools)].map(s => `- ${s}`).join('\n');
+  const lines = renderSafeguards(adapter.getSafeguards(), config.techTools, state).map(s => `- ${s}`).join('\n');
   return [{ heading, text: `${heading}\n${lines}\n` }];
 }
 
+/** sha256 of a section's text as compared: without trailing whitespace. */
+const sectionHash = (text) => sha256(Buffer.from(text.trimEnd(), 'utf-8'));
+
 /**
- * Rewrites the kernel-owned sections of an existing AGENTS.md
- * (kernelAgentsSections) and keeps every other byte; a section the document
- * does not have is not added, and an unchanged document is not written.
+ * Keeps the kernel-owned sections of AGENTS.md (kernelAgentsSections) in step
+ * with the project, without overwriting edits:
+ *   - a section equal to the fresh text is left as it is;
+ *   - with `refresh` (update), a section whose text hashes to what the
+ *     registry recorded (the kernel wrote it and nobody edited it) is
+ *     rewritten; every other byte of the document is kept;
+ *   - a section that differs and was edited, or has no recorded hash (an
+ *     older install), keeps AGENTS.md untouched: the refreshed document is
+ *     written to AGENTS.md.clckernel-new (io.protect) instead.
+ * A section the document does not have is never added.
  * @param {object} io - Active io session
  * @param {string} targetDir - Project root
  * @param {object} config - Detected config
- * @returns {boolean} true when AGENTS.md was (or, in a dry run, would be) written
+ * @param {{ installed: Set<string>, manifest: Set<string> }|null} state - See kernelAgentsSections
+ * @param {{ refresh?: boolean }} [options] - false (install): only record hashes
+ * @returns {object} heading -> sha256 of the section as the kernel last wrote it, for the registry
  */
-function refreshAgentsSections(io, targetDir, config) {
-  const file = path.join(targetDir, 'AGENTS.md');
-  const current = io.read(file);
-  if (!current) return false;
-  let text = current.toString('utf-8');
-  for (const { heading, text: fresh } of kernelAgentsSections(config)) {
+function syncAgentsSections(io, targetDir, config, state, { refresh = false } = {}) {
+  const recorded = io.registry.agentsSections || {};
+  const current = io.read(path.join(targetDir, 'AGENTS.md'));
+  if (!current) return {};
+  const original = current.toString('utf-8');
+  const hashes = {};
+  const pending = [];
+  let edited = false;
+  let text = original;
+  for (const { heading, text: fresh } of kernelAgentsSections(config, state)) {
     const section = markdownSection(text, heading);
     if (!section) continue;
+    if (section.text.trimEnd() === fresh.trimEnd()) {
+      hashes[heading] = sectionHash(fresh);
+      continue;
+    }
+    if (recorded[heading]) hashes[heading] = recorded[heading];
+    if (!refresh) continue;
+    if (recorded[heading] !== sectionHash(section.text)) edited = true;
     // The section keeps its own trailing blank lines (the spacing before the next heading).
     const trailing = /\s*$/.exec(section.text)[0];
     text = text.slice(0, section.start) + fresh.trimEnd() + trailing + text.slice(section.end);
+    pending.push({ heading, sha: sectionHash(fresh) });
   }
-  if (text === current.toString('utf-8')) return false;
-  io.writeFile(file, text);
-  return true;
+  if (pending.length === 0) return hashes;
+  if (edited) {
+    io.protect('AGENTS.md', text, 'kernel sections edited locally, or no recorded hash: merge the new safeguards by hand');
+    return hashes;
+  }
+  if (io.writeFile(path.join(targetDir, 'AGENTS.md'), text) !== 'excluded') {
+    for (const { heading, sha } of pending) hashes[heading] = sha;
+  }
+  return hashes;
+}
+
+/**
+ * Guard names a run leaves installed, and the ones the stack's full manifest
+ * offers: the input of the AGENTS.md safeguard lines (src/safeguards.js).
+ * @param {object} io - Active io session
+ * @param {Array} full - The stack's guards before selection (extras excluded)
+ * @param {Array} selected - The guards this run installed or kept
+ * @param {string[]} installedNames - Names installToolsFromManifest copied
+ * @returns {{ installed: Set<string>, manifest: Set<string> }}
+ */
+function installedState(io, full, selected, installedNames) {
+  const names = new Set(installedNames);
+  const installed = new Set(selected
+    .filter(tool => isGuard(tool) && names.has(tool.name) && io.exists(`tools/${tool.path}`))
+    .map(tool => tool.name));
+  return { installed, manifest: new Set(full.filter(isGuard).map(tool => tool.name)) };
 }
 
 /**
@@ -883,7 +932,7 @@ When given a command matching \`clckernel <action>\` or \`/clckernel <action>\`,
 /**
  * Generate a harness for a target project from its detected stack
  * (`configOrNull`; null falls back to generic provisioning).
- * The project's .clckernel.yaml is read first (sdds/config-foundation): an
+ * The project's .clckernel.yaml is read first: an
  * invalid one throws its ConfigError before anything is written. A caller
  * that already read it (update, the CLI) passes `options.projectConfig`.
  * @param {string} targetDir - Project root
@@ -898,7 +947,7 @@ function generateHarness(targetDir, configOrNull, options = {}) {
     for (const warning of projectConfig.warnings) console.warn(`Warning: ${warning}`);
   }
   const withConfig = { ...options, projectConfig };
-  // One io session per install (sdds/safe-update): reuse the caller's (update)
+  // One io session per install: reuse the caller's (update)
   // or open one, real or dry-run.
   const active = activeIO();
   if (active) return generateHarnessWith(active, targetDir, configOrNull, withConfig);
@@ -1018,15 +1067,17 @@ ${FIRST_SESSION_SECTION}`;
   let installedGuards;
   let hook;
   // On update only the guards the project has (plus --add-guards) are
-  // installed and run (sdds/update-no-additions, decisions 1 and 4).
+  // installed and run.
   const { addGuards } = options;
   let extras = [];
+  let state = null;
   if (multiPart) {
     const full = buildPartsManifest(config.parts, config.techTools || [], targetDir);
     extras = extraGuardTools(io, full.guards, addGuards);
     const manifest = { ...full, guards: selectGuards(io, [...full.guards, ...extras], addGuards) };
     const { installed, written } = installToolsFromManifest(targetDir, manifest.guards, config);
     installedGuards = installed;
+    state = installedState(io, full.guards, manifest.guards, installed);
     hook = generatePartsHook(config, targetDir, manifest, managedToolPaths(written));
   } else if (config.adapter) {
     const full = buildToolManifest(config.adapter, config.techTools || [], targetDir);
@@ -1034,6 +1085,7 @@ ${FIRST_SESSION_SECTION}`;
     const manifest = selectGuards(io, [...full, ...extras], addGuards);
     const { installed, written } = installToolsFromManifest(targetDir, manifest, config);
     installedGuards = installed;
+    state = installedState(io, full, manifest, installed);
     hook = generateHookFromManifest(config.adapter, targetDir, manifest, managedToolPaths(written));
   } else {
     const fallback = fallbackGuards(config.projectType);
@@ -1049,9 +1101,15 @@ ${FIRST_SESSION_SECTION}`;
   // Step 4: Install LLM Conversational CLI & Agent Context
   installAgenticCLI(targetDir, projectConfig.config.mirrors.list);
 
-  // Step 5: Record what the kernel owns now, with hashes.
+  // Step 5: The kernel-owned AGENTS.md sections follow the installed guards on
+  // update (an edited one is kept, its proposal goes to AGENTS.md.clckernel-new);
+  // install records what it wrote. Rendered on install with every manifest guard.
+  const update = io.mode === 'update';
+  const agentsSections = syncAgentsSections(io, targetDir, config, update ? state : null, { refresh: update });
+
+  // Step 6: Record what the kernel owns now, with hashes.
   const extraNames = extras.map(tool => tool.name).filter(name => installedGuards.includes(name)).sort();
-  writeManagedRegistry(io, targetDir, detectedTechnologies(config), extraNames);
+  writeManagedRegistry(io, targetDir, detectedTechnologies(config), extraNames, agentsSections);
 
   return { installedGuards, hook };
 }
@@ -1109,7 +1167,7 @@ function installAgenticCLI(targetDir, mirrors) {
       // Only replace an existing symlink (a stale mirror needs refreshing).
       // A regular file belongs to the consumer: unlinking it would destroy
       // their own rules, so leave it in place instead. An update never
-      // creates a mirror the project does not have (sdds/update-no-additions).
+      // creates a mirror the project does not have.
       io.mirror(relPath, linkPath);
     } catch (e) {
       // Ignorar fallos de permisos o symlinks existentes
@@ -1118,5 +1176,5 @@ function installAgenticCLI(targetDir, mirrors) {
 }
 
 module.exports = {
-  generateHarness, generateHookFromManifest, buildToolManifest, configureHooksPath, manifestGuardNames, refreshAgentsSections,
+  generateHarness, generateHookFromManifest, buildToolManifest, configureHooksPath, manifestGuardNames, syncAgentsSections,
 };

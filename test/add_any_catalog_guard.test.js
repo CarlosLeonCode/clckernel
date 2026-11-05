@@ -1,5 +1,5 @@
 /**
- * sdds/laila-platform-fit, REQ-7: `--add-guards` accepts any bundled catalog
+ * `--add-guards` accepts any bundled catalog
  * guard. A guard foreign to the stack is installed with a warning, recorded
  * in the registry, and refreshed by later updates (never reported as retired).
  */

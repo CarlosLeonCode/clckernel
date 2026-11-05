@@ -1,7 +1,7 @@
 /**
  * JavaScript/TypeScript source helpers shared by check_query_efficiency and
- * check_mcp_contracts (sdds/laila-platform-fit). Not a parser: a scanner that
- * blanks comments and literal text so the guards' patterns only see code.
+ * check_mcp_contracts. Not a parser: a scanner that blanks comments and
+ * literal text so the guards' patterns only see code.
  *
  *   maskJs(source) -> { code, masked }
  *     code:   comments replaced by spaces (string literals kept)
@@ -12,7 +12,8 @@
  *   included. A `/` starts a regex literal after an operator, an opening
  *   bracket, a comma or one of return/typeof/case/... (the usual heuristic).
  *
- * Self-contained: no dependencies.
+ * Self-contained: Node.js built-ins; the generated-file globs come from the
+ * sibling _config.js (with yaml.js), installed next to every JS guard.
  */
 
 const REGEX_PREFIX_CHARS = new Set('(,=:[!&|?{};+-*%<>~^'.split(''));
@@ -145,19 +146,33 @@ function lineOf(text, offset) {
   return line;
 }
 
-/** Test files and generated code the JS guards skip (sdds/laila-platform-fit). */
-const SKIPPED_FILE_RES = [
+/** Test files and type declarations the JS guards skip. */
+const TEST_FILE_RES = [
   /(^|\/)(__tests__|__mocks__)\//,
   /\.(test|spec)\.[cm]?[jt]sx?$/,
   /\.d\.[cm]?ts$/,
-  /(^|\/)database\.types\.ts$/,
-  /\.generated\.[cm]?[jt]sx?$/,
-  /(^|\/)generated\//,
 ];
 
-/** True for a test file or a generated file. */
+/**
+ * Generated code: the GENERATED_FILES globs of the sibling _config.js, the one
+ * list verify_tdd uses too. An older _config.js without the export yields none.
+ */
+let generated = null;
+function isGenerated(file) {
+  if (generated === null) {
+    try {
+      const { globToRegex } = require('./yaml.js');
+      generated = (require('./_config.js').GENERATED_FILES || []).map(globToRegex);
+    } catch {
+      generated = [];
+    }
+  }
+  return generated.some((re) => re.test(file));
+}
+
+/** True for a test file, a type declaration or a generated file. */
 function isTestOrGenerated(file) {
-  return SKIPPED_FILE_RES.some((re) => re.test(file));
+  return TEST_FILE_RES.some((re) => re.test(file)) || isGenerated(file);
 }
 
 /** Extensions of the JS/TS sources the guards read. */

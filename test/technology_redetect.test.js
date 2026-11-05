@@ -1,5 +1,5 @@
 /**
- * sdds/laila-platform-fit: Supabase / SQL migrations / data client / MCP
+ * Supabase / SQL migrations / data client / MCP
  * technology detection (REQ-4, REQ-14, REQ-15, REQ-16 triggers) and
  * `clckernel update` re-detecting technologies that appeared after install
  * (REQ-17).
@@ -213,7 +213,7 @@ describe('REQ-17: update re-detects technologies', () => {
     }
   });
 
-  it('an older registry without technologies: detected technology guards are added once', () => {
+  it('an older registry without technologies is a baseline: nothing is added, the next new technology is', () => {
     const dir = project({ 'package.json': NEXT });
     try {
       install(dir);
@@ -221,8 +221,13 @@ describe('REQ-17: update re-detects technologies', () => {
       delete registry.technologies;
       fs.writeFileSync(path.join(dir, REGISTRY), JSON.stringify(registry));
       write(dir, 'supabase/config.toml', 'project_id = "x"\n');
+      const first = update(dir);
+      assert.ok(!exists(dir, 'tools/check_sql_migrations.js'));
+      assert.ok(first.plan.available.includes('check_sql_migrations'));
+      write(dir, 'Dockerfile', 'FROM node:22\n');
       update(dir);
-      assert.ok(exists(dir, 'tools/check_sql_migrations.js'));
+      assert.ok(exists(dir, 'tools/docker_guard.py'));
+      assert.ok(!exists(dir, 'tools/check_sql_migrations.js'));
     } finally {
       teardown(dir);
     }

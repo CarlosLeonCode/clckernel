@@ -1,5 +1,5 @@
 /**
- * sdds/laila-platform-fit, REQ-3: `clckernel update` refreshes the
+ * `clckernel update` refreshes the
  * kernel-owned AGENTS.md sections (the Parts table and the safeguards of
  * section 2) and keeps every other section as the project edited it. A dry
  * run lists AGENTS.md in the plan and writes nothing.

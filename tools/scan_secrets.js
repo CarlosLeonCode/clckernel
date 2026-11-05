@@ -4,7 +4,7 @@
  * Detects hardcoded secrets, API keys, tokens, and private keys in staged/changed files.
  * Self-contained: uses only Node.js built-ins.
  *
- * Rules (sdds/secret-patterns) are tried in order; the first match labels the
+ * Rules are tried in order; the first match labels the
  * line (one finding per line). They mirror RULES in scan_secrets.py exactly.
  * The two generic rules skip placeholder values (see isPlaceholder):
  *   - Quoted Key Secret: a quoted JSON/YAML key ending in a secret word, with a

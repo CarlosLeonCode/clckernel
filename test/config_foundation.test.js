@@ -55,19 +55,19 @@ const DEFAULTS = {
   mirrors: { list: null, required: false },
   hitl: { markers: null, paths: null, optOut: null },
   update: { exclude: [] },
-  // sdds/laila-platform-fit (REQ-13): generated code is ignored by default.
+  // generated code is ignored by default.
   tdd: { code: [], ignore: ['**/database.types.ts', '**/*.generated.*', '**/*.gen.*', '**/__generated__/**', '**/generated/**'] },
   severities: {},
   guard_exclude: {},
-  // sdds/laila-platform-fit: the generic guards' sections.
+  // the generic guards' sections.
   sql_migrations: {
     paths: ['**/supabase/migrations/**/*.sql'], schemas: ['public'], anon_roles: ['anon'],
     severities: { immutable: 'error', rls: 'error', search_path: 'error', anon_write: 'error', destructive: 'warning' },
   },
-  query_efficiency: { call_patterns: [], severities: { n_plus_one: 'error', unbounded_select: 'warning' } },
+  query_efficiency: { call_patterns: [], severities: { n_plus_one: 'warning', unbounded_select: 'warning' } },
   mcp_contracts: {
-    contracts_modules: [], forbid_data_clients: true,
-    severities: { inline_schema: 'error', schema_source: 'error', data_client: 'error' },
+    contracts_modules: [], forbid_data_clients: false,
+    severities: { missing_schema: 'error', inline_schema: 'error', schema_source: 'error', data_client: 'error' },
   },
   ui_reuse: { primitives: ['**/components/ui/**'], severities: {} },
 };
@@ -603,7 +603,7 @@ describe('item 8: the config readers are installed with the snapshot helpers', (
 describe('item 9: the README config tables list every key', () => {
   const KEYS = [
     'rules', 'exclude_paths', 'mirrors.list', 'mirrors.required', 'hitl.markers', 'hitl.paths', 'hitl.optOut', 'update.exclude', 'tdd.code', 'tdd.ignore', 'severities', 'guard_exclude',
-    // sdds/laila-platform-fit
+    // The generic guards sections.
     'sql_migrations.paths', 'sql_migrations.schemas', 'sql_migrations.anon_roles', 'sql_migrations.severities',
     'query_efficiency.call_patterns', 'query_efficiency.severities',
     'mcp_contracts.contracts_modules', 'mcp_contracts.forbid_data_clients', 'mcp_contracts.severities', 'ui_reuse.primitives',

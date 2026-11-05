@@ -1,8 +1,9 @@
 /**
- * check_mcp_contracts (sdds/laila-platform-fit, REQ-16): MCP tool
+ * check_mcp_contracts with contracts_modules configured: MCP tool
  * registrations (registerTool and the deprecated tool()) take their input
- * schema from a contracts module, never an inline zod schema, and the file
- * imports no data client. A compliant server and each violation.
+ * schema from a contracts module, never an inline zod schema; with
+ * forbid_data_clients: true the file imports no data client. A compliant
+ * server and each violation. The defaults: test/review_fixes_guards.test.js.
  */
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
@@ -45,9 +46,9 @@ server.registerTool(
   async (input) => ({ content: [{ type: "text", text: JSON.stringify(await createItem(input)) }] }),
 );
 server.registerTool("list_items", { description: "Lists", inputSchema: contracts.ListItemsInput }, async () => ({ content: [] }));
-server.registerTool("ping", { description: "No input" }, async () => ({ content: [] }));
+server.registerTool("ping", { description: "No input", inputSchema: contracts.Empty }, async () => ({ content: [] }));
 server.tool("archive_item", "Archives an item", more.ArchiveItemInput.shape, async (input) => ({ content: [] }));
-server.tool("health", async () => ({ content: [] }));
+server.tool("health", more.HealthInput.shape, async () => ({ content: [] }));
 // server.registerTool("x", { inputSchema: z.object({}) }, cb) in a comment is ignored
 `;
     const res = await run({ 'src/server.ts': source });
@@ -85,34 +86,34 @@ describe('check_mcp_contracts: schema source', () => {
     assert.match(res.data.violations['src/server.ts'][0].message, /\.\/schemas/);
   });
 
-  it('without contracts_modules, any imported schema passes and a local one fails', async () => {
+  it('without contracts_modules, imported, local and inline schemas all pass', async () => {
     const committed = { 'package.json': BASE['package.json'] };
     const ok = await run({ 'src/server.ts': `${HEAD}\nimport { Other } from "./schemas";\nserver.registerTool("t", { inputSchema: Other }, async () => ({ content: [] }));\n` }, committed);
     assert.strictEqual(ok.exitCode, 0, JSON.stringify(ok));
-    const bad = await run({ 'src/server.ts': `${HEAD}\nconst Local = Other;\nserver.registerTool("t", { inputSchema: Local }, async () => ({ content: [] }));\n` }, committed);
-    assert.deepStrictEqual(rules(bad), ['schema_source']);
+    const local = await run({ 'src/server.ts': `${HEAD}\nconst Local = z.object({});\nserver.registerTool("t", { inputSchema: Local }, async () => ({ content: [] }));\nserver.registerTool("u", { inputSchema: z.object({}) }, async () => ({ content: [] }));\n` }, committed);
+    assert.deepStrictEqual(rules(local), []);
   });
 });
 
-describe('check_mcp_contracts: data clients in tool files', () => {
+describe('check_mcp_contracts: data clients in tool files (forbid_data_clients: true)', () => {
+  const FORBID = { ...BASE, '.clckernel.yaml': `${BASE['.clckernel.yaml']}  forbid_data_clients: true\n` };
   for (const mod of ['@supabase/supabase-js', 'drizzle-orm/pg-core', '@prisma/client', 'pg']) {
     it(`a tool file importing ${mod} => data_client`, async () => {
       const source = `${HEAD}\nimport { thing } from "${mod}";\nserver.registerTool("t", { inputSchema: CreateItemInput }, async () => ({ content: [] }));\n`;
-      const res = await run({ 'src/server.ts': source });
+      const res = await run({ 'src/server.ts': source }, FORBID);
       assert.deepStrictEqual(rules(res), ['data_client']);
       assert.match(res.data.violations['src/server.ts'][0].message, new RegExp(mod.replace(/[/.@-]/g, '.')));
     });
   }
 
-  it('require() of a data client counts too; forbid_data_clients: false allows it', async () => {
+  it('require() of a data client counts too; the default (false) allows it', async () => {
     const source = `${HEAD}\nconst { createClient } = require("@supabase/supabase-js");\nserver.registerTool("t", { inputSchema: CreateItemInput }, async () => ({ content: [] }));\n`;
-    assert.deepStrictEqual(rules(await run({ 'src/server.ts': source })), ['data_client']);
-    const allowed = { ...BASE, '.clckernel.yaml': `${BASE['.clckernel.yaml']}  forbid_data_clients: false\n` };
-    assert.strictEqual((await run({ 'src/server.ts': source }, allowed)).exitCode, 0);
+    assert.deepStrictEqual(rules(await run({ 'src/server.ts': source }, FORBID)), ['data_client']);
+    assert.strictEqual((await run({ 'src/server.ts': source })).exitCode, 0);
   });
 
   it('a file that registers no tool may import a data client', async () => {
-    const res = await run({ 'src/db.ts': 'import { createClient } from "@supabase/supabase-js";\nexport const db = createClient("u", "k");\n' });
+    const res = await run({ 'src/db.ts': 'import { createClient } from "@supabase/supabase-js";\nexport const db = createClient("u", "k");\n' }, FORBID);
     assert.strictEqual(res.exitCode, 0);
   });
 });

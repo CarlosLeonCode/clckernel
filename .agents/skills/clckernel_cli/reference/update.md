@@ -7,7 +7,7 @@ Use this playbook when the user wants to update an existing project to the lates
 1. **NEVER DELETE OR OVERWRITE `sdds/`:** All local specifications (`sdds/*/spec.md`, `plan.md`) must stay 100% intact.
 2. **NEVER TOUCH PROJECT GUARDS:** Scripts under `tools/guards/` and unmanaged guard files at the top of `tools/` are preserved without alteration. A kernel guard the new release no longer ships stays where it is and keeps running as a project guard; nothing is moved or deleted.
 3. **NEVER OVERWRITE CONFIGURATION:** Existing `.clckernel.yaml` settings (or a config under an older name) remain intact.
-4. **NEVER OVERWRITE EDITED KERNEL FILES:** A kernel file the project edited is kept; the new version is written next to it as `<file>.clckernel-new`.
+4. **NEVER OVERWRITE EDITED KERNEL FILES:** A kernel file the project edited is kept; the new version is written next to it as `<file>.clckernel-new`. The same holds for the kernel-owned sections of `AGENTS.md` (*Parts*, *Core AI Safeguards*): an edited section keeps `AGENTS.md` as it is, and the refreshed file is written as `AGENTS.md.clckernel-new` for the user to merge.
 5. **NEVER MODIFY APPLICATION CODE:** Source files, domain layers, and application tests are never touched.
 
 ## Update Sequence

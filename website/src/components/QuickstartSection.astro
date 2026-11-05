@@ -51,7 +51,7 @@ const after = isEs ? {
     'Si no hay pedido, explica brevemente qué se instaló y qué ejecuta el hook de pre-commit en cada commit.',
     'Hace UNA pregunta y espera: adaptar las reglas con clckernel start, o mantener los valores por defecto (esto escribe un .clckernel.yaml con solo un comentario, así la pregunta no se repite).',
   ],
-  note: 'update nunca reescribe un AGENTS.md existente: los proyectos instalados antes de que existiera esta sección no la reciben.',
+  note: 'update solo reescribe las secciones de salvaguardas que no editaste de un AGENTS.md existente: los proyectos instalados antes de que existiera esta sección no la reciben.',
 } : {
   title: 'After install: the first session with your agent',
   desc: 'While tools/.clckernel-managed.json exists and .clckernel.yaml does not, the "First session after install" section of AGENTS.md applies:',
@@ -60,7 +60,7 @@ const after = isEs ? {
     'Otherwise it explains briefly what was installed and what the pre-commit hook runs on every commit.',
     'It asks ONE question and waits: tailor the rules with clckernel start, or keep the defaults (this writes a .clckernel.yaml that holds only a comment, so the question is not asked again).',
   ],
-  note: 'update never rewrites an existing AGENTS.md: projects installed before this section existed do not get it.',
+  note: 'update rewrites only the safeguard sections you did not edit in an existing AGENTS.md: projects installed before this section existed do not get it.',
 };
 ---
 

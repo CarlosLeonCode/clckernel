@@ -1,5 +1,5 @@
 /**
- * CLC Kernel — Single write point for install and update (sdds/safe-update).
+ * CLC Kernel — Single write point for install and update.
  *
  * Every write the harness makes in a project goes through an `io` session:
  * files, copies, symlinks, moves, removals, .gitignore and git config. A real
@@ -50,29 +50,33 @@ function loadKnownHashes() {
 /**
  * Reads the registry in either format.
  * @param {string} root - Project root
- * @returns {{ format: 'none'|'list'|'hashed', paths: string[], hashes: Map<string, string>, technologies: string[]|null, extraGuards: string[] }}
+ * @returns {{ format: 'none'|'list'|'hashed', paths: string[], hashes: Map<string, string>, technologies: string[]|null, extraGuards: string[], agentsSections: object }}
  */
 function readRegistry(root) {
   let data;
   try {
     data = JSON.parse(fs.readFileSync(path.join(root, MANAGED_REGISTRY), 'utf-8'));
   } catch {
-    return { format: 'none', paths: [], hashes: new Map(), technologies: null, extraGuards: [] };
+    return { format: 'none', paths: [], hashes: new Map(), technologies: null, extraGuards: [], agentsSections: {} };
   }
   if (Array.isArray(data)) {
-    return { format: 'list', paths: data.filter((f) => typeof f === 'string'), hashes: new Map(), technologies: null, extraGuards: [] };
+    return { format: 'list', paths: data.filter((f) => typeof f === 'string'), hashes: new Map(), technologies: null, extraGuards: [], agentsSections: {} };
   }
   const files = data && Array.isArray(data.files) ? data.files : [];
   const hashes = new Map();
   for (const f of files) {
     if (f && typeof f.path === 'string' && typeof f.sha256 === 'string') hashes.set(f.path, f.sha256);
   }
-  // Technologies detected by the last install/update (sdds/laila-platform-fit,
-  // REQ-17); null when the registry predates the field.
+  // Technologies detected by the last install/update; null when the registry predates the field.
   const technologies = data && Array.isArray(data.technologies) ? data.technologies.filter((t) => typeof t === 'string') : null;
   // Catalog guards added with --add-guards outside the stack's manifest (REQ-7).
   const extraGuards = data && Array.isArray(data.extraGuards) ? data.extraGuards.filter((t) => typeof t === 'string') : [];
-  return { format: 'hashed', paths: [...hashes.keys()], hashes, technologies, extraGuards };
+  // sha256 of each kernel AGENTS.md section as the kernel last wrote it (heading -> hash).
+  const agentsSections = {};
+  if (data && data.agentsSections && typeof data.agentsSections === 'object' && !Array.isArray(data.agentsSections)) {
+    for (const [heading, sha] of Object.entries(data.agentsSections)) if (typeof sha === 'string') agentsSections[heading] = sha;
+  }
+  return { format: 'hashed', paths: [...hashes.keys()], hashes, technologies, extraGuards, agentsSections };
 }
 
 /**
@@ -93,7 +97,7 @@ function registeredPaths(root) {
  * @param {boolean} [options.dryRun] - Record only, never write
  * @param {object} [options.knownHashes] - { path: [sha256] } (defaults to src/known-hashes.json)
  * @param {'install'|'update'} [options.mode] - An update never adds guards or
- *   mirrors the project does not have (sdds/update-no-additions)
+ *   mirrors the project does not have
  * @param {(rel: string) => boolean} [options.exclude] - Root-relative POSIX
  *   paths never touched (the config's update.exclude)
  */
@@ -106,11 +110,11 @@ function createIO({ root, dryRun = false, knownHashes = loadKnownHashes(), mode:
   const decisions = new Map(); // rel -> { status, sha }
   const plan = {
     written: [], unchanged: [], protected: [], moved: [], removed: [], gitignore: [], gitConfig: [],
-    // sdds/update-no-additions: what update left out on purpose.
+    // what update left out on purpose.
     available: [], mirrorsSkipped: [], trackedNotIgnored: [],
-    // sdds/laila-platform-fit (REQ-17): guards update adds for technologies detected since the last run.
+    // guards update adds for technologies detected since the last run.
     detected: [],
-    // sdds/config-foundation: paths the config's update.exclude keeps out.
+    // paths the config's update.exclude keeps out.
     excluded: [],
   };
 
@@ -257,6 +261,22 @@ function createIO({ root, dryRun = false, knownHashes = loadKnownHashes(), mode:
     return status;
   }
 
+  /**
+   * Keeps a project file the kernel would rewrite (e.g. AGENTS.md with an
+   * edited kernel section): `relPath` is left as it is and the kernel's
+   * proposal is written next to it as <file>.clckernel-new, a protected entry
+   * of the plan. A dry run only records it.
+   * @returns {'protected'|'excluded'}
+   */
+  function protect(relPath, content, reason) {
+    const relKey = toPosix(relPath);
+    if (excluded(abs(relKey))) return 'excluded';
+    const newPath = relKey + NEW_SUFFIX;
+    put(abs(newPath), Buffer.isBuffer(content) ? content : Buffer.from(String(content), 'utf-8'));
+    if (!plan.protected.some((x) => x.path === relKey)) plan.protected.push({ path: relKey, newPath, reason });
+    return 'protected';
+  }
+
   /** writeManaged with the bytes of a bundled file. */
   function copyManaged(src, relPath, options) {
     return writeManaged(relPath, fs.readFileSync(src), options);
@@ -373,6 +393,7 @@ function createIO({ root, dryRun = false, knownHashes = loadKnownHashes(), mode:
     writeFile,
     writeManaged,
     copyManaged,
+    protect,
     symlink,
     mirror,
     noteAvailable,

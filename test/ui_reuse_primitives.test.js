@@ -1,5 +1,5 @@
 /**
- * sdds/laila-platform-fit, REQ-9: check_ui_reuse exempts the UI primitives
+ * check_ui_reuse exempts the UI primitives
  * themselves (by default any file under components/ui/) from the raw-element
  * rules; `ui_reuse.primitives` in .clckernel.yaml replaces the globs.
  */

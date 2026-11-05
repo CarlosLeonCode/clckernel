@@ -280,7 +280,7 @@ ${FIRST_SESSION_SECTION}`;
     for (const mirror of mirrors) {
       const mirrorPath = path.join(targetDir, mirror);
       try {
-        // An update never creates a mirror the project deleted (sdds/update-no-additions).
+        // An update never creates a mirror the project deleted.
         if (!io.exists(mirrorPath)) {
           io.mirror('AGENTS.md', mirrorPath);
         }

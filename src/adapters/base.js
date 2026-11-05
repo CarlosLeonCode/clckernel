@@ -7,7 +7,7 @@
 const path = require('path');
 const { currentIO } = require('../io');
 const { FIRST_SESSION_SECTION, KERNEL_BUG_SECTION } = require('../onboarding');
-const { technologySafeguards } = require('../technologies/detector');
+const { renderSafeguards } = require('../safeguards');
 
 class BaseAdapter {
   constructor(name, projectType, testRunner) {
@@ -42,7 +42,7 @@ class BaseAdapter {
     // so this generic law file is never written alongside (or over) theirs.
     const skipAgentsMd = !!(config && config.skipAgentsMd);
 
-    // Every write goes through the active io session (sdds/safe-update).
+    // Every write goes through the active io session.
     const io = currentIO(targetDir);
 
     // 1. Create docs/ and sdds/
@@ -85,7 +85,7 @@ Forged by **CLC Kernel: The AI Agent Governance Engine**.
 8. **PR** — Generate PR body.
 
 ## 2. Core AI Safeguards (${this.name})
-${[...this.getSafeguards(), ...technologySafeguards(config && config.techTools)].map(s => `- ${s}`).join('\n')}
+${renderSafeguards(this.getSafeguards(), config && config.techTools, null).map(s => `- ${s}`).join('\n')}
 
 ${KERNEL_BUG_SECTION}
 ${FIRST_SESSION_SECTION}`;

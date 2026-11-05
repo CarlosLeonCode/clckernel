@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Modular Audit Orchestrator — Python
-The single place that decides which guards run (sdds/unified-discovery):
+The single place that decides which guards run:
 `clckernel audit` and agents run it, the pre-commit hook runs it with --hook.
 Same discovery, same guards, each exactly once:
   - top-level tools/ guards: check_*, scan_*, verify_* or *_guard, .py/.js;
@@ -15,7 +15,7 @@ disk fails the run. Results are grouped into 4 lenses. Every guard runs with
 CLCKERNEL_GUARD set to its file name without extension, so the snapshot
 helpers (_changes) apply that guard's `guard_exclude` from .clckernel.yaml.
 
-CLI (sdds/audit-cli): audit.py [targetDir] [--hook] [--change <name>] [--staged]
+CLI: audit.py [targetDir] [--hook] [--change <name>] [--staged]
   (none)           print the 4-lens summary; write nothing
   --change <name>  also write sdds/<name>/05-audit-report.md and
                    audit-receipt.json (<name>: one safe path segment);
@@ -136,7 +136,7 @@ def discover_guards(tools_dir: pathlib.Path) -> list[pathlib.Path]:
 
 def discover_project_guards(tools_dir: pathlib.Path) -> list[pathlib.Path]:
     """
-    Project guards (sdds/domain-agnostic, decision 3): every *.py and *.js
+    Project guards: every *.py and *.js
     file in tools/guards/, alphabetical.
     """
     return [f for f in _regular_files(tools_dir / "guards") if f.suffix in PROJECT_GUARD_RUNNERS]
@@ -174,7 +174,7 @@ def _exports_module(path: pathlib.Path) -> bool:
 
 def plan_guards(tools_dir: pathlib.Path) -> list[dict]:
     """
-    The guards this orchestrator runs (sdds/unified-discovery), in order:
+    The guards this orchestrator runs, in order:
     top-level guards, then tools/guards/*. mode 'module' = a top-level .py
     guard that defines check(): called in process; 'process' = any other
     guard of a language this orchestrator owns (.py, plus .js when
@@ -361,7 +361,7 @@ def _call_check(guard_path: pathlib.Path, guard_name: str, target_dir: str) -> d
         }
 
 
-# ── Result levels (sdds/audit-cli) ───────────────────────────────────────────
+# ── Result levels ───────────────────────────────────────────
 
 def _is_failed(r: dict) -> bool:
     """A guard that ran and did not pass (skipped guards never fail)."""

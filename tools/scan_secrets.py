@@ -4,7 +4,7 @@ Secrets & API Key Scanner
 Detects hardcoded secrets, API keys, tokens, and private keys in changed files.
 Self-contained: uses only Python stdlib (re, pathlib, subprocess, json).
 
-Rules (sdds/secret-patterns) are tried in order; the first match labels the
+Rules are tried in order; the first match labels the
 line (one finding per line). They mirror RULES in scan_secrets.js exactly,
 same regex sources and flags. The two generic rules skip placeholder values
 (see _is_placeholder):

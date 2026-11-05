@@ -7,16 +7,19 @@
  * or the deprecated `<x>.tool("name", [description], [schema], [annotations], cb)`
  * whose first argument is a string literal. Rules, each with its own level
  * (`mcp_contracts.severities` in .clckernel.yaml):
- *   inline_schema  the input schema is written inline (z.object(...), z.*, or
- *                  a raw shape object with zod members) (error)
- *   schema_source  the input schema's identifier is not imported from one of
- *                  `mcp_contracts.contracts_modules` (or a subpath); with no
- *                  modules configured, it must at least be imported (error)
- *   data_client    a file registering tools imports a data client
+ *   missing_schema the tool declares no input schema (no `inputSchema` in a
+ *                  registerTool config object; no schema argument to tool())
+ *                  (error)
+ *   inline_schema  only with `mcp_contracts.contracts_modules` configured: the
+ *                  input schema is written inline (z.object(...), z.*, or a
+ *                  raw shape object with zod members) (error)
+ *   schema_source  only with `mcp_contracts.contracts_modules` configured: the
+ *                  input schema's identifier is not imported from one of them
+ *                  (or a subpath) (error)
+ *   data_client    only with `mcp_contracts.forbid_data_clients: true`: a file
+ *                  registering tools imports a data client
  *                  (@supabase/supabase-js, drizzle-orm, @prisma/client,
- *                  postgres, pg; type-only imports included) while
- *                  `mcp_contracts.forbid_data_clients` is true (error):
- *                  tools call use cases
+ *                  postgres, pg; type-only imports included) (error)
  * A heuristic on source text: a config object passed as a variable, or a
  * schema re-exported through a local file, is not followed. Test files are
  * skipped. Self-contained: uses only Node.js built-ins.
@@ -27,6 +30,21 @@ const { maskJs, matchingClose, lineOf, isTestOrGenerated, JS_EXTENSIONS } = requ
 const NAME = 'check_mcp_contracts';
 const MCP_SDK = '@modelcontextprotocol/sdk';
 const DATA_CLIENTS = ['@supabase/supabase-js', 'drizzle-orm', '@prisma/client', 'postgres', 'pg'];
+
+/**
+ * Settings when the config has no mcp_contracts section (an older
+ * tools/_config.js): the defaults of GUARD_SECTIONS.mcp_contracts there.
+ */
+const DEFAULTS = {
+  contracts_modules: [],
+  forbid_data_clients: false,
+  severities: { missing_schema: 'error', inline_schema: 'error', schema_source: 'error', data_client: 'error' },
+};
+
+function sectionSettings(config) {
+  const own = (config && config.mcp_contracts) || {};
+  return { ...DEFAULTS, ...own, severities: { ...DEFAULTS.severities, ...(own.severities || {}) } };
+}
 
 const underModule = (spec, mod) => spec === mod || spec.startsWith(`${mod}/`);
 
@@ -146,16 +164,27 @@ function analyzeMcp(source, settings) {
     const tool = code.slice(args[0].start + 1, args[0].end - 1);
     const lineNo = lineOf(masked, match.index);
     let schemas = [];
+    let missing = false;
     if (match[1] === 'registerTool') {
       const config = args[1];
+      // A config passed as a variable is not followed.
       if (masked[config.start] === '{') {
         const schema = inputSchemaOf(masked, config.start, config.end);
         if (schema) schemas = [schema];
+        else missing = true;
       }
     } else {
       // tool(name, [description], [schema | annotations], [annotations], cb)
       schemas = args.slice(1, -1).filter((a) => !/^['"`]/.test(masked[a.start])).slice(0, 1);
+      // An object without zod members is the annotations, not a schema.
+      schemas = schemas.filter((a) => masked[a.start] !== '{' || ZOD_MEMBER.test(masked.slice(a.start, a.end)));
+      missing = schemas.length === 0;
     }
+    if (missing) {
+      findings.push({ rule: 'missing_schema', lineNo, message: `tool "${tool}" declares no input schema: declare one (an empty object schema for a tool that takes no input)` });
+    }
+    // Where the schema comes from is checked only when contracts modules are configured.
+    if (modules.length === 0) continue;
     for (const expr of schemas) {
       const finding = schemaFinding(tool, code, masked, expr, bindings, modules);
       if (finding) findings.push({ ...finding, lineNo });
@@ -184,7 +213,7 @@ const check = async function checkMcpContracts(targetDir) {
     return { exitCode: 0, skipped: true, name: NAME, data: { violations: {}, message: 'No git diff available' } };
   }
   const config = projectConfig(dir) || require('./_config.js').defaultConfig();
-  const settings = config.mcp_contracts;
+  const settings = sectionSettings(config);
   const pkgCache = new Map();
   const rootDeps = nearestPackageDeps(dir, 'package.json', mode, pkgCache) || {};
 

@@ -3,7 +3,7 @@
  * A plain PHP package (composer.json without Laravel's artisan) inside a
  * monorepo or full-stack repository: PHPStan and its tests from vendor/bin.
  *
- * Used only for parts in subdirectories (sdds/monorepo-library-parts): never the
+ * Used only for parts in subdirectories: never the
  * repository root, never offered in "Choose another stack", tried only on a dir
  * no framework adapter (Laravel) matched.
  */

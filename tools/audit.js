@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Modular Audit Orchestrator — JS
- * The single place that decides which guards run (sdds/unified-discovery):
+ * The single place that decides which guards run:
  * `clckernel audit` and agents run it, the pre-commit hook runs it with --hook.
  * Same discovery, same guards, each exactly once:
  *   - top-level tools/ guards: check_*, scan_*, verify_* or *_guard, .js/.py;
@@ -15,7 +15,7 @@
  * CLCKERNEL_GUARD set to its file name without extension, so the snapshot
  * helpers (_changes) apply that guard's `guard_exclude` from .clckernel.yaml.
  *
- * CLI (sdds/audit-cli): audit.js [targetDir] [--hook] [--change <name>] [--staged]
+ * CLI: audit.js [targetDir] [--hook] [--change <name>] [--staged]
  *   (none)           print the 4-lens summary; write nothing
  *   --change <name>  also write sdds/<name>/05-audit-report.md and
  *                    audit-receipt.json (<name>: one safe path segment);
@@ -152,7 +152,7 @@ function discoverGuards(toolsDirParam) {
 }
 
 /**
- * Project guards (sdds/domain-agnostic, decision 3): every *.js and *.py file
+ * Project guards: every *.js and *.py file
  * in tools/guards/, alphabetical.
  * @param {string} toolsDir - The project's tools/ directory
  * @returns {string[]} Absolute paths
@@ -200,7 +200,7 @@ function definesCheck(file) {
 }
 
 /**
- * The guards this orchestrator runs (sdds/unified-discovery), in order:
+ * The guards this orchestrator runs, in order:
  * top-level guards, then tools/guards/*. Each entry says how it runs:
  *   'module'  — a top-level .js guard that exports a function: in process;
  *   'process' — any other guard of a language this orchestrator owns.
@@ -401,7 +401,7 @@ function violationLines(result) {
   return lines;
 }
 
-// ── Result levels (sdds/audit-cli) ───────────────────────────────────────────
+// ── Result levels ───────────────────────────────────────────
 
 /** A guard that ran and did not pass (skipped guards never fail). */
 const isFailed = (r) => !r.skipped && r.exitCode !== 0;

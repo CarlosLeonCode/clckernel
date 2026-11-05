@@ -53,7 +53,7 @@ const RULE_LEVELS = ['error', 'warning', 'off'];
 
 /**
  * Generated code verify_tdd never counts as production code unless the
- * project sets tdd.ignore (sdds/laila-platform-fit, REQ-13): Supabase CLI
+ * project sets tdd.ignore: Supabase CLI
  * types, codegen outputs (*.generated.*, *.gen.*) and generated directories.
  */
 const GENERATED_FILES = [
@@ -61,7 +61,7 @@ const GENERATED_FILES = [
 ];
 
 /**
- * Settings of the generic guards (sdds/laila-platform-fit): each section's
+ * Settings of the generic guards: each section's
  * defaults, and the rules its `severities` sub-key accepts with their level.
  */
 const GUARD_SECTIONS = {
@@ -71,11 +71,11 @@ const GUARD_SECTIONS = {
   },
   query_efficiency: {
     defaults: { call_patterns: [] },
-    rules: { n_plus_one: 'error', unbounded_select: 'warning' },
+    rules: { n_plus_one: 'warning', unbounded_select: 'warning' },
   },
   mcp_contracts: {
-    defaults: { contracts_modules: [], forbid_data_clients: true },
-    rules: { inline_schema: 'error', schema_source: 'error', data_client: 'error' },
+    defaults: { contracts_modules: [], forbid_data_clients: false },
+    rules: { missing_schema: 'error', inline_schema: 'error', schema_source: 'error', data_client: 'error' },
   },
   ui_reuse: {
     defaults: { primitives: ['**/components/ui/**'] },

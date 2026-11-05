@@ -13,7 +13,7 @@ const PY_PARSE_SCRIPT = 'import ast, sys\nast.parse(open(sys.argv[1]).read())';
 const { colors } = require('./ui');
 
 /**
- * How Node loads tools/*.js (sdds/esm-tools-commonjs): the nearest
+ * How Node loads tools/*.js: the nearest
  * package.json from tools/ upwards decides, and the JS guards are CommonJS.
  * "type": "module" there makes every guard crash on require, so the check
  * fails with the fix that applies.

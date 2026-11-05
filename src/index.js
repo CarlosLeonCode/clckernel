@@ -21,10 +21,10 @@ const READ_ONLY_COMMANDS = new Set(['help', '--help', '-h', 'version', '--versio
  */
 const INSTALL_FLAGS = new Set(['--yes', '-y']);
 
-/** Prints the plan instead of writing (sdds/safe-update, decision 5). Not an opt-in by itself. */
+/** Prints the plan instead of writing. Not an opt-in by itself. */
 const DRY_RUN_FLAG = '--dry-run';
 
-/** Opts guards the project does not have into an update (sdds/update-no-additions). */
+/** Opts guards the project does not have into an update. */
 const ADD_GUARDS_FLAG = '--add-guards';
 
 /**
@@ -144,7 +144,7 @@ function rejectUnknownInput(args) {
  * @returns {number} Process exit code
  */
 function rejectAgentCommand(word) {
-  // sdds/kernel-bug-protocol: report-bug also points to where kernel bugs go.
+  // report-bug also points to where kernel bugs go.
   const issues = word === 'report-bug' ? `   Known kernel bugs and new reports: ${require('../package.json').bugs.url}\n` : '';
   process.stderr.write(
     `\n❌ \`${word}\` is an agent command defined in AGENTS.md, not a CLI command.\n` +
@@ -336,7 +336,7 @@ async function runCli() {
   }
 
   // The project config is read before the prompt and before any write: an
-  // invalid one stops the install here (sdds/config-foundation).
+  // invalid one stops the install here.
   const { readProjectConfig } = require('./config');
   let projectConfig;
   try {
@@ -363,9 +363,9 @@ async function runCli() {
     { label: '🎨 Estilos & UI', value: `${detected.styling} (${detected.uiLibrary})`, badgeColor: colors.violet },
     { label: '🧪 Test Runner', value: detected.testRunner, badgeColor: colors.cyan },
     { label: '🔒 Git Hooks', value: detected.gitHooks, badgeColor: colors.blue },
-    // Multi-part repos (sdds/fullstack-monorepo): one row per part.
+    // Multi-part repos: one row per part.
     ...partLines(detected).map((line) => ({ label: '🧩 Parte', value: line, badgeColor: colors.emerald })),
-    // Detected technologies and their guards (sdds/laila-platform-fit, REQ-4).
+    // Detected technologies and their guards.
     ...technologyNames(detected.techTools).map((name) => ({ label: '🧰 Tecnología', value: name, badgeColor: colors.violet }))
   ]);
 
@@ -394,7 +394,7 @@ async function runCli() {
   }
   printSuccess(targetDir, hook, finalConfig, installedGuards);
   if (plan) printPlan(plan);
-  // sdds/onboarding: what to do next, true to this install.
+  // what to do next, true to this install.
   const { nextStepsLines } = require('./ui');
   console.log(`\n${nextStepsLines(hook, plan, finalConfig).join('\n')}\n`);
 }

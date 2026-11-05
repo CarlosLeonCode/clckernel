@@ -206,9 +206,9 @@ Cada `AGENTS.md` generado termina con una sección **First session after install
    repite.
 
 La skill `clckernel_cli` también se activa en esa primera sesión. Los proyectos instalados antes de que
-existiera esta sección no la reciben con `update`: un `AGENTS.md` existente nunca se reescribe (update solo
-agrega la fila `clckernel update` a su tabla de comandos si falta). Para obtener la sección, cópiala del
-`AGENTS.md` de una instalación nueva.
+existiera esta sección no la reciben con `update`: update solo reescribe las secciones del kernel de un
+`AGENTS.md` existente (ver *AGENTS.md* en [Actualización de proyectos existentes](#actualizacion-de-proyectos-existentes)) y agrega la fila `clckernel update` a
+su tabla de comandos si falta. Para obtener la sección, cópiala del `AGENTS.md` de una instalación nueva.
 
 ---
 
@@ -283,12 +283,17 @@ npx clckernel . --yes --dry-run
   tecnologías detectadas en install/update (`technologies`); una que apareció después (un `Dockerfile`, un
   `supabase/config.toml`, un cliente de datos o el SDK de MCP en un `package.json`) trae su guard, listado como
   *added for newly detected technologies* (`--dry-run`: *would add*). Un registro de una versión anterior no
-  tiene la lista, así que cada tecnología detectada cuyo guard falta se agrega una vez; después, un guard que
-  quitas sigue fuera (se lista como disponible).
-- **AGENTS.md:** se refrescan las secciones del kernel: la tabla *Parts* y *Core AI Safeguards* de un
-  `AGENTS.md` full-stack o monorepo, o la sección *2. Core AI Safeguards (<stack>)* de un solo stack. El resto
-  conserva tus ediciones, un documento sin esos encabezados no se toca y `update.exclude: [AGENTS.md]` lo deja
-  fuera por completo. `--dry-run` lista AGENTS.md cuando cambiaría.
+  tiene la lista: ese update registra las tecnologías actuales como base y no agrega nada (sus guards se
+  listan como disponibles; agrégalos con `--add-guards`). Un guard que quitas sigue fuera.
+- **AGENTS.md:** las secciones del kernel son la tabla *Parts* y *Core AI Safeguards* de un `AGENTS.md`
+  full-stack o monorepo, o la sección *2. Core AI Safeguards (<stack>)* de un solo stack. Sus líneas siguen a
+  los guards instalados (un guard que quitaste no se promete; uno agregado con `--add-guards` se lista). El
+  registro guarda un sha256 de cada sección tal como la escribió el kernel (`agentsSections`). `update`
+  reescribe una sección solo si su texto conserva ese hash o ya es igual al texto nuevo. Si editaste una, o
+  una instalación anterior no guardó hash y el texto difiere, `AGENTS.md` queda como está y el archivo
+  refrescado se escribe al lado como `AGENTS.md.clckernel-new` para que lo fusiones (listado como protegido).
+  El resto de secciones nunca se toca, un documento sin esos encabezados no se toca, `update.exclude:
+  [AGENTS.md]` lo deja fuera por completo y `--dry-run` no escribe nada.
 - **Mirrors:** un mirror que borraste (p. ej. `.cursor/rules/clckernel_context.mdc`) no se recrea; se reporta
   como *not present (skipped)*. Una instalación nueva los sigue creando todos.
 - **`.gitignore`:** una entrada cuya ruta git trackea (un mirror o la skill que commiteas) nunca se agrega, ni
@@ -324,12 +329,12 @@ con `Invalid .clckernel.yaml: key "<key>" — <motivo>` (no se escribe nada, el 
 | `sql_migrations.paths` | Globs de los archivos de migración SQL; una carpeta configurada que existe también instala el guard | `**/supabase/migrations/**/*.sql` | `check_sql_migrations`, install/update |
 | `sql_migrations.schemas` | Esquemas cuyo `create table` necesita `enable row level security` en el mismo archivo | `public` | `check_sql_migrations` |
 | `sql_migrations.anon_roles` | Roles que no deben recibir `grant` de `insert` / `update` / `delete` / `all` | `anon` | `check_sql_migrations` |
-| `sql_migrations.severities` | `{ immutable, rls, search_path, anon_write, destructive }`: `error`, `warning` u `off` por regla | `destructive: warning`, el resto `error` | `check_sql_migrations` |
+| `sql_migrations.severities` | `{ immutable, rls, search_path, anon_write, destructive }`: `error`, `warning` u `"off"` (entre comillas: un off sin comillas se rechaza) por regla | `destructive: warning`, el resto `error` | `check_sql_migrations` |
 | `query_efficiency.call_patterns` | Regex extra de llamadas a consultas (sobre el código sin comentarios ni texto literal), para cualquier archivo | ninguno (los presets siguen al cliente de datos del archivo) | `check_query_efficiency` |
-| `query_efficiency.severities` | `{ n_plus_one, unbounded_select }`: `error`, `warning` u `off` | `n_plus_one: error`, `unbounded_select: warning` | `check_query_efficiency` |
-| `mcp_contracts.contracts_modules` | Módulos (y sus subrutas) de los que deben importarse los esquemas de entrada de los tools | ninguno: cualquier esquema importado; los inline fallan igual | `check_mcp_contracts` |
-| `mcp_contracts.forbid_data_clients` | `true`: un archivo que registra tools no puede importar un cliente de datos | `true` | `check_mcp_contracts` |
-| `mcp_contracts.severities` | `{ inline_schema, schema_source, data_client }`: `error`, `warning` u `off` | todas `error` | `check_mcp_contracts` |
+| `query_efficiency.severities` | `{ n_plus_one, unbounded_select }`: `error`, `warning` u `"off"` (entre comillas) | ambas `warning` (`n_plus_one` es una heurística; pon `error` para bloquear) | `check_query_efficiency` |
+| `mcp_contracts.contracts_modules` | Módulos (y sus subrutas) de los que deben importarse los esquemas de entrada de los tools; configurarlo activa `inline_schema` y `schema_source` | ninguno: cualquier esquema, inline o local, pasa | `check_mcp_contracts` |
+| `mcp_contracts.forbid_data_clients` | `true`: un archivo que registra tools no puede importar un cliente de datos | `false` | `check_mcp_contracts` |
+| `mcp_contracts.severities` | `{ missing_schema, inline_schema, schema_source, data_client }`: `error`, `warning` u `"off"` (entre comillas) | todas `error` | `check_mcp_contracts` |
 | `ui_reuse.primitives` | Globs de los primitivos de UI, exentos de las reglas de `<button>` / `<input>` / `<select>` crudos | `**/components/ui/**` | `check_ui_reuse` |
 
 ```yaml
@@ -461,29 +466,37 @@ del stack; aparece en el resumen de instalación y en AGENTS.md):
 | Celery, Redis, PostgreSQL (Python), Docker | dependencias Python, `redis.conf`, `Dockerfile`, `docker-compose.yml` | `celery_guard`, `redis_guard`, `postgres_guard`, `docker_guard` |
 
 - **`check_sql_migrations`** lee las migraciones cambiadas sentencia por sentencia (sin comentarios, literales
-  de texto ni cuerpos entre dólares; sin distinguir mayúsculas): una migración presente en BASE que se
-  modifica, borra o renombra (`immutable`); un `create table` en un esquema revisado sin `enable row level
+  de texto ni cuerpos entre dólares; sin distinguir mayúsculas): una migración aplicada que se modifica, borra
+  o renombra (`immutable`; aplicada = presente en el merge-base con el upstream de la rama cuando lo tiene, si
+  no en BASE, así que una migración que solo commiteaste localmente aún puede cambiar); un `create table` en un esquema revisado sin `enable row level
   security` en el mismo archivo (`rls`); una función o procedimiento `security definer` sin `set search_path`
-  (`search_path`); `insert`/`update`/`delete`/`all` otorgado a un rol anónimo, incluido `alter default
-  privileges` (`anon_write`); `drop table` / `drop column`, con el objeto nombrado (`destructive`, un warning).
-  No ve: SQL armado en cadenas de `EXECUTE`, RLS habilitado en otra migración, `alter table … drop <columna>`
-  sin la palabra `column`.
+  en su `create` ni en un `alter function … set search_path` posterior (`search_path`); `insert`/`update`/`delete`/`all` otorgado a un rol anónimo, incluido `alter default
+  privileges` (`anon_write`); `drop table` / `drop [column]`, con el objeto nombrado (`destructive`, un
+  warning). Los nombres sin esquema se resuelven al primer esquema del último `set search_path` del archivo
+  (public si no hay); los identificadores entre comillas conservan mayúsculas (`"Items"` no es `items`). No ve:
+  SQL armado en cadenas de `EXECUTE`, RLS habilitado en otra migración.
 - **`check_query_efficiency`** (la contraparte JS/TS de `check_db_efficiency`) lee los archivos JS/TS cambiados
   cuyo `package.json` más cercano (o el de la raíz) depende de un cliente: una consulta con `await` en el cuerpo
   de un `for` / `for…of` / `for await` / `while` / `do`, o cualquier consulta en un callback `.forEach(` /
-  `.map(async` / `.flatMap(async`, es un error N+1; `.select('*')` de supabase-js sin `.limit(` / `.range(` /
+  `.map(async` / `.flatMap(async`, es un warning N+1 (una heurística: pon
+  `query_efficiency.severities.n_plus_one: error` para bloquear); una sentencia que pagina (`.range(`,
+  `.offset(`, `.skip(`, `skip` / `offset` / `cursor`, `OFFSET` en SQL) y una llamada dentro de una función
+  definida en el cuerpo del bucle (un handler registrado por ruta) no son N+1. Las sentencias terminan en `;` o
+  en un salto de línea que no las continúa; `.select('*')` de supabase-js sin `.limit(` / `.range(` /
   `.single(` / `.maybeSingle(` es un warning. Llamadas: supabase-js `.from(…).select|insert|update|upsert|delete(`
   y `.rpc(`; drizzle `db.`/`tx.` `select|insert|update|delete|execute(` y `db.query.<t>.findMany|findFirst(`;
   prisma `prisma.<modelo>.<operación>(`; postgres `` sql`…` ``; pg `client|pool|db.query(`. Omite tests y tipos
-  generados. Falsos positivos conocidos: un bucle de pocas vueltas fijas, una llamada por lotes que es una sola
-  consulta. No ve: un helper de consulta llamado dentro de un bucle, un cliente con otro nombre de variable,
-  `.select()` sin argumentos.
+  generados (los globs por defecto de `tdd.ignore`). Falsos positivos conocidos: un bucle de pocas vueltas
+  fijas, una llamada por lotes que es una sola consulta. No ve: un helper de consulta llamado dentro de un
+  bucle, una consulta dentro de un callback que no sea `.forEach` / `.map` / `.flatMap` en un bucle, un cliente
+  con otro nombre de variable, `.select()` sin argumentos.
 - **`check_mcp_contracts`** lee los archivos JS/TS cambiados de paquetes que dependen del SDK de MCP. Un registro
   es `<x>.registerTool("nombre", { inputSchema, … }, cb)` (la API actual del SDK, verificada contra
-  `@modelcontextprotocol/sdk` 1.32) o el obsoleto `<x>.tool("nombre", …)`: un esquema inline (`z.object(…)`,
-  `z.*`, un shape con miembros zod) falla (`inline_schema`); un identificador de esquema no importado de
-  `mcp_contracts.contracts_modules` falla (`schema_source`); un archivo que registra tools e importa un cliente
-  de datos (incluidos imports solo de tipos) falla (`data_client`). No sigue: un objeto de configuración pasado
+  `@modelcontextprotocol/sdk` 1.32) o el obsoleto `<x>.tool("nombre", …)`. Por defecto solo exige un esquema de
+  entrada por tool (`missing_schema`). Con `mcp_contracts.contracts_modules` configurado, un esquema inline
+  (`z.object(…)`, `z.*`, un shape con miembros zod) falla (`inline_schema`) y un identificador de esquema no
+  importado de esos módulos falla (`schema_source`); con `mcp_contracts.forbid_data_clients: true`, un archivo
+  que registra tools e importa un cliente de datos (incluidos imports solo de tipos) falla (`data_client`). No sigue: un objeto de configuración pasado
   como variable, un esquema reexportado por un módulo local.
 
 Fuera de alcance: Agent-OS como parte de un monorepo, repositorios git anidados o submódulos, elegir partes
@@ -518,7 +531,7 @@ convencionales).
 - **Tests unitarios inline de Rust** (`#[cfg(test)]`): no se pueden separar para la corrida roja; ver
   [Rojo→Verde en Go, Rust, Ruby y PHP](#rojo-verde-otros-stacks).
 - **Las instalaciones existentes conservan casi todo su `AGENTS.md`.** `update` solo refresca la tabla de
-  partes y las listas de salvaguardas (sección 2), así que la sección *First session after install* y otros
+  partes y las listas de salvaguardas (sección 2), y solo mientras no las edites, así que la sección *First session after install* y otros
   cambios de la plantilla llegan solo a instalaciones nuevas; cópialos a mano si los quieres.
 - **Los guards de tecnologías son heurísticas sobre el texto**, no parsers: ver
   [Guards de tecnologías](#guards-de-tecnologias) para lo que cada uno no ve. Son guards JS, así que un stack

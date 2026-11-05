@@ -13,19 +13,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   technologies detected at install/update (`technologies`); one detected since (a `Dockerfile`, a
   `supabase/config.toml`, a data client or the MCP SDK in a `package.json`) brings its guard, listed as
   *added for newly detected technologies* (`--dry-run`: *would add*). A registry without the list (older
-  releases) adds each detected technology's missing guard once.
+  releases) is a baseline: that update records the current technologies and adds nothing (their guards are
+  listed as available), so a guard you removed is not brought back.
 - `--add-guards` accepts any bundled guard of the catalog (e.g. `check_api_contracts`, `check_storybook`,
   `check_scope`, the new technology guards): one foreign to the stack prints a warning, is recorded in the
   registry (`extraGuards`) and is refreshed by later updates instead of being reported as retired.
 - `clckernel update` refreshes the kernel-owned AGENTS.md sections (the *Parts* table and the per-part
-  safeguards, or section 2 of a single stack) and keeps every other section; a document without those
-  headings is untouched, and `--dry-run` lists AGENTS.md when it would change.
+  safeguards, or section 2 of a single stack) only when their text is what the kernel last wrote (a sha256 per
+  section in the registry, `agentsSections`) or already the new text; a section you edited, or one an older
+  install recorded no hash for that differs, keeps AGENTS.md untouched and the proposal is written to
+  `AGENTS.md.clckernel-new`. Every other section is never touched, a document without those headings is left
+  alone, and `--dry-run` writes nothing.
 - AGENTS.md promises only what is installed: Next.js lists Zod contracts and Storybook coverage as
   agent-enforced (addable with `--add-guards`), Astro's UI reuse and design tokens and Go's Clean Architecture
   are agent-enforced, Agent-OS marks its Dual-Layer and `sdds/` lines, the fallback frontend template marks
-  what it does not install, and installed technology guards are listed. `check_seo` is described as what it
+  what it does not install, and section 2 is built from the guards actually installed: a technology guard you removed is not listed, a
+  stack guard you removed is marked not installed, a guard added with `--add-guards` is listed, and the Zod line
+  names `check_api_contracts` once it is installed. `check_seo` is described as what it
   checks (single `<h1>`, GEO meta formats, LCP image priority, `target="_blank"` rel), not page metadata or
   OpenGraph. Catalog: `check_api_contracts` and `check_storybook` are `manifest: false`.
+- The JS guards and `verify_tdd` share one list of generated files (`GENERATED_FILES` in `tools/_config.js`):
+  `check_query_efficiency` and `check_mcp_contracts` now also skip `*.gen.*` and `__generated__/`.
 - `verify_tdd.js`: a workspace part whose `package.json` does not declare vitest/jest uses the workspace
   root's, and a part `node_modules` without the runner binary falls through to the root `node_modules/.bin`.
 - `tdd.ignore` defaults to generated code (`**/database.types.ts`, `**/*.generated.*`, `**/*.gen.*`,
@@ -48,15 +56,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   (`sql_migrations.severities`): applied migrations are immutable, `create table` in the checked schemas needs
   `enable row level security` in the same file, `security definer` functions set `search_path`, no write grants
   to anonymous roles, `drop table` / `drop column` are named warnings. Comments, string literals and
-  dollar-quoted bodies are ignored.
+  dollar-quoted bodies are ignored. A later `alter function … set search_path` satisfies `search_path`;
+  `set search_path` sets the schema of unqualified names; quoted identifiers keep their case; `drop <column>`
+  without `column` is named; *applied* means present at the merge-base with the branch's upstream when there
+  is one (else HEAD), so a migration only committed locally may still change.
 - `check_query_efficiency` (JS/TS counterpart of `check_db_efficiency`): query calls of supabase-js, drizzle,
-  prisma, postgres and pg awaited inside loops (N+1, error) and supabase-js `select('*')` without
-  `limit`/`range` (warning); extra patterns in `query_efficiency.call_patterns`.
-- `check_mcp_contracts`: MCP tool registrations (`registerTool`, and the deprecated `tool()`) take their input
-  schema from `mcp_contracts.contracts_modules`, never an inline zod schema, and a file that registers tools
-  imports no data client (`mcp_contracts.forbid_data_clients`).
+  prisma, postgres and pg awaited inside loops (N+1, a heuristic: warning by default) and supabase-js
+  `select('*')` without `limit`/`range` (warning); extra patterns in `query_efficiency.call_patterns`.
+  Pagination loops (`.range(`, `.offset(`, `skip`, `cursor`, SQL `OFFSET`) and functions defined inside a loop
+  (a handler registered per route) are not N+1; statements without semicolons end at the end of the line.
+- `check_mcp_contracts`: every MCP tool registration (`registerTool`, and the deprecated `tool()`) declares an
+  input schema (`missing_schema`). With `mcp_contracts.contracts_modules` configured the schema must be imported
+  from them, never inline; with `mcp_contracts.forbid_data_clients: true` a file that registers tools imports no
+  data client. Both are off by default.
 - `.clckernel.yaml` keys `sql_migrations`, `query_efficiency`, `mcp_contracts` and `ui_reuse`, validated in
-  `tools/_config.js` and `tools/_config.py` (per-rule levels `error`, `warning` or `off`).
+  `tools/_config.js` and `tools/_config.py` (per-rule levels `error`, `warning` or `"off"`, quoted). Both readers
+  reject an invalid `query_efficiency.call_patterns` regex. The guards fall back to each section's defaults when
+  an older `tools/_config.js` (kept because you edited it) does not know the section.
 
 - Library parts: a subdirectory with a package manifest that no framework adapter matches is a library part
   of its ecosystem: `TypeScript Library` (`package.json`, or an Nx `project.json` without one, + `tsconfig.json`; the hook runs `tsc --noEmit`
@@ -148,8 +164,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   also covers `playbooks/` and evaluates the files changed in the commit. Existing Agent-OS repositories may
   start failing when they touch a skill or playbook without a marker.
 - **Domain guards leave the kernel.** `check_domain_data` and `check_test_calendar_sync` are no longer shipped
-  or installed, and Agent-OS detection no longer reacts to the `marketing-os` / `laila-mos` names or a
-  "marketing operating system" description (`agent-os` and `ai-agents` still work). `clckernel update` leaves
+  or installed, and Agent-OS detection no longer reacts to project-specific package names or a
+  domain-specific description (`agent-os` and `ai-agents` still work). `clckernel update` leaves
   copies installed by earlier releases exactly where they are in `tools/` (never moves or deletes them), takes
   them out of the registry and reports them as retired kernel guards, so they keep running as project guards.
 - **The pre-commit hook and `clckernel audit` run the same guards (sdds/unified-discovery).** The generated hook

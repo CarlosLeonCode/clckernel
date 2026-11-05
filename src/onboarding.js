@@ -1,5 +1,5 @@
 /**
- * CLC Kernel — First-session onboarding (sdds/onboarding).
+ * CLC Kernel — First-session onboarding.
  * The AGENTS.md section every generated template ends with: what the agent
  * does in the first session after an install, without ever blocking the
  * user's own request.
@@ -13,7 +13,7 @@ Applies while \`tools/.clckernel-managed.json\` exists and \`.clckernel.yaml\` d
 `;
 
 /**
- * sdds/kernel-bug-protocol: what the agent does when the root cause is in
+ * what the agent does when the root cause is in
  * CLC Kernel itself. Every generated AGENTS.md carries it (single-stack
  * templates have no command table, so the section names the command).
  */

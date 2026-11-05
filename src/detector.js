@@ -53,7 +53,7 @@ const adapters = [
 ];
 
 /**
- * Library adapters (sdds/monorepo-library-parts): tried only on part
+ * Library adapters: tried only on part
  * subdirectories that no adapter above matched, in this order (TypeScript
  * before JavaScript, same `node` ecosystem). Never on the root, never offered
  * as a stack. Go and Rust need none: their adapters match plain modules/crates.
@@ -327,7 +327,7 @@ function codeAdaptersFor(dir, candidates = adapters) {
 
 /**
  * Adapters of a part subdir: the framework ones, or, when none matched, the
- * library ones (sdds/monorepo-library-parts), each per-dir via forDir.
+ * library ones, each per-dir via forDir.
  */
 function partAdaptersFor(abs) {
   const frameworks = codeAdaptersFor(abs);
@@ -349,13 +349,12 @@ function rootCoversRustMembers(targetDir) {
 }
 
 /**
- * Code parts of a repository (sdds/fullstack-monorepo, decision 1): the root,
+ * Code parts of a repository: the root,
  * declared workspaces and conventional dirs, each tested against the code
  * adapters. Agent-OS is never a part. Root parts come first, then subdir
  * parts sorted by dir.
  *
- * A subdir no framework adapter matches is tried against the library adapters
- * (sdds/monorepo-library-parts); library parts count on their own, so a
+ * A subdir no framework adapter matches is tried against the library adapters; library parts count on their own, so a
  * library-only monorepo is a monorepo. The root is never a library part, so a
  * repository without library subdirs is detected as before. An Agent-OS root
  * whose only parts are libraries stays Agent-OS.
@@ -457,9 +456,8 @@ function buildPartsConfig(targetDir, parts) {
 /**
  * Detects the project config. One code part at the root (or none) keeps the
  * single-stack config exactly as before: adapters are tried in list order,
- * except that a code stack beats Agent-OS (sdds/agent-os-generic, decision 1).
- * Several parts, or a part in a subdir, yield a multi-part config
- * (sdds/fullstack-monorepo).
+ * except that a code stack beats Agent-OS.
+ * Several parts, or a part in a subdir, yield a multi-part config.
  * @param {string} targetDir - Project root
  * @returns {object} Project config
  */

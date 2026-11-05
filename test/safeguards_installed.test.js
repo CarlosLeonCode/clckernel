@@ -1,5 +1,5 @@
 /**
- * sdds/laila-platform-fit, REQ-1: AGENTS.md only promises guards that are
+ * AGENTS.md only promises guards that are
  * installed. Every safeguard line an adapter renders either names something
  * the adapter installs (a guard or an external tool of that part), or says it
  * is agent-enforced. The catalog's `manifest` flag matches the manifests.

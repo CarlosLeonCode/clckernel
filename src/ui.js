@@ -189,7 +189,7 @@ function printSuccess(targetDir, hook, config, installedGuards = []) {
 }
 
 /**
- * Lines of the install/update summary (sdds/safe-update, decision 4): written,
+ * Lines of the install/update summary: written,
  * unchanged, protected (with the .clckernel-new path), moved, removed, added
  * to .gitignore and git config; then what was left out on purpose: guards
  * available but not installed, mirrors not present, tracked paths not
@@ -216,13 +216,13 @@ function planLines(plan, { dryRun = false } = {}) {
   section(label('Removed', 'Would remove'), plan.removed);
   section(label('Added to .gitignore', 'Would add to .gitignore'), plan.gitignore);
   section(label('git config', 'Would set git config'), plan.gitConfig.map((c) => `${c.key} = ${c.value}`));
-  // sdds/laila-platform-fit (REQ-17): guards of technologies detected since the last run.
+  // guards of technologies detected since the last run.
   section(label('Added for newly detected technologies', 'Would add for newly detected technologies'), plan.detected || []);
-  // sdds/update-no-additions, decision 5: what was left out on purpose.
+  // what was left out on purpose.
   section('Available, not installed (add with --add-guards <name,...|all>)', plan.available || [], colors.cyan);
   section('Mirrors not present (skipped)', plan.mirrorsSkipped || [], colors.cyan);
   section('Tracked, not ignored (git tracks them; no .gitignore entry added)', plan.trackedNotIgnored || [], colors.cyan);
-  // sdds/config-foundation: update.exclude in .clckernel.yaml.
+  // update.exclude in .clckernel.yaml.
   section('Excluded by config (update.exclude; left as they are)', plan.excluded || [], colors.cyan);
   if (plan.protected.length > 0) {
     lines.push('');
@@ -237,7 +237,7 @@ function planLines(plan, { dryRun = false } = {}) {
 }
 
 /**
- * AI harnesses by the AGENTS.md mirror they read (sdds/onboarding). Agents
+ * AI harnesses by the AGENTS.md mirror they read. Agents
  * that read AGENTS.md itself (Codex, OpenCode, ...) need no mirror.
  */
 const HARNESS_MIRRORS = [
@@ -260,7 +260,7 @@ function harnessNames(plan) {
 }
 
 /**
- * "Next steps" after a real install (sdds/onboarding), true to what was
+ * "Next steps" after a real install, true to what was
  * installed: the hook file and whether git runs it (or the command that
  * activates it), the harness mirrors written and the parts. English, like
  * the plan listing.
@@ -296,10 +296,10 @@ function nextStepsLines(hook, plan, config = {}) {
   lines.push(`     ${agents}`);
   lines.push(`  3. Run ${cmd('npx clckernel audit')} anytime to see every guard's result.`);
   lines.push('  4. Project-specific checks go in tools/guards/ (the hook and the audit run them).');
-  // sdds/esm-tools-commonjs: tools/ is CommonJS whatever the project's "type".
+  // tools/ is CommonJS whatever the project's "type".
   const paths = [...(plan && plan.written) || [], ...(plan && plan.unchanged) || []];
   if (paths.includes('tools/package.json')) lines.push('     tools/ is CommonJS (tools/package.json).');
-  // sdds/managed-lint-pragmas: kernel files declare themselves to the linters.
+  // kernel files declare themselves to the linters.
   if (paths.some((p) => /^tools\/[^/]+\.(?:js|py)$/.test(p))) {
     lines.push('     Kernel files in tools/ carry file-level lint pragmas (eslint-disable, ruff: noqa, ...):');
     lines.push('     your linter config needs no tools/ ignore and keeps checking tools/guards/.');

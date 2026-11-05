@@ -4,13 +4,19 @@
  * Checks the SQL migration files of the snapshot being verified (by default
  * `**\/supabase/migrations/**\/*.sql`, `sql_migrations.paths` in .clckernel.yaml).
  * Rules, each with its own level (`sql_migrations.severities`):
- *   immutable    a migration present at BASE is modified or deleted (error)
+ *   immutable    an applied migration is modified or deleted (error); applied
+ *                = present at the merge-base with the branch's upstream when
+ *                there is one (pushed), else at BASE (HEAD when staged, HEAD~1
+ *                for the last commit)
  *   rls          a `create table` in one of `sql_migrations.schemas` (default
  *                public) has no `enable row level security` in the same file (error)
- *   search_path  a `security definer` function does not set search_path (error)
+ *   search_path  a `security definer` function sets no search_path, in its
+ *                `create` or a later `alter function ... set search_path` (error)
  *   anon_write   insert/update/delete/all is granted to a role of
  *                `sql_migrations.anon_roles` (default anon) (error)
- *   destructive  `drop table` / `alter table ... drop column`, named (warning)
+ *   destructive  `drop table` / `alter table ... drop [column] c`, named (warning)
+ * Unqualified names resolve to the first schema of the last `set search_path`
+ * (public without one); quoted identifiers keep their case.
  * The SQL is read statement by statement, case-insensitively; comments, string
  * literals and dollar-quoted bodies are blanked first, so their text never
  * matches. A heuristic, not a SQL parser: dynamic SQL (EXECUTE) is not seen.
@@ -22,10 +28,22 @@ const { changedFiles, readFile, projectConfig, globMatcher, currentGuard } = req
 
 const NAME = 'check_sql_migrations';
 
-/** Default settings when the project has no config file. */
+/**
+ * Settings when the config has no sql_migrations section (an older
+ * tools/_config.js): the defaults of GUARD_SECTIONS.sql_migrations there.
+ */
+const DEFAULTS = {
+  paths: ['**/supabase/migrations/**/*.sql'],
+  schemas: ['public'],
+  anon_roles: ['anon'],
+  severities: { immutable: 'error', rls: 'error', search_path: 'error', anon_write: 'error', destructive: 'warning' },
+};
+
+/** The project config (defaults when it has no file) and its sql_migrations settings. */
 function settings(dir) {
   const config = projectConfig(dir) || require('./_config.js').defaultConfig();
-  return { config, sql: config.sql_migrations };
+  const own = config.sql_migrations || {};
+  return { config, sql: { ...DEFAULTS, ...own, severities: { ...DEFAULTS.severities, ...(own.severities || {}) } } };
 }
 
 /**
@@ -86,7 +104,10 @@ function maskSql(sql) {
   return out.join('');
 }
 
-/** Statements of masked SQL: { text, start } with start = offset of its first non-space character. */
+/**
+ * Statements of masked SQL: { text, start, end } with start/end = offsets of
+ * its first and past its last non-space character.
+ */
 function statements(masked) {
   const list = [];
   let from = 0;
@@ -94,7 +115,7 @@ function statements(masked) {
     if (i === masked.length || masked[i] === ';') {
       const raw = masked.slice(from, i);
       const lead = raw.length - raw.trimStart().length;
-      if (raw.trim()) list.push({ text: raw.trim(), start: from + lead });
+      if (raw.trim()) list.push({ text: raw.trim(), start: from + lead, end: from + lead + raw.trim().length });
       from = i + 1;
     }
   }
@@ -104,10 +125,55 @@ function statements(masked) {
 const IDENT = '(?:"[^"]+"|[A-Za-z_][\\w$]*)';
 const QUALIFIED = `${IDENT}(?:\\s*\\.\\s*${IDENT})?`;
 
-/** { schema, name } of a possibly qualified, possibly quoted name; unqualified => public. */
-function splitName(raw) {
-  const parts = raw.match(new RegExp(IDENT, 'g')).map((p) => (p.startsWith('"') ? p.slice(1, -1) : p.toLowerCase()));
-  return parts.length === 2 ? { schema: parts[0], name: parts[1] } : { schema: 'public', name: parts[0] };
+/** An identifier as PostgreSQL resolves it: quoted keeps its case, unquoted folds to lower case. */
+const identName = (p) => (p.startsWith('"') ? p.slice(1, -1) : p.toLowerCase());
+
+/**
+ * { schema, name } of a possibly qualified, possibly quoted name; an
+ * unqualified one is in `schema` (the first schema of the search_path the
+ * migration set, else public).
+ */
+function splitName(raw, schema = 'public') {
+  const parts = raw.match(new RegExp(IDENT, 'g')).map(identName);
+  return parts.length === 2 ? { schema: parts[0], name: parts[1] } : { schema, name: parts[0] };
+}
+
+/**
+ * The schema unqualified names resolve to after `set [session|local]
+ * search_path = a, b` (or `to`): the first listed schema other than
+ * "$user" and pg_catalog; null when the statement is not one, or lists none.
+ * @param {string} original - The statement in the source (literals kept)
+ * @returns {string|null|undefined} undefined when the statement is not a set search_path
+ */
+function searchPathSchema(original) {
+  const m = /^set\s+(?:session\s+|local\s+)?search_path\s*(?:=|\bto\b)\s*([\s\S]*)$/i.exec(original.trim());
+  if (!m) return undefined;
+  for (const item of m[1].split(',')) {
+    const value = item.trim().replace(/^'(.*)'$/s, '$1').trim();
+    if (!value || value.toLowerCase() === 'default') continue;
+    const name = identName(value);
+    if (name === '$user' || name === 'pg_catalog') continue;
+    if (!new RegExp(`^${IDENT}$`).test(value)) continue;
+    return name;
+  }
+  return null;
+}
+
+/** Top-level comma-separated actions of an `alter table` (commas inside brackets kept). */
+function alterActions(text) {
+  const actions = [];
+  let depth = 0;
+  let from = 0;
+  for (let i = 0; i <= text.length; i++) {
+    const ch = text[i];
+    if (ch === '(') depth++;
+    else if (ch === ')') depth--;
+    else if ((ch === ',' && depth === 0) || i === text.length) {
+      actions.push(text.slice(from, i).trim());
+      from = i + 1;
+    }
+  }
+  return actions.filter(Boolean);
 }
 
 const fullName = ({ schema, name }) => `${schema}.${name}`;
@@ -120,6 +186,10 @@ function lineOf(text, offset) {
 
 /**
  * Findings of rules rls, search_path, anon_write and destructive in one file.
+ * An unqualified name resolves to the schema of the last `set search_path`
+ * before it (public without one); quoted names keep their case. A
+ * `security definer` function may set its search_path in the `create` or
+ * in a later `alter function|procedure ... set search_path` of the file.
  * @param {string} sql - File content
  * @param {{ schemas: string[], anon_roles: string[] }} options
  * @returns {Array<{ rule: string, lineNo: number, message: string }>}
@@ -131,27 +201,33 @@ function analyzeSql(sql, options) {
   const findings = [];
   const created = [];
   const secured = new Set();
+  const definers = [];
+  const pathSet = new Set();
+  let schema = 'public';
 
   for (const stmt of statements(masked)) {
     const text = stmt.text.replace(/\s+/g, ' ');
     const lineNo = lineOf(masked, stmt.start);
 
+    const searchPath = searchPathSchema(sql.slice(stmt.start, stmt.end));
+    if (searchPath) schema = searchPath;
+    if (searchPath !== undefined) continue;
+
     const table = new RegExp(`^create (?:(?:global|local) )?(temp |temporary |unlogged )?table (?:if not exists )?(${QUALIFIED})`, 'i').exec(text);
     if (table && !/^temp/i.test((table[1] || '').trim())) {
-      const name = splitName(table[2]);
+      const name = splitName(table[2], schema);
       if (schemas.has(name.schema.toLowerCase())) created.push({ name, lineNo });
     }
 
     const rls = new RegExp(`^alter table (?:if exists )?(?:only )?(${QUALIFIED}) enable row level security\\b`, 'i').exec(text);
-    if (rls) secured.add(fullName(splitName(rls[1])).toLowerCase());
+    if (rls) secured.add(fullName(splitName(rls[1], schema)));
 
     const fn = new RegExp(`^create (?:or replace )?(function|procedure) (${QUALIFIED})`, 'i').exec(text);
     if (fn && /\bsecurity definer\b/i.test(text) && !/\bset search_path\b/i.test(text)) {
-      findings.push({
-        rule: 'search_path', lineNo,
-        message: `security definer ${fn[1].toLowerCase()} ${fullName(splitName(fn[2]))} does not set search_path: add \`set search_path = ''\` (or explicit schemas)`,
-      });
+      definers.push({ kind: fn[1].toLowerCase(), name: fullName(splitName(fn[2], schema)), lineNo });
     }
+    const alterFn = new RegExp(`^alter (function|procedure) (${QUALIFIED})\\b.*\\bset search_path\\b`, 'i').exec(text);
+    if (alterFn) pathSet.add(fullName(splitName(alterFn[2], schema)));
 
     const grant = /(?:^|\s)grant (.+?) on (.+?) to (.+?)(?: with grant option| granted by .*)?$/i.exec(text);
     if (grant) {
@@ -169,23 +245,32 @@ function analyzeSql(sql, options) {
     const drop = /^drop table (?:if exists )?(.+?)(?: cascade| restrict)?$/i.exec(text);
     if (drop) {
       for (const raw of drop[1].split(',')) {
-        findings.push({ rule: 'destructive', lineNo, message: `drops table ${fullName(splitName(raw.trim()))}: data is lost; make sure it is intended and backed up` });
+        findings.push({ rule: 'destructive', lineNo, message: `drops table ${fullName(splitName(raw.trim(), schema))}: data is lost; make sure it is intended and backed up` });
       }
     }
 
     const alter = new RegExp(`^alter table (?:if exists )?(?:only )?(${QUALIFIED}) (.*)$`, 'i').exec(text);
     if (alter) {
-      const tableName = fullName(splitName(alter[1]));
-      const columnRe = new RegExp(`\\bdrop column (?:if exists )?(${IDENT})`, 'gi');
-      for (const match of alter[2].matchAll(columnRe)) {
-        const column = match[1].startsWith('"') ? match[1].slice(1, -1) : match[1].toLowerCase();
-        findings.push({ rule: 'destructive', lineNo, message: `drops column ${tableName}.${column}: data is lost; make sure it is intended and backed up` });
+      const tableName = fullName(splitName(alter[1], schema));
+      // DROP [COLUMN] [IF EXISTS] c; DROP CONSTRAINT is not a column.
+      const columnRe = new RegExp(`^drop (?:column )?(?:if exists )?(${IDENT})(?: cascade| restrict)?$`, 'i');
+      for (const action of alterActions(alter[2])) {
+        const match = columnRe.exec(action);
+        if (!match || /^constraint$/i.test(match[1])) continue;
+        findings.push({ rule: 'destructive', lineNo, message: `drops column ${tableName}.${identName(match[1])}: data is lost; make sure it is intended and backed up` });
       }
     }
   }
 
+  for (const { kind, name, lineNo } of definers) {
+    if (pathSet.has(name)) continue;
+    findings.push({
+      rule: 'search_path', lineNo,
+      message: `security definer ${kind} ${name} does not set search_path: add \`set search_path = ''\` (or explicit schemas)`,
+    });
+  }
   for (const { name, lineNo } of created) {
-    if (!secured.has(fullName(name).toLowerCase())) {
+    if (!secured.has(fullName(name))) {
       findings.push({
         rule: 'rls', lineNo,
         message: `table ${fullName(name)} has no \`alter table ${fullName(name)} enable row level security\` in this migration`,
@@ -202,22 +287,40 @@ function git(dir, args) {
 }
 
 /**
- * Paths modified or deleted relative to BASE (HEAD when staged, HEAD~1 for
- * the last commit), renames counted as a deletion of the old path.
+ * The commit whose migrations count as applied: the merge-base of the
+ * snapshot's parent (HEAD when staged, HEAD~1 for the last commit) with the
+ * branch's upstream when it has one (what was pushed), else that parent.
+ * null when the snapshot has no parent commit.
+ */
+function appliedBase(dir, mode) {
+  const parent = mode === 'staged' ? 'HEAD' : 'HEAD~1';
+  if (git(dir, ['rev-parse', '--verify', '--quiet', `${parent}^{commit}`]) === null) return null;
+  if (git(dir, ['rev-parse', '--verify', '--quiet', '@{upstream}^{commit}']) !== null) {
+    const base = git(dir, ['merge-base', parent, '@{upstream}']);
+    if (base && base.trim()) return base.trim();
+  }
+  return parent;
+}
+
+/**
+ * Migrations the snapshot modifies or deletes (renames counted as a deletion
+ * of the old path) that exist at appliedBase: a migration added after the
+ * upstream (not pushed yet) may still change.
  */
 function changedAtBase(dir, mode) {
-  let out = null;
+  const base = appliedBase(dir, mode);
+  if (base === null) return [];
   const args = ['--name-status', '-z', '--no-renames', '--diff-filter=MD'];
-  if (mode === 'staged' && git(dir, ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}']) !== null) {
-    out = git(dir, ['diff', '--cached', ...args, 'HEAD']);
-  } else if (mode === 'last-commit' && git(dir, ['rev-parse', '--verify', '--quiet', 'HEAD~1^{commit}']) !== null) {
-    out = git(dir, ['diff', ...args, 'HEAD~1', 'HEAD']);
-  }
+  const out = mode === 'staged'
+    ? git(dir, ['diff', '--cached', ...args, 'HEAD'])
+    : git(dir, ['diff', ...args, 'HEAD~1', 'HEAD']);
   if (!out) return [];
   const fields = out.split('\0').filter(Boolean);
   const entries = [];
   for (let i = 0; i + 1 < fields.length; i += 2) entries.push({ status: fields[i], file: fields[i + 1] });
-  return entries;
+  const parent = mode === 'staged' ? 'HEAD' : 'HEAD~1';
+  if (base === parent) return entries;
+  return entries.filter(({ file }) => git(dir, ['cat-file', '-e', `${base}:${file}`]) !== null);
 }
 
 const check = async function checkSqlMigrations(targetDir) {
@@ -228,7 +331,7 @@ const check = async function checkSqlMigrations(targetDir) {
   }
   const { config, sql } = settings(dir);
   const isMigration = globMatcher(sql.paths);
-  const excludedGlobs = [...config.exclude_paths, ...((config.guard_exclude || {})[currentGuard()] || [])];
+  const excludedGlobs = [...(config.exclude_paths || []), ...((config.guard_exclude || {})[currentGuard()] || [])];
   const excluded = globMatcher(excludedGlobs);
   const levels = sql.severities;
 
@@ -243,7 +346,7 @@ const check = async function checkSqlMigrations(targetDir) {
     if (!isMigration(file) || excluded(file)) continue;
     add(file, {
       rule: 'immutable', lineNo: 0,
-      message: `${status === 'D' ? 'deletes' : 'modifies'} a migration that exists at BASE (already applied): applied migrations are immutable; add a new migration instead`,
+      message: `${status === 'D' ? 'deletes' : 'modifies'} a migration that is already applied (pushed, or at BASE): applied migrations are immutable; add a new migration instead`,
     });
   }
 

@@ -3,7 +3,7 @@
  * A plain Python package (pyproject.toml, setup.py or setup.cfg, no framework)
  * inside a monorepo or full-stack repository: Python guards, ruff and pytest.
  *
- * Used only for parts in subdirectories (sdds/monorepo-library-parts): never the
+ * Used only for parts in subdirectories: never the
  * repository root, never offered in "Choose another stack", tried only on a dir
  * no framework adapter (FastAPI, Django) matched.
  */

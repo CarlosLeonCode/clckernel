@@ -14,7 +14,7 @@ const GIT_LOCAL_ENV = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_PREFIX
 
 /**
  * Entries whose path (or, for a directory entry, anything under it) is
- * tracked by git in targetDir (sdds/update-no-additions, decision 3). Only
+ * tracked by git in targetDir. Only
  * literal paths are checked: negations and glob patterns are kept as they
  * are. Outside a git repository nothing is tracked. One `git ls-files` call.
  * @param {string} targetDir - Project root
@@ -37,7 +37,7 @@ function trackedEntries(targetDir, entries) {
 
 /**
  * Managed entries per section. An `{ entry, ifExists: true }` item names an
- * artifact of an older release (sdds/onboarding): it is added only when that
+ * artifact of an older release: it is added only when that
  * path exists in the project, so a fresh install names no retired artifact.
  */
 const MANAGED_GITIGNORE_SECTIONS = [
@@ -79,9 +79,9 @@ const MANAGED_GITIGNORE_SECTIONS = [
 /**
  * Idempotently appends missing CLC Kernel entries to target project's .gitignore.
  *
- * Writes through the active io session (sdds/safe-update), so a dry run
+ * Writes through the active io session, so a dry run
  * only records the entries it would add. An entry whose path git tracks is
- * not added (sdds/update-no-additions, decision 3).
+ * not added.
  *
  * @param {string} targetDir - Target project root
  * @returns {boolean} True if .gitignore was created or modified, false if already complete.

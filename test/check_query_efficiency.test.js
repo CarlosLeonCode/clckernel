@@ -1,5 +1,5 @@
 /**
- * check_query_efficiency (sdds/laila-platform-fit, REQ-15): database calls
+ * check_query_efficiency: database calls
  * awaited inside loops (N+1) and unbounded select('*') in JS/TS files whose
  * package depends on a known data client. Pass and fail case per rule.
  */
@@ -50,11 +50,11 @@ describe('check_query_efficiency: N+1 (awaited query inside a loop)', () => {
     'for await + single-statement body': 'async function f(stream) {\n  for await (const id of stream) await supabase.from("t").insert({ id });\n}\n',
   };
   for (const [name, source] of Object.entries(failing)) {
-    it(`${name} => n_plus_one error`, async () => {
+    it(`${name} => n_plus_one (warning by default)`, async () => {
       const res = await run(SUPABASE, { 'src/repo.ts': source });
       assert.strictEqual(res.exitCode, 1, JSON.stringify(res));
       assert.deepStrictEqual(rules(res), ['n_plus_one']);
-      assert.strictEqual(res.level, 'error');
+      assert.strictEqual(res.level, 'warning');
       assert.ok(res.data.violations['src/repo.ts'][0].lineNo > 0);
     });
   }

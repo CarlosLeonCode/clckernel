@@ -4,7 +4,7 @@
  * config/routes.rb) inside a monorepo or full-stack repository: RuboCop and its
  * tests (RSpec, or Minitest through rake) when its Gemfile.lock has them.
  *
- * Used only for parts in subdirectories (sdds/monorepo-library-parts): never the
+ * Used only for parts in subdirectories: never the
  * repository root, never offered in "Choose another stack", tried only on a dir
  * no framework adapter (Rails) matched.
  */

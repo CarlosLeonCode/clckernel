@@ -4,7 +4,7 @@
  * no framework) inside a monorepo or full-stack repository: the stack-agnostic
  * JS guards cover it.
  *
- * Used only for parts in subdirectories (sdds/monorepo-library-parts): it is not
+ * Used only for parts in subdirectories: it is not
  * in the detector's `adapters` list, so the repository root is never detected as
  * a library and "Choose another stack" never offers it. It is tried only on a
  * dir no framework adapter matched. TypeScriptLibraryAdapter extends it.

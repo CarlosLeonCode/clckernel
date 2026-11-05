@@ -204,9 +204,9 @@ Every generated `AGENTS.md` ends with a **First session after install** section.
    again.
 
 The `clckernel_cli` skill also triggers in that first session. Projects installed before this section
-existed do not get it on `update`: an existing `AGENTS.md` is never rewritten (update only adds the
-`clckernel update` row to its command table when missing). To get the section, copy it from a fresh
-install's `AGENTS.md`.
+existed do not get it on `update`: update rewrites only the kernel-owned sections of an existing
+`AGENTS.md` (see *AGENTS.md* in [Updating an existing project](#updating-an-existing-project)) and adds the `clckernel update` row to its command
+table when missing. To get the section, copy it from a fresh install's `AGENTS.md`.
 
 ---
 
@@ -278,16 +278,21 @@ npx clckernel . --yes --dry-run
   detected at install/update (`technologies`); one that appeared since (a `Dockerfile`, a
   `supabase/config.toml`, a data client or the MCP SDK in a `package.json`) brings its guard, listed as
   *added for newly detected technologies* (`--dry-run`: *would add*). A registry written by an older release
-  has no list, so every detected technology whose guard is missing is added once; after that a guard you
-  remove stays removed (it is listed as available). Support files
+  has no list: that update records the current technologies as the baseline and adds nothing (their guards
+  are listed as available, add them with `--add-guards`). A guard you remove stays removed. Support files
   (`_changes.js/.py`, the config readers `_config.js/.py`, `yaml.js`, `_yaml.py`, the audit orchestrators,
   `tools/package.json`) follow the installed guards.
 - **Mirrors:** a mirror you deleted (e.g. `.cursor/rules/clckernel_context.mdc`) is not recreated; it is
   reported as *not present (skipped)*. A fresh install still creates them all.
-- **AGENTS.md:** the kernel-owned sections are refreshed: the *Parts* table and *Core AI Safeguards* of a
-  full-stack or monorepo `AGENTS.md`, or section *2. Core AI Safeguards (<stack>)* of a single stack. Every other
-  section keeps your edits, a document without those headings is not touched, and `update.exclude:
-  [AGENTS.md]` keeps it out entirely. `--dry-run` lists AGENTS.md when it would change.
+- **AGENTS.md:** the kernel-owned sections are the *Parts* table and *Core AI Safeguards* of a full-stack or
+  monorepo `AGENTS.md`, or section *2. Core AI Safeguards (<stack>)* of a single stack. Their safeguard lines
+  follow the guards installed (a guard you removed is not promised; one added with `--add-guards` is listed).
+  The registry records a sha256 of each section as the kernel wrote it (`agentsSections`). `update` rewrites a
+  section only when its text still has that hash, or already equals the new text. If you edited one, or an
+  older install recorded no hash and the text differs, `AGENTS.md` is kept as it is and the refreshed file is
+  written next to it as `AGENTS.md.clckernel-new` for you to merge (listed as protected). Every other section
+  is never touched, a document without those headings is left alone, `update.exclude: [AGENTS.md]` keeps it
+  out entirely, and `--dry-run` writes nothing.
 - **`.gitignore`:** an entry whose path git tracks (a mirror or the skill you commit) is never added, on
   install or update; it is reported as *tracked, not ignored*.
 ```bash
@@ -321,12 +326,12 @@ with `Invalid .clckernel.yaml: key "<key>" — <reason>` (nothing is written, th
 | `sql_migrations.paths` | Globs of the SQL migration files; a configured folder that exists also installs the guard | `**/supabase/migrations/**/*.sql` | `check_sql_migrations`, install/update |
 | `sql_migrations.schemas` | Schemas whose `create table` needs `enable row level security` in the same file | `public` | `check_sql_migrations` |
 | `sql_migrations.anon_roles` | Roles that must get no `insert` / `update` / `delete` / `all` grant | `anon` | `check_sql_migrations` |
-| `sql_migrations.severities` | `{ immutable, rls, search_path, anon_write, destructive }`: `error`, `warning` or `off` per rule | `destructive: warning`, the rest `error` | `check_sql_migrations` |
+| `sql_migrations.severities` | `{ immutable, rls, search_path, anon_write, destructive }`: `error`, `warning` or `"off"` (quoted: a bare off is rejected) per rule | `destructive: warning`, the rest `error` | `check_sql_migrations` |
 | `query_efficiency.call_patterns` | Extra regexes of query calls (matched on code with comments and literal text blanked), for any file | none (the presets follow the file's data client) | `check_query_efficiency` |
-| `query_efficiency.severities` | `{ n_plus_one, unbounded_select }`: `error`, `warning` or `off` | `n_plus_one: error`, `unbounded_select: warning` | `check_query_efficiency` |
-| `mcp_contracts.contracts_modules` | Modules (and their subpaths) tool input schemas must be imported from | none: any imported schema; inline ones still fail | `check_mcp_contracts` |
-| `mcp_contracts.forbid_data_clients` | `true`: a file that registers tools may not import a data client | `true` | `check_mcp_contracts` |
-| `mcp_contracts.severities` | `{ inline_schema, schema_source, data_client }`: `error`, `warning` or `off` | all `error` | `check_mcp_contracts` |
+| `query_efficiency.severities` | `{ n_plus_one, unbounded_select }`: `error`, `warning` or `"off"` (quoted) | both `warning` (`n_plus_one` is a heuristic; set `error` to block) | `check_query_efficiency` |
+| `mcp_contracts.contracts_modules` | Modules (and their subpaths) tool input schemas must be imported from; configuring it turns on `inline_schema` and `schema_source` | none: any schema, inline or local, passes | `check_mcp_contracts` |
+| `mcp_contracts.forbid_data_clients` | `true`: a file that registers tools may not import a data client | `false` | `check_mcp_contracts` |
+| `mcp_contracts.severities` | `{ missing_schema, inline_schema, schema_source, data_client }`: `error`, `warning` or `"off"` (quoted) | all `error` | `check_mcp_contracts` |
 | `ui_reuse.primitives` | Globs of the UI primitives, exempt from the raw `<button>` / `<input>` / `<select>` rules | `**/components/ui/**` | `check_ui_reuse` |
 
 ```yaml
@@ -456,29 +461,37 @@ stack-agnostic; listed in the install summary and in AGENTS.md):
 | Celery, Redis, PostgreSQL (Python), Docker | Python dependencies, `redis.conf`, `Dockerfile`, `docker-compose.yml` | `celery_guard`, `redis_guard`, `postgres_guard`, `docker_guard` |
 
 - **`check_sql_migrations`** reads the changed migration files statement by statement (comments, string
-  literals and dollar-quoted bodies blanked; case-insensitive): a migration present at BASE that is modified,
-  deleted or renamed (`immutable`); a `create table` in a checked schema without `enable row level security`
-  in the same file (`rls`); a `security definer` function or procedure without `set search_path` (`search_path`);
+  literals and dollar-quoted bodies blanked; case-insensitive): an applied migration that is modified, deleted
+  or renamed (`immutable`; applied = present at the merge-base with the branch's upstream when it has one,
+  else at BASE, so a migration you only committed locally may still change); a `create table` in a checked schema without `enable row level security`
+  in the same file (`rls`); a `security definer` function or procedure without `set search_path`, in its `create` or a later
+  `alter function … set search_path` (`search_path`);
   `insert`/`update`/`delete`/`all` granted to an anonymous role, `alter default privileges` included
-  (`anon_write`); `drop table` / `drop column`, named (`destructive`, a warning). Not seen: SQL built in
-  `EXECUTE` strings, RLS enabled in another migration, `alter table … drop <column>` without the `column`
-  keyword.
+  (`anon_write`); `drop table` / `drop [column]`, named (`destructive`, a warning). Unqualified names resolve to
+  the first schema of the last `set search_path` in the file (public without one); quoted identifiers keep
+  their case (`"Items"` is not `items`). Not seen: SQL built in `EXECUTE` strings, RLS enabled in another
+  migration.
 - **`check_query_efficiency`** (the JS/TS counterpart of `check_db_efficiency`) reads changed JS/TS files whose
   nearest `package.json` (or the root one) depends on a client: a query call awaited in a `for` / `for…of` /
   `for await` / `while` / `do` body, or any query call in a `.forEach(` / `.map(async` / `.flatMap(async`
-  callback, is an N+1 error; supabase-js `.select('*')` without `.limit(` / `.range(` / `.single(` /
+  callback, is an N+1 warning (a heuristic: set `query_efficiency.severities.n_plus_one: error` to block);
+  a statement that paginates (`.range(`, `.offset(`, `.skip(`, `skip` / `offset` / `cursor`, SQL `OFFSET`) and
+  a call inside a function defined in the loop body (a handler registered per route) are not N+1. Statements
+  end at `;` or at a line break that does not continue them. supabase-js `.select('*')` without `.limit(` / `.range(` / `.single(` /
   `.maybeSingle(` is a warning. Calls: supabase-js `.from(…).select|insert|update|upsert|delete(` and `.rpc(`;
   drizzle `db.`/`tx.` `select|insert|update|delete|execute(` and `db.query.<t>.findMany|findFirst(`; prisma
   `prisma.<model>.<operation>(`; postgres `` sql`…` ``; pg `client|pool|db.query(`. Test files and generated
-  types are skipped. Known false positives: a loop that runs a few fixed times, a batch call that is a single
-  query. Not seen: a query helper called inside a loop, a client under another variable name, `.select()`
-  without arguments.
+  types are skipped (`tdd.ignore`'s default generated-file globs). Known false positives: a loop that runs a
+  few fixed times, a batch call that is a single query. Not seen: a query helper called inside a loop, a query
+  inside any callback other than `.forEach` / `.map` / `.flatMap` in a loop, a client under another variable
+  name, `.select()` without arguments.
 - **`check_mcp_contracts`** reads changed JS/TS files of packages that depend on the MCP SDK. A registration is
   `<x>.registerTool("name", { inputSchema, … }, cb)` (the SDK's current API, checked against
-  `@modelcontextprotocol/sdk` 1.32) or the deprecated `<x>.tool("name", …)`: an inline schema
-  (`z.object(…)`, `z.*`, a raw shape with zod members) fails (`inline_schema`); a schema identifier not imported
-  from `mcp_contracts.contracts_modules` fails (`schema_source`); a file that registers tools and imports a data
-  client (type-only imports included) fails (`data_client`). Not followed: a config object passed as a variable,
+  `@modelcontextprotocol/sdk` 1.32) or the deprecated `<x>.tool("name", …)`. By default it only requires an
+  input schema per tool (`missing_schema`). With `mcp_contracts.contracts_modules` configured, an inline
+  schema (`z.object(…)`, `z.*`, a raw shape with zod members) fails (`inline_schema`) and a schema identifier
+  not imported from those modules fails (`schema_source`); with `mcp_contracts.forbid_data_clients: true`, a
+  file that registers tools and imports a data client (type-only imports included) fails (`data_client`). Not followed: a config object passed as a variable,
   a schema re-exported through a local module.
 
 Not supported: Agent-OS as one part of a monorepo, nested git repositories or submodules, choosing parts by
@@ -511,7 +524,7 @@ repositories (PHP parts are found only through workspaces of other tools and the
 - **Rust inline unit tests** (`#[cfg(test)]`) cannot be separated for the red run; see
   [Red→Green on Go, Rust, Ruby and PHP](#red-green-other-stacks).
 - **Existing installs keep most of their `AGENTS.md`.** `update` refreshes only the parts table and the
-  safeguard lists (section 2), so the *First session after install* section and other template changes reach
+  safeguard lists (section 2), and only while you have not edited them, so the *First session after install* section and other template changes reach
   only fresh installs; copy them by hand if you want them.
 - **Technology guards are heuristics on source text**, not parsers: see [Technology guards](#technology-guards)
   for what each one does not see. They are JS guards, so a Python-only stack with Supabase needs Node at

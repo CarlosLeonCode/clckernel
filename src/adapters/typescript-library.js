@@ -4,8 +4,7 @@
  * tsconfig.json, no framework) inside
  * a monorepo or full-stack repository: its typecheck runs in the hook.
  *
- * Used only for parts in subdirectories (sdds/monorepo-ts-library-parts,
- * sdds/monorepo-library-parts): it is not in the detector's `adapters` list, so
+ * Used only for parts in subdirectories: it is not in the detector's `adapters` list, so
  * the repository root is never detected as a library and "Choose another stack"
  * never offers it. It is tried only on a dir no framework adapter matched, before
  * the JavaScript library adapter (same `node` ecosystem).

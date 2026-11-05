@@ -1,5 +1,5 @@
 /**
- * sdds/laila-platform-fit: verify_tdd.js in npm workspaces.
+ * verify_tdd.js in npm workspaces.
  * REQ-2: a part whose package.json does not declare the runner uses the
  * workspace root's (package.json + node_modules/.bin); a part node_modules
  * without the binary falls through to the root's.

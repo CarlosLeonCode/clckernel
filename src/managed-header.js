@@ -1,5 +1,5 @@
 /**
- * CLC Kernel — File-level lint pragmas for kernel-owned files (sdds/managed-lint-pragmas).
+ * CLC Kernel — File-level lint pragmas for kernel-owned files.
  *
  * The JS and Python files the kernel installs into a project (tools/*.js,
  * tools/*.py) are kernel-owned: `clckernel update` replaces them, and a local

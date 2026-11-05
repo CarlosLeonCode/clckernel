@@ -315,7 +315,7 @@ describe('generateHarness', () => {
 
         const agents = fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8');
         assert.ok(agents.includes('UI Component Reuse First'), 'should include frontend safeguards');
-        // sdds/laila-platform-fit (REQ-1): check_a11y is not installed without an adapter, so A11y is a protocol.
+        // check_a11y is not installed without an adapter, so A11y is a protocol.
         assert.ok(agents.includes('Accessibility & ARIA protocol (agent-enforced'), 'should include the a11y protocol');
         assert.ok(!agents.includes('Scope protocol'), 'should not include backend safeguards');
       } finally {
