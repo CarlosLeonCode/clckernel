@@ -21,6 +21,12 @@
  *   file        {string|null}   bundled tools/ file(s), '+' separated; null = external CLI
  *   manifest    {boolean}       true = declared by >=1 adapter manifest (design §1.2)
  *   planned     {boolean}       true = tool file not yet materialized (future slice)
+ *   since       {string}        optional: kernel version that brought the guard ('X.Y.Z');
+ *                               entries without it are the v2.0.0 baseline. update lists the
+ *                               bundled guards whose since is newer than the project's
+ *                               registry kernelVersion (updater.whatsNew)
+ *   adopt       {string}        optional: one line on what to check before adopting the
+ *                               guard and whether it blocks commits (update, agents)
  */
 
 const SAFEGUARD_CATALOG = [
@@ -142,17 +148,20 @@ const SAFEGUARD_CATALOG = [
   { name: 'check_sql_migrations', labels: ['check_sql_migrations', 'check_sql_migrations.js'],
     checks: 'SQL migrations: applied migrations unchanged, row level security on new tables, security definer search_path, no write grants to anon, drops named', verify: ['verify_sql_migrations', 'verify_row_level_security'],
     applies_when: 'supabase|sql-migrations', severity: 'error', gate_mode: 'hard', config_keys: ['sql_migrations', 'exclude_paths', 'guard_exclude'],
-    phase: 'audit', file: 'check_sql_migrations.js', manifest: true, planned: false, lens: 'security' },
+    phase: 'audit', file: 'check_sql_migrations.js', manifest: true, planned: false, lens: 'security',
+    since: '2.2.0', adopt: 'Needs SQL migration files (default **/supabase/migrations/**/*.sql, else set sql_migrations.paths); by default an edited applied migration, a created table without row level security, a security definer function without search_path or a write grant to anon blocks commits; drops are warnings.' },
 
   { name: 'check_query_efficiency', labels: ['check_query_efficiency', 'check_query_efficiency.js'],
     checks: 'N+1 heuristic for JS/TS data clients (supabase-js, drizzle, prisma, postgres, pg): awaited query calls inside loops; unbounded select(\'*\')', verify: ['verify_query_efficiency', 'verify_no_n_plus_1'],
     applies_when: 'data-client', severity: 'warning', gate_mode: 'advisory', config_keys: ['query_efficiency', 'exclude_paths', 'guard_exclude'],
-    phase: 'audit', file: 'check_query_efficiency.js', manifest: true, planned: false, lens: 'performance' },
+    phase: 'audit', file: 'check_query_efficiency.js', manifest: true, planned: false, lens: 'performance',
+    since: '2.2.0', adopt: 'Needs a JS/TS package that depends on @supabase/supabase-js, drizzle-orm, @prisma/client, postgres or pg; reports awaited query calls in loops and supabase-js select(\'*\') without a limit as warnings, which do not block commits unless query_efficiency.severities raises them to error.' },
 
   { name: 'check_mcp_contracts', labels: ['check_mcp_contracts', 'check_mcp_contracts.js'],
     checks: 'MCP tool registrations declare an input schema; when configured, schemas come from contracts modules (no inline zod) and tool files import no data client', verify: ['verify_mcp_contracts'],
     applies_when: 'mcp', severity: 'error', gate_mode: 'hard', config_keys: ['mcp_contracts', 'exclude_paths', 'guard_exclude'],
-    phase: 'audit', file: 'check_mcp_contracts.js', manifest: true, planned: false, lens: 'architecture' },
+    phase: 'audit', file: 'check_mcp_contracts.js', manifest: true, planned: false, lens: 'architecture',
+    since: '2.2.0', adopt: 'Needs a JS/TS package that depends on @modelcontextprotocol/sdk; by default a tool registered without an input schema blocks commits; the contracts-module and data-client rules apply only when mcp_contracts configures them.' },
 
   { name: 'ruff', labels: ['ruff'],
     checks: 'Python linter (external CLI)', verify: ['verify_python_lint'],

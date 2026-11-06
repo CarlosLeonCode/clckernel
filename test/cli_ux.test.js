@@ -183,6 +183,16 @@ describe('--help is honest', () => {
     const writes = section(res.stdout, /writes to the target project/i);
     assert.ok(/^\s+update\b/m.test(writes), 'update must be listed under writes');
   });
+
+  // sdds/update-whats-new: update --json is documented with the other update flags.
+  it('documents update --json and shows it in the examples', () => {
+    const res = runCli(['--help']);
+    assert.strictEqual(res.status, 0);
+    const writes = section(res.stdout, /writes to the target project/i);
+    assert.match(writes, /^\s+--json\b.*update/m, `--json missing under writes:\n${writes}`);
+    const examples = section(res.stdout, /^EXAMPLES/);
+    assert.match(examples, /clckernel update \. --dry-run --json/);
+  });
 });
 
 describe('core.hooksPath is only set when safe', () => {

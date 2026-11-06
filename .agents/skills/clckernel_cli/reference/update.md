@@ -14,11 +14,18 @@ Use this playbook when the user wants to update an existing project to the lates
 
 ### Phase 1: Inspection & Plan
 1. Verify the project is already governed by checking for `AGENTS.md`, `tools/.clckernel-managed.json`, `.githooks/pre-commit` or `.husky/pre-commit`.
-2. Run `npx clckernel update [dir] --dry-run` and show the plan (written, kept, excluded by `update.exclude`). Nothing is written.
-3. **STOP.** Wait for the user's approval of the plan.
+2. Run `npx clckernel update [dir] --dry-run --json`. Nothing is written. stdout is one JSON object (`contract: clckernel.update-plan/v1`): `plan` (written, kept, excluded by `update.exclude`), `kernelVersion` (`installed`, `current`), `whatsNew`, `warnings` and `nextSteps`. When `success` is `false`, show `error` and stop. (`npx clckernel update [dir] --dry-run` prints the same plan as text.)
+3. Show the plan. Then, for each `whatsNew` entry (a guard released after `kernelVersion.installed`):
+   - explain what it does (`checks`);
+   - say whether it blocks commits (`blocking`, the catalog default; the project's `severities` can change it);
+   - check the project against `adopt` (does it have the files or dependencies the guard reads?) and say what you found;
+   - recommend adopting it or not, and why. An entry with `installed: true` is already in the project: only report it.
+
+   `whatsNew` is empty when the project already runs the current version or its registry has no `kernelVersion`.
+4. **STOP.** Wait for the user's approval of the plan and of each new guard to adopt.
 
 ### Phase 2: Run the Update
-1. Run `npx clckernel update [dir]`. It refreshes, in one pass:
+1. Run `npx clckernel update [dir]`, with `--add-guards <a,b>` naming only the new guards the user approved in Phase 1 (e.g. `npx clckernel update . --add-guards check_sql_migrations`). It refreshes, in one pass:
    - the kernel tools the project already has in `tools/` (`audit.js` / `audit.py`, guards, helpers) — update never adds a guard the project did not choose;
    - the skill and playbooks in `.agents/skills/clckernel_cli/`;
    - the IDE mirrors that link to `AGENTS.md`;

@@ -300,6 +300,24 @@ npx clckernel update . --add-guards check_skills,check_placeholders
 npx clckernel update . --add-guards all
 ```
 
+### 🆕 What is new since your version
+The registry records the kernel version of the last install or update (`kernelVersion`). `update` lists each
+bundled guard released after it in a *New since <installed> (<current>)* section, after *available, not
+installed*: what it checks, `[blocks commits]` when its default level blocks a commit, `(installed)` when the
+project already has it, what to check before adopting it, and the `--add-guards` command that adds it. Nothing
+is installed on its own. A registry without `kernelVersion`, or a project already on the current version,
+gets no such section.
+
+For agents, `--json` (with or without `--dry-run`) prints one JSON object on stdout instead of the text (no
+banner, no colors): `contract` (`clckernel.update-plan/v1`), `success`, `dryRun`, `kernelVersion`
+(`installed`, `current`), `plan`, `whatsNew` (`name`, `since`, `checks`, `blocking`, `adopt`, `installed`,
+`inStack`, `command`), `warnings`, `preserved`, `retiredGuards`, `legacyCleanup` and `nextSteps`. An error
+prints `{ contract, success: false, error }` and exits 1. The `update` playbook runs `--dry-run --json`,
+reviews each new guard with you and adds only the ones you approve.
+```bash
+npx clckernel update . --dry-run --json
+```
+
 ---
 
 <a id="configuration"></a>

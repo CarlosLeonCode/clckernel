@@ -237,6 +237,15 @@ describe('honest claims — catalog and tool docstrings', () => {
     assert.deepStrictEqual(offenders, []);
   });
 
+  // sdds/update-whats-new: `adopt` is shown by update and read by agents.
+  it('catalog `adopt` texts contain no overstated phrases', () => {
+    const offenders = CATALOG
+      .filter((entry) => typeof entry.adopt === 'string')
+      .filter((entry) => findForbidden(entry.adopt).length > 0 || AST_RE.test(entry.adopt))
+      .map((entry) => `${entry.name}: ${entry.adopt}`);
+    assert.deepStrictEqual(offenders, []);
+  });
+
   it('catalog `checks` mention AST only for real-ast guards', () => {
     const offenders = CATALOG
       .filter((entry) => AST_RE.test(entry.checks))
@@ -539,6 +548,10 @@ describe('honest claims — playbooks and AGENTS.md vs the CLI (sdds/final-sweep
     assert.match(text, /--add-guards/);
     assert.doesNotMatch(text, /moved into `tools\/guards\/`/);
     assert.match(text, /--hook/);
+    // sdds/update-whats-new: Phase 1 reads the JSON plan and reviews each whatsNew entry before the STOP.
+    assert.match(text, /npx clckernel update \[dir\] --dry-run --json/);
+    assert.match(text, /whatsNew/);
+    assert.match(text, /adopt/);
   });
 
   it('audit.md and doctor.md name the CLI entry points', () => {

@@ -50,23 +50,25 @@ function loadKnownHashes() {
 /**
  * Reads the registry in either format.
  * @param {string} root - Project root
- * @returns {{ format: 'none'|'list'|'hashed', paths: string[], hashes: Map<string, string>, technologies: string[]|null, extraGuards: string[], agentsSections: object }}
+ * @returns {{ format: 'none'|'list'|'hashed', paths: string[], hashes: Map<string, string>, kernelVersion: string|null, technologies: string[]|null, extraGuards: string[], agentsSections: object }}
  */
 function readRegistry(root) {
   let data;
   try {
     data = JSON.parse(fs.readFileSync(path.join(root, MANAGED_REGISTRY), 'utf-8'));
   } catch {
-    return { format: 'none', paths: [], hashes: new Map(), technologies: null, extraGuards: [], agentsSections: {} };
+    return { format: 'none', paths: [], hashes: new Map(), kernelVersion: null, technologies: null, extraGuards: [], agentsSections: {} };
   }
   if (Array.isArray(data)) {
-    return { format: 'list', paths: data.filter((f) => typeof f === 'string'), hashes: new Map(), technologies: null, extraGuards: [], agentsSections: {} };
+    return { format: 'list', paths: data.filter((f) => typeof f === 'string'), hashes: new Map(), kernelVersion: null, technologies: null, extraGuards: [], agentsSections: {} };
   }
   const files = data && Array.isArray(data.files) ? data.files : [];
   const hashes = new Map();
   for (const f of files) {
     if (f && typeof f.path === 'string' && typeof f.sha256 === 'string') hashes.set(f.path, f.sha256);
   }
+  // Kernel version of the last install/update (update reports what is newer); null without the field.
+  const kernelVersion = data && typeof data.kernelVersion === 'string' ? data.kernelVersion : null;
   // Technologies detected by the last install/update; null when the registry predates the field.
   const technologies = data && Array.isArray(data.technologies) ? data.technologies.filter((t) => typeof t === 'string') : null;
   // Catalog guards added with --add-guards outside the stack's manifest (REQ-7).
@@ -76,7 +78,7 @@ function readRegistry(root) {
   if (data && data.agentsSections && typeof data.agentsSections === 'object' && !Array.isArray(data.agentsSections)) {
     for (const [heading, sha] of Object.entries(data.agentsSections)) if (typeof sha === 'string') agentsSections[heading] = sha;
   }
-  return { format: 'hashed', paths: [...hashes.keys()], hashes, technologies, extraGuards, agentsSections };
+  return { format: 'hashed', paths: [...hashes.keys()], hashes, kernelVersion, technologies, extraGuards, agentsSections };
 }
 
 /**

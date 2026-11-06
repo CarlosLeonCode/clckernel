@@ -193,12 +193,13 @@ function printSuccess(targetDir, hook, config, installedGuards = []) {
  * unchanged, protected (with the .clckernel-new path), moved, removed, added
  * to .gitignore and git config; then what was left out on purpose: guards
  * available but not installed, mirrors not present, tracked paths not
- * ignored. A dry run prints the same sections as a plan.
- * @param {object} plan - io.plan()
- * @param {{ dryRun?: boolean }} [options]
+ * ignored. A dry run prints the same sections as a plan. An update plan also
+ * lists the guards released since the installed version (plan.whatsNew).
+ * @param {object} plan - io.plan(), plus whatsNew on update
+ * @param {{ dryRun?: boolean, kernelVersion?: { installed: string|null, current: string } }} [options]
  * @returns {string[]}
  */
-function planLines(plan, { dryRun = false } = {}) {
+function planLines(plan, { dryRun = false, kernelVersion = null } = {}) {
   const label = (real, planned) => (dryRun ? planned : real);
   const lines = [];
   const section = (title, items, color = colors.emerald) => {
@@ -220,6 +221,8 @@ function planLines(plan, { dryRun = false } = {}) {
   section(label('Added for newly detected technologies', 'Would add for newly detected technologies'), plan.detected || []);
   // what was left out on purpose.
   section('Available, not installed (add with --add-guards <name,...|all>)', plan.available || [], colors.cyan);
+  // guards released since the version the project last ran (update).
+  lines.push(...whatsNewLines(plan.whatsNew || [], kernelVersion));
   section('Mirrors not present (skipped)', plan.mirrorsSkipped || [], colors.cyan);
   section('Tracked, not ignored (git tracks them; no .gitignore entry added)', plan.trackedNotIgnored || [], colors.cyan);
   // update.exclude in .clckernel.yaml.
@@ -232,6 +235,29 @@ function planLines(plan, { dryRun = false } = {}) {
   if (dryRun) {
     lines.push('');
     lines.push(`${colors.cyan}Dry run: nothing was written (no files, .gitignore or git config).${colors.reset}`);
+  }
+  return lines;
+}
+
+/**
+ * The "New since <installed> (<current>)" section of an update plan: per
+ * guard, what it checks, whether it blocks commits (catalog default), whether
+ * the project has it, what to check before adopting it and the command.
+ * @param {object[]} entries - plan.whatsNew (updater.whatsNew)
+ * @param {{ installed: string|null, current: string }|null} kernelVersion
+ * @returns {string[]} Empty without entries
+ */
+function whatsNewLines(entries, kernelVersion) {
+  if (entries.length === 0) return [];
+  const installed = (kernelVersion && kernelVersion.installed) || 'the installed version';
+  const current = (kernelVersion && kernelVersion.current) || PACKAGE_VERSION;
+  const lines = [`${colors.bold}New since ${installed} (${current}):${colors.reset}`];
+  for (const entry of entries) {
+    const blocks = entry.blocking ? ` ${colors.amber}[blocks commits]${colors.reset}` : '';
+    const has = entry.installed ? ` ${colors.gray}(installed)${colors.reset}` : '';
+    lines.push(`   ${colors.cyan}•${colors.reset} ${entry.name} — ${entry.checks}${blocks}${has}`);
+    if (entry.adopt) lines.push(`     ${entry.adopt}`);
+    if (!entry.installed) lines.push(`     ${colors.cyan}${entry.command}${colors.reset}`);
   }
   return lines;
 }
@@ -309,21 +335,40 @@ function nextStepsLines(hook, plan, config = {}) {
 }
 
 /**
- * Shorter "Next steps" after an update: only what needs attention
- * (protected files to merge, guards available but not installed); empty
- * when nothing does.
- * @param {object} plan - io.plan()
+ * The steps after an update, as plain text (update --json): protected files
+ * to merge, each guard released since the installed version that the project
+ * does not have (its own command), then the other guards available but not
+ * installed. Empty when nothing needs attention.
+ * @param {object} plan - io.plan(), plus whatsNew on update
+ * @param {{ cmd?: (text: string) => string }} [options] - Formats a command
  * @returns {string[]}
  */
-function updateNextStepsLines(plan) {
-  const c = colors;
+function updateNextSteps(plan, { cmd = (text) => text } = {}) {
   const steps = [];
   for (const entry of plan.protected || []) {
     steps.push(`Review ${entry.newPath}, merge what you want into ${entry.path}, then delete the copy.`);
   }
-  if ((plan.available || []).length > 0) {
-    steps.push(`Optional guards: ${c.cyan}npx clckernel update --add-guards ${plan.available.join(',')}${c.reset}`);
+  const news = (plan.whatsNew || []).filter((entry) => !entry.installed);
+  for (const entry of news) {
+    steps.push(`New in ${entry.since}: ${cmd(entry.command)}${entry.blocking ? ' (blocks commits)' : ''}`);
   }
+  const newNames = new Set(news.map((entry) => entry.name));
+  const optional = (plan.available || []).filter((name) => !newNames.has(name));
+  if (optional.length > 0) {
+    steps.push(`Optional guards: ${cmd(`npx clckernel update --add-guards ${optional.join(',')}`)}`);
+  }
+  return steps;
+}
+
+/**
+ * Shorter "Next steps" after an update: updateNextSteps with a header,
+ * numbers and colored commands; empty when nothing needs attention.
+ * @param {object} plan - io.plan(), plus whatsNew on update
+ * @returns {string[]}
+ */
+function updateNextStepsLines(plan) {
+  const c = colors;
+  const steps = updateNextSteps(plan, { cmd: (text) => `${c.cyan}${text}${c.reset}` });
   if (steps.length === 0) return [];
   return [`${c.bold}Next steps${c.reset}`, ...steps.map((step, i) => `  ${i + 1}. ${step}`)];
 }
@@ -336,6 +381,7 @@ function printPlan(plan, options) {
 module.exports = {
   planLines,
   nextStepsLines,
+  updateNextSteps,
   updateNextStepsLines,
   harnessNames,
   printPlan,

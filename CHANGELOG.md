@@ -7,6 +7,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `update` reports what is new since the project's version: the registry's `kernelVersion` (now returned by
+  `readRegistry`) is compared with a new optional `since` field of the catalog (`2.2.0` for
+  `check_sql_migrations`, `check_query_efficiency` and `check_mcp_contracts`). A *New since <installed>
+  (<current>)* section lists each new bundled guard with what it checks, `[blocks commits]` when its default
+  level blocks, `(installed)` when the project has it, an `adopt` line (what to check before adopting it) and
+  the `--add-guards` command; the update next steps list the command of each new guard not installed. Nothing is
+  installed without `--add-guards`. A registry without `kernelVersion` reports nothing new.
+- `update --json` (with or without `--dry-run`): stdout gets one JSON object, `clckernel.update-plan/v1`, with
+  the plan, `kernelVersion`, `whatsNew`, warnings and plain-text next steps, and no banner or colors; an error
+  prints `{ contract, success: false, error }` and exits 1. `--json` twice, or on another command, is rejected.
+- The `update` playbook runs `npx clckernel update [dir] --dry-run --json`, reviews each `whatsNew` entry (what
+  it does, whether it blocks commits, the project against `adopt`, a recommendation) and stops for approval;
+  Phase 2 adds only the approved guards.
+
 ## [2.2.1] - 2026-11-05
 
 ### Fixed

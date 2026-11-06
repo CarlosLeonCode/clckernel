@@ -27,23 +27,31 @@ const DRY_RUN_FLAG = '--dry-run';
 /** Opts guards the project does not have into an update. */
 const ADD_GUARDS_FLAG = '--add-guards';
 
+/** update only: print one JSON object (the plan and what is new) instead of text. */
+const JSON_FLAG = '--json';
+
 /**
  * Parses the arguments after `update`: at most one target dir, --dry-run,
- * and `--add-guards <a,b|all>` (or `--add-guards=<...>`). The names are
- * checked against the stack's manifest by the updater, before any write.
+ * --json (once) and `--add-guards <a,b|all>` (or `--add-guards=<...>`). The
+ * names are checked against the stack's manifest by the updater, before any write.
  * @param {string[]} rest - Arguments without the `update` word
- * @returns {{ positionals: string[], dryRun: boolean, addGuards?: string[]|'all' }|null}
+ * @returns {{ positionals: string[], dryRun: boolean, json: boolean, addGuards?: string[]|'all' }|null}
  *   null when the input is not understood
  */
 function parseUpdateArgs(rest) {
   const positionals = [];
   let dryRun = false;
+  let json = false;
   let addGuards;
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i];
     let value = null;
     if (arg === DRY_RUN_FLAG) {
       dryRun = true;
+      continue;
+    } else if (arg === JSON_FLAG) {
+      if (json) return null;
+      json = true;
       continue;
     } else if (arg === ADD_GUARDS_FLAG) {
       value = rest[i + 1];
@@ -63,7 +71,7 @@ function parseUpdateArgs(rest) {
     addGuards = names.includes('all') ? 'all' : names;
   }
   if (positionals.length > 1) return null;
-  return { positionals, dryRun, addGuards };
+  return { positionals, dryRun, json, addGuards };
 }
 
 /**
@@ -98,6 +106,10 @@ WRITES TO THE TARGET PROJECT
                                 guards and mirrors you have are refreshed;
                                 none are added
   --add-guards <a,b|all>        With update: also install these guards
+  --json                        With update: print one JSON object (the plan,
+                                the guards new since the installed version,
+                                warnings, next steps) instead of text, for
+                                agents; add --dry-run to write nothing
   clckernel [targetDir] --yes   Provision the governance harness
   --dry-run                     With update or --yes: print the plan, write nothing
 
@@ -118,6 +130,7 @@ EXAMPLES
   clckernel audit . --change my-feature
   clckernel update .
   clckernel update . --dry-run
+  clckernel update . --dry-run --json
   clckernel update . --add-guards check_skills
   clckernel . --yes
 `;
@@ -295,7 +308,7 @@ async function runCli() {
     }
     const { runUpdate } = require('./updater');
     const target = parsed.positionals[0];
-    await runUpdate(target ? path.resolve(target) : process.cwd(), { dryRun: parsed.dryRun, addGuards: parsed.addGuards });
+    await runUpdate(target ? path.resolve(target) : process.cwd(), { dryRun: parsed.dryRun, addGuards: parsed.addGuards, json: parsed.json });
     return;
   }
 

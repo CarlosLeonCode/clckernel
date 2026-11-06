@@ -14,6 +14,9 @@ const { autoDetectStack } = require('./detector');
 const { generateHarness, manifestGuardNames } = require('./generator');
 const { createIO, runWithIO, currentIO, sha256, NEW_SUFFIX } = require('./io');
 const { CONFIG_NAMES, readProjectConfig, globMatcher } = require('./config');
+const { SAFEGUARD_CATALOG } = require('./catalog');
+const { isNewer, isVersion } = require('./version');
+const { version: KERNEL_VERSION } = require('../package.json');
 
 // Artifacts written by releases that still used the old project name.
 const SKILLS_REL = path.join('.agents', 'skills');
@@ -22,6 +25,9 @@ const CURRENT_SKILL = 'clckernel_cli';
 const LEGACY_CURSOR_RULE = '.cursor/rules/clc_forge_context.mdc';
 const LEGACY_RESOLVED_JSON = '.clc-forge.resolved.json';
 const BUNDLED_SKILL_DIR = path.join(__dirname, '..', SKILLS_REL, CURRENT_SKILL);
+
+// Contract name of the JSON that `update --json` prints (one object on stdout).
+const UPDATE_PLAN_CONTRACT = 'clckernel.update-plan/v1';
 
 // Guard file names the audit orchestrators discover at the top of tools/: check_*, scan_*, verify_* or *_guard, .js or .py.
 const GUARD_FILE_RE = /^tools\/(?:(?:check|scan|verify)_[^/]*|[^/]*_guard)\.(?:js|py)$/;
@@ -189,6 +195,37 @@ function validateAddGuards(requested, offered) {
 }
 
 /**
+ * Guards released since the kernel version the project last installed or
+ * updated with: bundled catalog entries (a tools/ file, not planned) whose
+ * `since` is newer than that version, in catalog order. Pure. Without a
+ * baseline (null, or a malformed value in a hand-edited registry) nothing is
+ * new, as with a registry that predates `technologies` (generator: newTechnology).
+ * @param {object} input
+ * @param {Array} [input.catalog] - Catalog entries (SAFEGUARD_CATALOG)
+ * @param {string|null} input.installedVersion - The registry's kernelVersion
+ * @param {string[]} [input.installed] - Guard names the project has after this run
+ * @param {string[]} [input.offered] - Guard names the stack's manifest offers
+ * @returns {{ name: string, since: string, checks: string, blocking: boolean, adopt: string|null,
+ *   installed: boolean, inStack: boolean, command: string }[]}
+ */
+function whatsNew({ catalog = SAFEGUARD_CATALOG, installedVersion = null, installed = [], offered = [] } = {}) {
+  if (!isVersion(installedVersion)) return [];
+  return catalog
+    .filter((entry) => entry.file && !entry.planned && entry.since && isNewer(entry.since, installedVersion))
+    .map((entry) => ({
+      name: entry.name,
+      since: entry.since,
+      checks: entry.checks,
+      // Catalog defaults: the project's severities can change the level.
+      blocking: entry.severity === 'error' && entry.gate_mode === 'hard',
+      adopt: entry.adopt || null,
+      installed: installed.includes(entry.name),
+      inStack: offered.includes(entry.name),
+      command: `npx clckernel update --add-guards ${entry.name}`,
+    }));
+}
+
+/**
  * Refreshes the harness of an installed project. It updates what the project
  * has and never adds guards or mirrors it does not have; options.addGuards opts guards in.
  * @param {string} [targetDir] - Project root
@@ -210,7 +247,8 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
 
   // --add-guards is checked before anything is written: an unknown name
   // fails the whole update.
-  const { add: addGuards, foreign: foreignGuards } = validateAddGuards(options.addGuards, manifestGuardNames(resolvedDir, detected));
+  const offered = manifestGuardNames(resolvedDir, detected);
+  const { add: addGuards, foreign: foreignGuards } = validateAddGuards(options.addGuards, offered);
 
   // 2. Identify existing preserved assets
   const preserved = {
@@ -231,18 +269,23 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
     mode: 'update',
     exclude: globMatcher(projectConfig.config.update.exclude),
   });
-  const { retiredGuards, legacyCleanup } = runWithIO(io, () => {
+  const { retiredGuards, legacyCleanup, installedGuards } = runWithIO(io, () => {
     // Snapshot the installed skill first: the legacy copy is compared against it.
     const previousSkill = snapshotFiles(path.join(resolvedDir, SKILLS_REL, CURRENT_SKILL)).files;
     // Also refreshes the kernel-owned AGENTS.md sections (generator: syncAgentsSections).
-    generateHarness(resolvedDir, detected, { addGuards, projectConfig });
+    const generated = generateHarness(resolvedDir, detected, { addGuards, projectConfig }) || {};
     const retired = retiredKernelGuards(io, resolvedDir, knownHashes);
     const cleanup = cleanupLegacyArtifacts(resolvedDir, previousSkill);
     const { ensureGitignoreEntries } = require('./gitignore');
     ensureGitignoreEntries(resolvedDir);
     injectUpdateRow(io, resolvedDir);
-    return { retiredGuards: retired, legacyCleanup: cleanup };
+    return { retiredGuards: retired, legacyCleanup: cleanup, installedGuards: generated.installedGuards || [] };
   });
+
+  // The registry was read before this run wrote it: its kernelVersion is the
+  // version the project ran until now, in a dry run and a real one alike.
+  const kernelVersion = { installed: io.registry.kernelVersion, current: KERNEL_VERSION };
+  const news = whatsNew({ installedVersion: kernelVersion.installed, installed: installedGuards, offered });
 
   return {
     success: true,
@@ -253,7 +296,8 @@ function updateHarness(targetDir = process.cwd(), options = {}) {
     foreignGuards,
     legacyCleanup,
     retiredGuards,
-    plan: io.plan(),
+    kernelVersion,
+    plan: { ...io.plan(), whatsNew: news },
     refreshed: {
       tools: true,
       skills: true,
@@ -287,7 +331,52 @@ function injectUpdateRow(io, resolvedDir) {
   }
 }
 
+/**
+ * The `update --json` object: the plan, what is new since the installed
+ * version, the warnings and the next steps as plain text. whatsNew is
+ * reported once, at the top level, not inside the plan.
+ * @param {object} result - updateHarness result
+ * @returns {object}
+ */
+function updatePlanJson(result) {
+  const { updateNextSteps } = require('./ui');
+  const { whatsNew: news, ...plan } = result.plan;
+  return {
+    contract: UPDATE_PLAN_CONTRACT,
+    success: true,
+    dryRun: result.dryRun,
+    kernelVersion: result.kernelVersion,
+    plan,
+    whatsNew: news,
+    warnings: { config: result.configWarnings, foreignGuards: result.foreignGuards },
+    preserved: result.preserved,
+    retiredGuards: result.retiredGuards,
+    legacyCleanup: result.legacyCleanup,
+    nextSteps: updateNextSteps(result.plan),
+  };
+}
+
+/**
+ * `update --json`: stdout gets exactly one JSON object (no banner, header or
+ * colors); an error is { contract, success: false, error } with exit code 1.
+ * The exit code is set, not forced, so the whole object reaches a pipe.
+ */
+function runUpdateJson(targetDir, options) {
+  let payload;
+  let result = null;
+  try {
+    result = updateHarness(targetDir, { dryRun: !!options.dryRun, addGuards: options.addGuards });
+    payload = updatePlanJson(result);
+  } catch (err) {
+    payload = { contract: UPDATE_PLAN_CONTRACT, success: false, error: err.message };
+    process.exitCode = 1;
+  }
+  process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+  return result;
+}
+
 async function runUpdate(targetDir = process.cwd(), options = {}) {
+  if (options.json) return runUpdateJson(targetDir, options);
   const { colors, printBanner, printPlan } = require('./ui');
   const dryRun = !!options.dryRun;
   printBanner();
@@ -310,7 +399,7 @@ async function runUpdate(targetDir = process.cwd(), options = {}) {
       console.log(`${colors.amber}⚠ Kept legacy artifact ${keptPath} (${reason}); review and remove it manually${colors.reset}`);
     }
     console.log('');
-    printPlan(result.plan, { dryRun });
+    printPlan(result.plan, { dryRun, kernelVersion: result.kernelVersion });
     console.log(`\n${colors.bold}🔒 ACTIVOS PRESERVADOS AL 100%:${colors.reset}`);
     console.log(`   • ${colors.emerald}sdds/${colors.reset} (Especificaciones locales intactas)`);
     console.log(`   • ${colors.emerald}tools/guards/${colors.reset} (Reglas y salvaguardas personalizadas intactas)`);
@@ -333,4 +422,4 @@ async function runUpdate(targetDir = process.cwd(), options = {}) {
   }
 }
 
-module.exports = { updateHarness, runUpdate };
+module.exports = { updateHarness, runUpdate, whatsNew, UPDATE_PLAN_CONTRACT };
