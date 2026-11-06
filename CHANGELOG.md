@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-11-05
+
 ### Fixed
 
 - `verify_tdd` (JS and Python) applies `tdd.ignore` to tests too: a matching file is left out of the
@@ -428,7 +430,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Previous release.
 
-[Unreleased]: https://github.com/CarlosLeonCode/clc_forge/compare/v2.2.0...HEAD
+[Unreleased]: https://github.com/CarlosLeonCode/clc_forge/compare/v2.2.1...HEAD
+[2.2.1]: https://github.com/CarlosLeonCode/clc_forge/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/CarlosLeonCode/clc_forge/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/CarlosLeonCode/clc_forge/compare/v2.0.4...v2.1.0
 [2.0.4]: https://github.com/CarlosLeonCode/clc_forge/compare/v2.0.3...v2.0.4
