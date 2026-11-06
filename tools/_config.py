@@ -29,7 +29,7 @@ CONFIG_NAMES = ['.clckernel.yaml', '.clckernel.yml', '.clc-forge.yaml', '.clc-fo
 
 KEYS = [
     "rules", "exclude_paths", "mirrors", "hitl", "update", "tdd", "severities", "guard_exclude",
-    "sql_migrations", "query_efficiency", "mcp_contracts", "ui_reuse",
+    "sql_migrations", "query_efficiency", "mcp_contracts", "ui_reuse", "journal",
 ]
 LEVELS = ["error", "warning"]
 # Levels of one rule of a guard (its section's `severities`): 'off' disables the rule.
@@ -61,6 +61,9 @@ GUARD_SECTIONS = {
         "rules": {},
     },
 }
+
+# Defaults of the journal key (check_journal, `clckernel journal`; twin of JOURNAL_DEFAULTS in _config.js).
+JOURNAL_DEFAULTS = {"dir": "docs/Journal", "max_lines": 80}
 
 DEPRECATED_KEYS = {
     "active_guards": "guards are chosen by the stack, the registry and `clckernel update --add-guards`",
@@ -97,6 +100,7 @@ def default_config() -> dict:
             key: {**json.loads(json.dumps(spec["defaults"])), "severities": dict(spec["rules"])}
             for key, spec in GUARD_SECTIONS.items()
         },
+        "journal": dict(JOURNAL_DEFAULTS),
     }
 
 
@@ -232,6 +236,28 @@ def _validate_guard_section(raw: dict, key: str, file: str, config: dict) -> Non
         config[key]["severities"][rule] = level
 
 
+def _validate_journal(raw: dict, file: str, config: dict) -> None:
+    """journal: dir, a folder inside the project (normalized, no trailing slash),
+    and max_lines, a positive integer (twin of validateJournal in _config.js)."""
+    journal = _section(raw, "journal", list(JOURNAL_DEFAULTS.keys()), file)
+    folder = journal.get("dir")
+    if folder is not None:
+        if not isinstance(folder, str) or folder.strip() == "":
+            raise ConfigError("journal.dir", "expected a non-empty folder path", file)
+        normalized = posixpath.normpath(folder.replace("\\", "/")).rstrip("/")
+        if (os.path.isabs(folder) or folder.startswith("/") or normalized in (".", "..")
+                or normalized.startswith("../")):
+            raise ConfigError("journal.dir", f'"{folder}" must be a folder inside the project', file)
+        config["journal"]["dir"] = normalized
+    max_lines = journal.get("max_lines")
+    if max_lines is not None:
+        if isinstance(max_lines, float) and max_lines.is_integer():
+            max_lines = int(max_lines)
+        if isinstance(max_lines, bool) or not isinstance(max_lines, int) or max_lines < 1:
+            raise ConfigError("journal.max_lines", f"expected a positive integer, got {json.dumps(max_lines)}", file)
+        config["journal"]["max_lines"] = max_lines
+
+
 def validate_config(raw: Any, file: str = CONFIG_NAMES[0]) -> tuple:
     """Validate a parsed config and fill in the defaults: (config, warnings)."""
     if not isinstance(raw, dict):
@@ -290,6 +316,7 @@ def validate_config(raw: Any, file: str = CONFIG_NAMES[0]) -> tuple:
     config["guard_exclude"] = _validate_guard_exclude(raw.get("guard_exclude"), file)
     for key in GUARD_SECTIONS:
         _validate_guard_section(raw, key, file, config)
+    _validate_journal(raw, file, config)
 
     return config, warnings
 

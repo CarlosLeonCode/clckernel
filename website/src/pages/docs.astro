@@ -92,6 +92,8 @@ $ clckernel doctor           -> npx clckernel doctor [dir]: AGENTS.md, sdds/, to
 $ clckernel commit <message> -> Pre-flight audit, SDD scope check & Conventional Commit
 $ clckernel guard create <n> -> Scaffolds custom guard script in stack native language
 $ clckernel update           -> npx clckernel update [dir] [--dry-run] [--json] [--add-guards <a,b|all>]
+$ clckernel journal <change> -> npx clckernel journal <change> [dir]: creates docs/Journal/<YYYY>/<timestamp>-<change>.md
+                                to fill in from the SDD (Context, Decision, Alternatives, Consequences)
 $ clckernel start            -> Agent: detects the stack, installs the harness if missing (npx clckernel . --yes);
                                 keeping the defaults writes a comment-only .clckernel.yaml`,
       },
@@ -136,7 +138,9 @@ $ npx clckernel update
 11. check_skills        -> SKILL.md frontmatter: name + description, unique names
 12. check_links         -> Relative Markdown links resolve to files in the commit
 13. check_placeholders  -> Forgotten draft placeholders outside templates/
-14. check_data_files    -> Every changed .json file parses (any folder)`,
+14. check_data_files    -> Every changed .json file parses (any folder)
+15. check_journal       -> Optional (--add-guards check_journal): an SDD change audited on HEAD needs its
+                           docs/Journal/<YYYY>/ entry in the commit; skipped without sdds/ (CI)`,
       },
       {
         id: "ast-examples",
@@ -160,7 +164,7 @@ $ npx clckernel update
       {
         id: "config-yaml",
         title: "Configuration (.clckernel.yaml)",
-        desc: "Optional. Keys: rules, exclude_paths, mirrors, hitl, update, tdd, severities, guard_exclude (see the README Configuration table). To keep paths out of one guard only, prefer guard_exclude over exclude_paths, which hides them from every guard. Guards are chosen by the stack, not by this file; add more with clckernel update --add-guards.",
+        desc: "Optional. Keys: rules, exclude_paths, mirrors, hitl, update, tdd, severities, guard_exclude, journal (see the README Configuration table). To keep paths out of one guard only, prefer guard_exclude over exclude_paths, which hides them from every guard. Guards are chosen by the stack, not by this file; add more with clckernel update --add-guards.",
         code: `# .clckernel.yaml (optional; every key below is optional)
 rules:
   - name: no-console-log

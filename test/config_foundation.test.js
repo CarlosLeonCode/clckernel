@@ -70,6 +70,8 @@ const DEFAULTS = {
     severities: { missing_schema: 'error', inline_schema: 'error', schema_source: 'error', data_client: 'error' },
   },
   ui_reuse: { primitives: ['**/components/ui/**'], severities: {} },
+  // sdds/decision-log: check_journal's folder and entry length.
+  journal: { dir: 'docs/Journal', max_lines: 80 },
 };
 
 // ── 1. Schema ────────────────────────────────────────────────────────────
@@ -607,6 +609,7 @@ describe('item 9: the README config tables list every key', () => {
     'sql_migrations.paths', 'sql_migrations.schemas', 'sql_migrations.anon_roles', 'sql_migrations.severities',
     'query_efficiency.call_patterns', 'query_efficiency.severities',
     'mcp_contracts.contracts_modules', 'mcp_contracts.forbid_data_clients', 'mcp_contracts.severities', 'ui_reuse.primitives',
+    'journal.dir', 'journal.max_lines',
   ];
   for (const file of ['README.md', 'README.es.md']) {
     it(file, () => {

@@ -22,6 +22,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The `update` playbook runs `npx clckernel update [dir] --dry-run --json`, reviews each `whatsNew` entry (what
   it does, whether it blocks commits, the project against `adopt`, a recommendation) and stops for approval;
   Phase 2 adds only the approved guards.
+- `check_journal` (JS, optional; `update --add-guards check_journal`, `since: 2.3.0`): for each
+  `sdds/<change>/audit-receipt*.json` whose `commitHash` is the current HEAD, the commit needs the change's entry
+  `docs/Journal/<YYYY>/<YYYYMMDDTHHMMZ>-<change>.md` in the index or in HEAD; staged entries need a valid name, a
+  frontmatter `change:` matching it, the sections Context, Decision, Alternatives and Consequences, and at most
+  `journal.max_lines` lines. Receipts of other commits are ignored; without `sdds/` (CI) it is skipped. The numbered
+  ADRs at the root of `docs/Journal/` are not checked.
+- `clckernel journal <change> [targetDir]` creates that entry from a template (UTC timestamp, the `audit --change`
+  name rule) and refuses a change that already has one.
+- `.clckernel.yaml` key `journal`: `dir` (default `docs/Journal`) and `max_lines` (default 80), validated by
+  `tools/_config.js` and `tools/_config.py`.
+- The `feature`, `fix` and `commit` playbooks read the year's journal entries during Research and, with
+  `check_journal` installed, create the change's entry after the audit and commit it with the change.
+- The catalog `since` of an entry may be the next minor of the package version, so a guard is declared before
+  its release.
 
 ## [2.2.1] - 2026-11-05
 

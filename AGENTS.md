@@ -23,6 +23,8 @@ AI-governance harness (Node >= 18, CommonJS, one runtime dependency: `@clack/pro
    `sdds/{change-name}/`; without `--change` nothing is written).
 6. **DoD** — tests green, docs updated (README.md, README.es.md, AGENTS.md, playbooks, CHANGELOG `[Unreleased]`),
    `npm run website:build` when `website/` changed.
+   Then `node bin/cli.js journal {change-name} .` and fill in the entry (`docs/Journal/<YYYY>/`, ≤80 lines,
+   Context/Decision/Alternatives/Consequences, no local paths or `sdds/` links); it goes in the same commit.
 7. **Commit** — Conventional Commits, never AI attribution (no `Co-Authored-By` for an AI tool). The hook runs.
 8. **PR** — template + Conventional Commit title.
 

@@ -92,6 +92,8 @@ $ clckernel doctor           -> npx clckernel doctor [dir]: AGENTS.md, sdds/, to
 $ clckernel commit <mensaje> -> Auditoría pre-flight, verificación de scope SDD y commit convencional
 $ clckernel guard create <n> -> Genera el scaffold de un guard nativo en tools/guards/
 $ clckernel update           -> npx clckernel update [dir] [--dry-run] [--json] [--add-guards <a,b|all>]
+$ clckernel journal <cambio> -> npx clckernel journal <cambio> [dir]: crea docs/Journal/<YYYY>/<timestamp>-<cambio>.md
+                                para completar desde el SDD (Context, Decision, Alternatives, Consequences)
 $ clckernel start            -> Agente: detecta el stack e instala el arnés si falta (npx clckernel . --yes);
                                 mantener los valores por defecto escribe un .clckernel.yaml con solo un comentario`,
       },
@@ -136,7 +138,9 @@ $ npx clckernel update
 11. check_skills        -> Frontmatter de SKILL.md: name + description, nombres únicos
 12. check_links         -> Los links relativos de Markdown apuntan a archivos del commit
 13. check_placeholders  -> Placeholders de borrador olvidados fuera de templates/
-14. check_data_files    -> Todo archivo .json modificado parsea (en cualquier carpeta)`,
+14. check_data_files    -> Todo archivo .json modificado parsea (en cualquier carpeta)
+15. check_journal       -> Opcional (--add-guards check_journal): un cambio SDD auditado en HEAD necesita su
+                           entrada en docs/Journal/<YYYY>/ en el commit; se salta sin sdds/ (CI)`,
       },
       {
         id: "ast-examples",
@@ -160,7 +164,7 @@ $ npx clckernel update
       {
         id: "config-yaml",
         title: "Configuración (.clckernel.yaml)",
-        desc: "Opcional. Claves: rules, exclude_paths, mirrors, hitl, update, tdd, severities, guard_exclude (ver la tabla Configuración del README). Para dejar rutas fuera de un solo guard, prefiera guard_exclude a exclude_paths, que las oculta a todos los guards. Los guards los elige el stack, no este archivo; se agregan más con clckernel update --add-guards.",
+        desc: "Opcional. Claves: rules, exclude_paths, mirrors, hitl, update, tdd, severities, guard_exclude, journal (ver la tabla Configuración del README). Para dejar rutas fuera de un solo guard, prefiera guard_exclude a exclude_paths, que las oculta a todos los guards. Los guards los elige el stack, no este archivo; se agregan más con clckernel update --add-guards.",
         code: `# .clckernel.yaml (optional; every key below is optional)
 rules:
   - name: no-console-log

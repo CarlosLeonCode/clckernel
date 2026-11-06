@@ -25,6 +25,12 @@ const ROOT = path.resolve(__dirname, '..');
 const CLI = path.join(ROOT, 'bin', 'cli.js');
 const REGISTRY = 'tools/.clckernel-managed.json';
 const NEW_IN_2_2_0 = ['check_sql_migrations', 'check_query_efficiency', 'check_mcp_contracts'];
+// sdds/decision-log: check_journal arrives in the next minor.
+const NEW_SINCE_2_1_0 = [...NEW_IN_2_2_0, 'check_journal'];
+/** The newest `since` in the catalog: a project on it has nothing new. */
+const LATEST_SINCE = SAFEGUARD_CATALOG.filter((e) => e.since).map((e) => e.since).sort(compareVersions).pop();
+/** The next minor of a version (2.3.0 for 2.2.1): the highest `since` a catalog entry may declare before its release. */
+const nextMinor = (version) => { const [major, minor] = version.split('.').map(Number); return `${major}.${minor + 1}.0`; };
 const ANSI_RE = /\x1b\[/;
 const sha = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
 
@@ -193,7 +199,7 @@ describe('item 3: whatsNew lists the bundled guards released after the installed
 
   it('defaults to the real catalog', () => {
     const names = whatsNew({ installedVersion: '2.1.0', installed: [], offered: [] }).map((e) => e.name);
-    assert.deepStrictEqual(names, NEW_IN_2_2_0);
+    assert.deepStrictEqual(names, NEW_SINCE_2_1_0);
   });
 });
 
@@ -206,11 +212,11 @@ describe('item 4: the catalog records the version that brought each new guard', 
     }
   });
 
-  it('every since is a valid version not newer than the package', () => {
+  it('every since is a valid version not newer than the next minor of the package', () => {
     const withSince = SAFEGUARD_CATALOG.filter((e) => 'since' in e);
     assert.ok(withSince.length >= 3);
     for (const e of withSince) {
-      assert.ok(compareVersions(e.since, CURRENT) <= 0, `${e.name}: since ${e.since} is newer than ${CURRENT}`);
+      assert.ok(compareVersions(e.since, nextMinor(CURRENT)) <= 0, `${e.name}: since ${e.since} is newer than ${nextMinor(CURRENT)} (the next minor of ${CURRENT})`);
     }
   });
 
@@ -225,14 +231,14 @@ describe('item 4: the catalog records the version that brought each new guard', 
 // ── Item 5: integration, plan.whatsNew and the text output ──────────────────
 
 describe('item 5: update reports what is new since the installed version', () => {
-  it('a project last updated with 2.1.0: plan.whatsNew lists the three guards of 2.2.0, none installed', () => {
+  it('a project last updated with 2.1.0: plan.whatsNew lists the guards since 2.2.0, none installed', () => {
     const dir = setKernelVersion(installed(AGENT_OS), '2.1.0');
     try {
       const result = quietly(() => updateHarness(dir, { dryRun: true }));
       assert.deepStrictEqual(result.kernelVersion, { installed: '2.1.0', current: CURRENT });
-      assert.deepStrictEqual(result.plan.whatsNew.map((e) => e.name), NEW_IN_2_2_0);
+      assert.deepStrictEqual(result.plan.whatsNew.map((e) => e.name), NEW_SINCE_2_1_0);
       for (const e of result.plan.whatsNew) {
-        assert.strictEqual(e.since, '2.2.0');
+        if (NEW_IN_2_2_0.includes(e.name)) assert.strictEqual(e.since, '2.2.0');
         assert.strictEqual(e.installed, false, e.name);
         assert.strictEqual(e.inStack, false, `${e.name}: an agent-os stack does not offer it`);
         assert.strictEqual(e.command, `npx clckernel update --add-guards ${e.name}`);
@@ -252,7 +258,7 @@ describe('item 5: update reports what is new since the installed version', () =>
     try {
       const result = quietly(() => updateHarness(dir, { dryRun: true }));
       const byName = Object.fromEntries(result.plan.whatsNew.map((e) => [e.name, e]));
-      assert.deepStrictEqual(Object.keys(byName), NEW_IN_2_2_0);
+      assert.deepStrictEqual(Object.keys(byName), NEW_SINCE_2_1_0);
       assert.strictEqual(byName.check_sql_migrations.installed, true);
       assert.strictEqual(byName.check_sql_migrations.inStack, true);
       assert.strictEqual(byName.check_query_efficiency.installed, true);
@@ -292,8 +298,8 @@ describe('item 5: update reports what is new since the installed version', () =>
     }
   });
 
-  it('a project already on 2.2.0 gets no "New since" section', () => {
-    const dir = setKernelVersion(installed(AGENT_OS), '2.2.0');
+  it('a project already on the newest since gets no "New since" section', () => {
+    const dir = setKernelVersion(installed(AGENT_OS), LATEST_SINCE);
     try {
       const result = quietly(() => updateHarness(dir, { dryRun: true }));
       assert.deepStrictEqual(result.plan.whatsNew, []);
@@ -389,7 +395,7 @@ describe('item 6: update --json prints one JSON object', () => {
       assert.strictEqual(out.success, true);
       assert.strictEqual(out.dryRun, true);
       assert.deepStrictEqual(out.kernelVersion, { installed: '2.1.0', current: CURRENT });
-      assert.deepStrictEqual(out.whatsNew.map((e) => e.name), NEW_IN_2_2_0);
+      assert.deepStrictEqual(out.whatsNew.map((e) => e.name), NEW_SINCE_2_1_0);
       assert.ok(Array.isArray(out.plan.written) && Array.isArray(out.plan.unchanged) && Array.isArray(out.plan.protected));
       assert.ok(!('whatsNew' in out.plan), 'whatsNew is reported once, at the top level');
       assert.deepStrictEqual(out.warnings, { config: [], foreignGuards: [] });

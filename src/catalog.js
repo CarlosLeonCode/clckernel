@@ -163,6 +163,12 @@ const SAFEGUARD_CATALOG = [
     phase: 'audit', file: 'check_mcp_contracts.js', manifest: true, planned: false, lens: 'architecture',
     since: '2.2.0', adopt: 'Needs a JS/TS package that depends on @modelcontextprotocol/sdk; by default a tool registered without an input schema blocks commits; the contracts-module and data-client rules apply only when mcp_contracts configures them.' },
 
+  { name: 'check_journal', labels: ['check_journal', 'check_journal.js'],
+    checks: 'Journal: one entry per audited SDD change in docs/Journal/<year>/ (`npx clckernel journal <change>` creates it; Context, Decision, Alternatives, Consequences; journal.max_lines)', verify: ['verify_journal_entry'],
+    applies_when: 'always', severity: 'error', gate_mode: 'hard', config_keys: ['journal', 'exclude_paths', 'guard_exclude'],
+    phase: 'audit', file: 'check_journal.js', manifest: false, planned: false, lens: 'correctness',
+    since: '2.3.0', adopt: 'Blocks a commit when an SDD change audited on the current HEAD (sdds/<change>/audit-receipt*.json) has no journal entry in docs/Journal/<year>/ (journal.dir), and when a staged entry has an invalid name, sections or length; best adopted between changes; skipped where sdds/ is absent (CI, a fresh clone), since the receipts are local.' },
+
   { name: 'ruff', labels: ['ruff'],
     checks: 'Python linter (external CLI)', verify: ['verify_python_lint'],
     applies_when: 'backend', severity: 'warning', gate_mode: 'advisory', config_keys: [],

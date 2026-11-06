@@ -136,6 +136,7 @@ The agent autonomously executes the complete AIUP cycle:
 4. **TDD Red Phase:** Writes a failing regression test proving the requirement.
 5. **Clean Implementation (Green Phase):** Writes minimal code to pass tests while respecting layer isolation.
 6. **Audit Gate:** Runs `node tools/audit.js --change <name>` and outputs the verification summary (report in `sdds/<name>/`).
+7. **Journal Entry:** With `check_journal` installed, runs `npx clckernel journal <name>` and fills in the entry from the SDD, committed with the change (see [Journal entries](#journal)).
 
 ### 4️⃣ Step 4: Deterministic Guard Verification (Git Commit)
 ```bash
@@ -318,6 +319,28 @@ reviews each new guard with you and adds only the ones you approve.
 npx clckernel update . --dry-run --json
 ```
 
+<a id="journal"></a>
+### 📓 Journal entries (optional: `check_journal`)
+`sdds/` is gitignored, so the *why* of each change stays on the machine that wrote it. The journal is the
+committed record: one short Markdown file per audited SDD change, `docs/Journal/<YYYY>/<YYYYMMDDTHHMMZ>-<change>.md`
+(UTC timestamp, so the names sort by date and two branches do not collide), with a frontmatter `change:` and
+`date:` and four sections: `## Context`, `## Decision`, `## Alternatives`, `## Consequences`. There is no
+index: an agent lists the year folder and reads the entries that touch the area it works on. The numbered ADRs
+already in `docs/Journal/` stay as they are.
+
+`npx clckernel journal <change> [targetDir]` creates the entry from a template (the `<change>` name follows the
+`audit --change` rule) and refuses a change that already has one; you or your agent fill it in from the SDD.
+The `check_journal` guard is not installed by default: add it with
+`npx clckernel update . --add-guards check_journal`. Then, for each `sdds/<change>/audit-receipt*.json` whose
+`commitHash` is the current HEAD (the audited change you are about to commit), the hook blocks the commit
+until that change's entry is in the index or in HEAD, and every staged entry under `docs/Journal/<YYYY>/` must
+have a valid name, its `change:`, the four sections and at most `journal.max_lines` lines. Receipts of other
+commits are ignored, so adopting it asks nothing for earlier changes; adopt it between changes. The receipts
+are local: without `sdds/` (CI, a fresh clone) the guard is skipped and says so.
+```bash
+npx clckernel journal add-cache .
+```
+
 ---
 
 <a id="configuration"></a>
@@ -351,6 +374,8 @@ with `Invalid .clckernel.yaml: key "<key>" — <reason>` (nothing is written, th
 | `mcp_contracts.forbid_data_clients` | `true`: a file that registers tools may not import a data client | `false` | `check_mcp_contracts` |
 | `mcp_contracts.severities` | `{ missing_schema, inline_schema, schema_source, data_client }`: `error`, `warning` or `"off"` (quoted) | all `error` | `check_mcp_contracts` |
 | `ui_reuse.primitives` | Globs of the UI primitives, exempt from the raw `<button>` / `<input>` / `<select>` rules | `**/components/ui/**` | `check_ui_reuse` |
+| `journal.dir` | Folder of the journal entries (`<dir>/<YYYY>/<YYYYMMDDTHHMMZ>-<change>.md`), inside the project | `docs/Journal` | `check_journal`, `clckernel journal` |
+| `journal.max_lines` | The most lines a journal entry may have (a positive integer) | `80` | `check_journal` |
 
 ```yaml
 exclude_paths: ["vendor/**"]

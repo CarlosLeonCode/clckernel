@@ -137,6 +137,7 @@ El agente ejecutará de forma autónoma el ciclo AIUP completo:
 4. **Fase Roja TDD:** Escribe un test de regresión que falle demostrando el requerimiento.
 5. **Implementación Verde:** Escribe el código mínimo necesario respetando el aislamiento de capas.
 6. **Compuerta de Auditoría:** Ejecuta `node tools/audit.js --change <nombre>` y emite el resumen de verificación (informe en `sdds/<nombre>/`).
+7. **Entrada del Journal:** Con `check_journal` instalado, ejecuta `npx clckernel journal <nombre>` y completa la entrada desde el SDD, commiteada con el cambio (ver [Entradas del journal](#journal)).
 
 ### 4️⃣ Paso 4: Verificación Determinística de Guards (Git Commit)
 ```bash
@@ -321,6 +322,28 @@ error imprime `{ contract, success: false, error }` y sale con 1. El playbook de
 npx clckernel update . --dry-run --json
 ```
 
+<a id="journal"></a>
+### 📓 Entradas del journal (opcional: `check_journal`)
+`sdds/` está en `.gitignore`, así que el *por qué* de cada cambio se queda en la máquina que lo escribió. El
+journal es el registro commiteado: un archivo Markdown corto por cada cambio SDD auditado,
+`docs/Journal/<YYYY>/<YYYYMMDDTHHMMZ>-<cambio>.md` (timestamp UTC: los nombres se ordenan por fecha y dos ramas
+no chocan), con frontmatter `change:` y `date:` y cuatro secciones: `## Context`, `## Decision`,
+`## Alternatives`, `## Consequences`. No hay índice: un agente lista la carpeta del año y lee las entradas que
+tocan el área en la que trabaja. Los ADRs numerados que ya están en `docs/Journal/` quedan como están.
+
+`npx clckernel journal <cambio> [targetDir]` crea la entrada desde una plantilla (el nombre `<cambio>` sigue la
+regla de `audit --change`) y se niega si el cambio ya tiene una; vos o tu agente la completan desde el SDD.
+El guard `check_journal` no se instala por defecto: se agrega con
+`npx clckernel update . --add-guards check_journal`. Desde entonces, por cada `sdds/<cambio>/audit-receipt*.json`
+cuyo `commitHash` es el HEAD actual (el cambio auditado que estás por commitear), el hook bloquea el commit hasta
+que la entrada de ese cambio esté en el índice o en HEAD, y toda entrada staged bajo `docs/Journal/<YYYY>/` debe
+tener un nombre válido, su `change:`, las cuatro secciones y como máximo `journal.max_lines` líneas. Los
+receipts de otros commits se ignoran, así que adoptarlo no pide nada para los cambios anteriores; adoptalo entre
+cambios. Los receipts son locales: sin `sdds/` (CI, un clon nuevo) el guard se salta y lo dice.
+```bash
+npx clckernel journal add-cache .
+```
+
 ---
 
 <a id="configuracion"></a>
@@ -354,6 +377,8 @@ con `Invalid .clckernel.yaml: key "<key>" — <motivo>` (no se escribe nada, el 
 | `mcp_contracts.forbid_data_clients` | `true`: un archivo que registra tools no puede importar un cliente de datos | `false` | `check_mcp_contracts` |
 | `mcp_contracts.severities` | `{ missing_schema, inline_schema, schema_source, data_client }`: `error`, `warning` u `"off"` (entre comillas) | todas `error` | `check_mcp_contracts` |
 | `ui_reuse.primitives` | Globs de los primitivos de UI, exentos de las reglas de `<button>` / `<input>` / `<select>` crudos | `**/components/ui/**` | `check_ui_reuse` |
+| `journal.dir` | Carpeta de las entradas del journal (`<dir>/<YYYY>/<YYYYMMDDTHHMMZ>-<cambio>.md`), dentro del proyecto | `docs/Journal` | `check_journal`, `clckernel journal` |
+| `journal.max_lines` | Máximo de líneas de una entrada del journal (un entero positivo) | `80` | `check_journal` |
 
 ```yaml
 exclude_paths: ["vendor/**"]

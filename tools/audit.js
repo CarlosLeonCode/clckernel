@@ -797,6 +797,6 @@ if (require.main === module) {
 }
 
 module.exports = {
-  main, parseArgs, reportNames, applyLevels, discoverGuards, discoverProjectGuards, planGuards, isGuardFile,
+  CHANGE_NAME, main, parseArgs, reportNames, applyLevels, discoverGuards, discoverProjectGuards, planGuards, isGuardFile,
   runGuard, runProjectGuard, generateReceipt,
 };

@@ -110,6 +110,14 @@ WRITES TO THE TARGET PROJECT
                                 the guards new since the installed version,
                                 warnings, next steps) instead of text, for
                                 agents; add --dry-run to write nothing
+  journal <change> [targetDir]  Create the journal entry of an SDD change,
+                                docs/Journal/<YYYY>/<timestamp>-<change>.md
+                                (UTC; journal.dir in .clckernel.yaml), with
+                                its frontmatter and the Context, Decision,
+                                Alternatives and Consequences sections to
+                                fill in from the SDD. <change> follows the
+                                audit --change rule. Refuses a change that
+                                already has an entry
   clckernel [targetDir] --yes   Provision the governance harness
   --dry-run                     With update or --yes: print the plan, write nothing
 
@@ -132,6 +140,7 @@ EXAMPLES
   clckernel update . --dry-run
   clckernel update . --dry-run --json
   clckernel update . --add-guards check_skills
+  clckernel journal my-feature .
   clckernel . --yes
 `;
 
@@ -257,6 +266,29 @@ function parseAuditArgs(rest) {
   return out;
 }
 
+/**
+ * `clckernel journal <change> [targetDir]`: creates the change's journal entry
+ * (src/journal.js) and prints its path.
+ * @param {string[]} args - Raw argv, starting with `journal`
+ * @returns {number} Process exit code
+ */
+function runJournal(args) {
+  const { createEntry, parseJournalArgs } = require('./journal');
+  const parsed = parseJournalArgs(args.slice(1));
+  if (!parsed) return rejectUnknownInput(args);
+  const dir = resolveExistingDir(parsed.targetDir);
+  if (!dir) return 1;
+  try {
+    const { rel } = createEntry(dir, parsed.change);
+    process.stdout.write(`Created ${rel}\nFill in its sections from the SDD and stage it with the change.\n`);
+    return 0;
+  } catch (err) {
+    if (err.name !== 'JournalError' && err.name !== 'ConfigError') throw err;
+    process.stderr.write(`\n❌ ${err.message}\n   Nothing was written.\n\n`);
+    return 1;
+  }
+}
+
 async function runCli() {
   const args = process.argv.slice(2);
   const command = args[0];
@@ -288,6 +320,11 @@ async function runCli() {
       return;
     }
     process.exitCode = runAudit(parsed.targetDir, parsed.change);
+    return;
+  }
+
+  if (command === 'journal') {
+    process.exitCode = runJournal(args);
     return;
   }
 

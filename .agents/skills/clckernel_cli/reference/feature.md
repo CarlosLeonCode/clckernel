@@ -7,6 +7,7 @@ Guide the developer through implementing a new feature strictly governed by the 
 ### Step 1: Research & Impact Analysis
 1. Inspect the codebase, existing modules, and architecture layers before writing any code.
 2. Determine affected architectural layers (Domain, Use Cases, Infrastructure, Presentation).
+3. If `docs/Journal/` has entries (`docs/Journal/<YYYY>/<timestamp>-<change>.md`), list the folder of the current year (and the previous one when useful) and read the entries that touch the area: they record why earlier changes were made.
 
 ### Step 2: Local SDD Specification
 1. Create a local specification file at \`sdds/{name}/spec.md\` (or \`sdds/{name}/01-spec.md\`).
@@ -36,3 +37,7 @@ Guide the developer through implementing a new feature strictly governed by the 
 1. Execute \`node tools/audit.js --change <name>\` or \`python tools/audit.py --change <name>\` (writes the report and receipt to \`sdds/<name>/\`).
 2. Output the Educational Summary table to stdout.
 3. Verify zero secret findings, zero layer violations, and zero N+1 heuristic findings.
+
+### Step 7: Journal Entry
+1. If `tools/check_journal.js` is installed, run `npx clckernel journal <name>` after the audit and fill in the entry it prints from the SDD: Context, Decision, Alternatives, Consequences, in English, within `journal.max_lines` (default 80) lines, with no secrets, no local paths and no links to `sdds/` (it is gitignored).
+2. Stage the entry with the change: it goes in the commit that closes it (see commit.md). With `check_journal` installed the hook blocks that commit until the entry is there.

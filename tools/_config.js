@@ -34,6 +34,9 @@
  *                     severities { <rule>: ... }
  *   ui_reuse          check_ui_reuse: primitives (globs of the UI primitives,
  *                     exempt from the raw-element rules)
+ *   journal           check_journal and `clckernel journal`: dir (the folder of the
+ *                     entries, inside the project; default docs/Journal) and
+ *                     max_lines (the most lines an entry may have; default 80)
  *
  * Removed keys (no effect) produce a deprecation warning; unknown top-level
  * keys a warning; an invalid value throws ConfigError naming file and key.
@@ -46,7 +49,7 @@ const { parseYaml, globToRegex } = require('./yaml.js');
 // Lookup order: the canonical name first, then older names kept for compatibility.
 const CONFIG_NAMES = ['.clckernel.yaml', '.clckernel.yml', '.clc-forge.yaml', '.clc-forge.yml'];
 
-const KEYS = ['rules', 'exclude_paths', 'mirrors', 'hitl', 'update', 'tdd', 'severities', 'guard_exclude', 'sql_migrations', 'query_efficiency', 'mcp_contracts', 'ui_reuse'];
+const KEYS = ['rules', 'exclude_paths', 'mirrors', 'hitl', 'update', 'tdd', 'severities', 'guard_exclude', 'sql_migrations', 'query_efficiency', 'mcp_contracts', 'ui_reuse', 'journal'];
 const LEVELS = ['error', 'warning'];
 /** Levels of one rule of a guard (its section's `severities`): 'off' disables the rule. */
 const RULE_LEVELS = ['error', 'warning', 'off'];
@@ -82,6 +85,9 @@ const GUARD_SECTIONS = {
     rules: {},
   },
 };
+
+/** Defaults of the journal key (check_journal, `clckernel journal`). */
+const JOURNAL_DEFAULTS = { dir: 'docs/Journal', max_lines: 80 };
 
 /** Keys earlier releases documented that never had an effect, with the reason. */
 const DEPRECATED_KEYS = {
@@ -126,6 +132,7 @@ function defaultConfig() {
       key,
       { ...JSON.parse(JSON.stringify(defaults)), severities: { ...rules } },
     ])),
+    journal: { ...JOURNAL_DEFAULTS },
   };
 }
 
@@ -235,6 +242,29 @@ function checkMirrorPath(item, key, file) {
   if (path.posix.normalize(item) === 'AGENTS.md') throw new ConfigError(key, 'AGENTS.md is the source, not a mirror', file);
 }
 
+/**
+ * journal: dir, a folder inside the project (stored normalized, without a
+ * trailing slash), and max_lines, a positive integer.
+ */
+function validateJournal(raw, file, config) {
+  const journal = section(raw, 'journal', Object.keys(JOURNAL_DEFAULTS), file);
+  if (journal.dir !== undefined && journal.dir !== null) {
+    const dir = journal.dir;
+    if (typeof dir !== 'string' || dir.trim() === '') throw new ConfigError('journal.dir', 'expected a non-empty folder path', file);
+    const normalized = path.posix.normalize(dir.replace(/\\/g, '/')).replace(/\/+$/, '');
+    if (path.isAbsolute(dir) || dir.startsWith('/') || normalized === '.' || normalized === '..' || normalized.startsWith('../')) {
+      throw new ConfigError('journal.dir', `"${dir}" must be a folder inside the project`, file);
+    }
+    config.journal.dir = normalized;
+  }
+  if (journal.max_lines !== undefined && journal.max_lines !== null) {
+    if (!Number.isInteger(journal.max_lines) || journal.max_lines < 1) {
+      throw new ConfigError('journal.max_lines', `expected a positive integer, got ${JSON.stringify(journal.max_lines)}`, file);
+    }
+    config.journal.max_lines = journal.max_lines;
+  }
+}
+
 function checkRegex(item, key, file) {
   try {
     new RegExp(item, 'i');
@@ -302,6 +332,7 @@ function validateConfig(raw, file = CONFIG_NAMES[0]) {
   config.severities = validateSeverities(raw.severities, file);
   config.guard_exclude = validateGuardExclude(raw.guard_exclude, file);
   for (const key of Object.keys(GUARD_SECTIONS)) validateGuardSection(raw, key, file, config);
+  validateJournal(raw, file, config);
 
   return { config, warnings };
 }
@@ -382,6 +413,7 @@ module.exports = {
   DEPRECATED_KEYS,
   GUARD_SECTIONS,
   GENERATED_FILES,
+  JOURNAL_DEFAULTS,
   ConfigError,
   defaultConfig,
   validateConfig,

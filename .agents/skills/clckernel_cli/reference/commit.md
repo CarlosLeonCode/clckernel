@@ -11,6 +11,7 @@ Safely commit changes after verifying all pre-flight quality and architecture ga
 ### Step 2: Scope Verification
 1. Compare \`git diff --cached\` (or unstaged diff) against the active SDD spec in \`sdds/{change}/\`.
 2. Verify that no files outside the agreed feature scope are staged.
+3. When the change was audited with `--change <change>` and `tools/check_journal.js` is installed, its journal entry (`npx clckernel journal <change>`, filled in from the SDD) is staged in this same commit, the one that closes the change; the hook blocks the commit without it.
 
 ### Step 3: Conventional Commit Formatting
 1. Format commit message according to Conventional Commits:

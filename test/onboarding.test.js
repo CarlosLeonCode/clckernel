@@ -131,7 +131,13 @@ describe('onboarding — update Next steps only when something needs attention',
       assert.strictEqual(cli([dir, '--yes'], dir).status, 0);
       const { status, out } = cli(['update', dir], dir);
       assert.strictEqual(status, 0, out);
-      assert.strictEqual(nextSteps(out), '');
+      // sdds/decision-log, decision 11: a catalog guard may declare the next minor as its
+      // since before the release; until the package reaches it, update lists it as new.
+      const { version } = require('../package.json');
+      const { isNewer } = require('../src/version');
+      const pending = nextSteps(out).split('\n').filter((line) => /^\s+\d+\. /.test(line))
+        .filter((line) => !(/New in (\d+\.\d+\.\d+):/.test(line) && isNewer(/New in (\d+\.\d+\.\d+):/.exec(line)[1], version)));
+      assert.deepStrictEqual(pending, [], out);
     } finally {
       teardown(dir);
     }

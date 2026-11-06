@@ -8,7 +8,8 @@ Enforce deterministic bug fixing without quick-fix shortcuts or superficial patc
 1. Analyze the issue description, error logs, and stack trace.
 2. Inspect the relevant files and surrounding architecture to pinpoint the exact failure mechanism.
 3. **DO NOT** edit source code directly to "try things out".
-4. If the root cause is in a kernel-owned file (listed in `tools/.clckernel-managed.json`, the generated hook, `.agents/skills/clckernel_cli/` or the `clckernel` CLI), stop here and switch to [report-bug.md](report-bug.md): never patch kernel files in the project.
+4. If `docs/Journal/` has entries (`docs/Journal/<YYYY>/<timestamp>-<change>.md`), list the folder of the current year and read the entries that touch the affected area: they record why it is the way it is.
+5. If the root cause is in a kernel-owned file (listed in `tools/.clckernel-managed.json`, the generated hook, `.agents/skills/clckernel_cli/` or the `clckernel` CLI), stop here and switch to [report-bug.md](report-bug.md): never patch kernel files in the project.
 
 ### Step 2: TDD Red Phase (Regression Test)
 1. Write a focused test that reproduces the bug demonstrably.
@@ -23,3 +24,7 @@ Enforce deterministic bug fixing without quick-fix shortcuts or superficial patc
 ### Step 4: Mandatory Audit Gate
 1. Execute \`node tools/audit.js\` or \`python tools/audit.py\`.
 2. Output the Educational Summary table to verify no side effects or guard violations occurred.
+
+### Step 5: Journal Entry
+1. If the fix was audited as an SDD change (`audit --change <issue>`) and `tools/check_journal.js` is installed, run `npx clckernel journal <issue>` and fill in the entry from the SDD: Context, Decision, Alternatives, Consequences, short, with no secrets, no local paths and no links to `sdds/`.
+2. Stage the entry with the fix: it goes in the same commit (see commit.md).
